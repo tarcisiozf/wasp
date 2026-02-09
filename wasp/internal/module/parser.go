@@ -14,6 +14,7 @@ const (
 	sectionImport   = 0x2
 	sectionFunction = 0x3
 	sectionExport   = 0x7
+	sectionStart    = 0x8
 	sectionCode     = 0xa
 
 	typeFunc = 0x60
@@ -59,6 +60,8 @@ func parseSections(module *Module, iter *iterator.Iterator) (err error) {
 			err = parseCodeSection(module, iter)
 		case sectionImport:
 			err = parseImportSection(module, iter)
+		case sectionStart:
+			err = parseStartSection(module, iter)
 		default:
 			return fmt.Errorf("invalid section type: 0x%x", sectionOpcode)
 		}
@@ -71,6 +74,11 @@ func parseSections(module *Module, iter *iterator.Iterator) (err error) {
 			sectionSize = iter.Varint()
 		}
 	}
+	return nil
+}
+
+func parseStartSection(module *Module, iter *iterator.Iterator) error {
+	module.startFuncIndex = iter.Varint()
 	return nil
 }
 

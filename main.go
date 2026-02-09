@@ -27,6 +27,16 @@ func main() {
 		panic(err)
 	}
 
+	fn, err = module.StartFunction()
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = fn()
+	if err != nil {
+		panic(err)
+	}
+
 	//wat := `(module
 	//  (import "console" "log" (func $log (param i32)))
 	//  (func $main

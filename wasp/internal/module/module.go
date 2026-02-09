@@ -6,15 +6,17 @@ import (
 )
 
 type Module struct {
-	functions []Function
-	exports   map[string]Export
-	imports   map[string]map[string]Import
+	functions      []Function
+	exports        map[string]Export
+	imports        map[string]map[string]Import
+	startFuncIndex int
 }
 
 func NewModule() *Module {
 	return &Module{
-		exports: make(map[string]Export),
-		imports: make(map[string]map[string]Import),
+		exports:        make(map[string]Export),
+		imports:        make(map[string]map[string]Import),
+		startFuncIndex: -1,
 	}
 }
 
@@ -39,6 +41,20 @@ func (module *Module) GetExportedFunction(name string) (func(args ...any) ([]any
 
 	fn := module.functions[export.index]
 
+	return wrapCallable(fn), nil
+}
+
+func (module *Module) StartFunction() (func(args ...any) ([]any, error), error) {
+	if module.startFuncIndex < 0 || module.startFuncIndex >= len(module.functions) {
+		return nil, fmt.Errorf("invalid start function index: %d", module.startFuncIndex)
+	}
+
+	fn := module.functions[module.startFuncIndex]
+
+	return wrapCallable(fn), nil
+}
+
+func wrapCallable(fn Function) func(args ...any) ([]any, error) {
 	return func(args ...any) ([]any, error) {
 		if len(args) != len(fn.params) {
 			return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.params), len(args))
@@ -47,5 +63,5 @@ func (module *Module) GetExportedFunction(name string) (func(args ...any) ([]any
 		stack := memory.NewStack()
 
 		return fn.call(stack, args)
-	}, nil
+	}
 }
