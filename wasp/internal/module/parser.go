@@ -2,8 +2,8 @@ package module
 
 import (
 	"fmt"
+	"wasp/wasp/internal/instructions"
 	"wasp/wasp/internal/iterator"
-	"wasp/wasp/internal/opcodes"
 )
 
 const (
@@ -196,7 +196,7 @@ func parseCodeSection(module *Module, iter *iterator.Iterator) (err error) {
 
 		var body []byte
 		if bodySize == guessSize {
-			body, err = iter.ReadUntil(opcodes.End) // read until end opcode
+			body, err = iter.ReadUntil(instructions.End.Opcode) // read until end opcode
 			if err != nil {
 				return fmt.Errorf("failed to read function body: %w", err)
 			}

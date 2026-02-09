@@ -5,18 +5,24 @@ import (
 	"wasp/wasp/internal/execution"
 )
 
-type Handler func(ctx *execution.Context) error
+type handler func(ctx *execution.Context) error
 
-var instructions = make([]Handler, 256)
-
-func addInstruction(opcode byte, handler Handler) Handler {
-	if instructions[opcode] != nil {
-		panic(fmt.Sprintf("instruction already defined: %v", opcode))
-	}
-	instructions[opcode] = handler
-	return handler
+type instruction struct {
+	Opcode  byte
+	Handler handler
 }
 
-func Instruction(opcode byte) Handler {
+var instructions = make([]instruction, 256)
+
+func addInstruction(opcode byte, handler handler) instruction {
+	if instructions[opcode].Opcode != 0 {
+		panic(fmt.Sprintf("instruction already defined: %v", opcode))
+	}
+	instructions[opcode].Opcode = opcode
+	instructions[opcode].Handler = handler
+	return instructions[opcode]
+}
+
+func Instruction(opcode byte) instruction {
 	return instructions[opcode]
 }

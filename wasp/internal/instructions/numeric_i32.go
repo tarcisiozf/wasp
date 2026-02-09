@@ -2,11 +2,10 @@ package instructions
 
 import (
 	"wasp/wasp/internal/execution"
-	"wasp/wasp/internal/opcodes"
 )
 
 var (
-	I32Mul = addInstruction(opcodes.I32Mul, func(ctx *execution.Context) error {
+	I32Mul = addInstruction(0x6c, func(ctx *execution.Context) error {
 		b := ctx.Stack.Pop().(int32)
 		a := ctx.Stack.Pop().(int32)
 		ctx.Stack.Push(a * b)
