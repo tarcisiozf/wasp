@@ -93,7 +93,7 @@ func parseImportSection(module *Module, iter *iterator.Iterator) error {
 		importSignatureIndex := iter.Varint()
 
 		if importKind != kindFunc {
-
+			return fmt.Errorf("invalid import kind 0x%x", importKind)
 		}
 
 		imp := Import{
@@ -145,7 +145,10 @@ func parseFuncType(module *Module, iter *iterator.Iterator) error {
 		results[i] = iter.Varint()
 	}
 
-	module.addFunction(params, results)
+	module.functionSignatures = append(module.functionSignatures, FunctionSignature{
+		params:  params,
+		results: results,
+	})
 
 	return nil
 }
@@ -153,7 +156,10 @@ func parseFuncType(module *Module, iter *iterator.Iterator) error {
 func parseFunctionSection(module *Module, iter *iterator.Iterator) error {
 	numFunctions := iter.Varint()
 	for i := 0; i < numFunctions; i++ {
-		_ = iter.Varint() // func signature index
+		funcSignatureIndex := iter.Varint()
+		module.functions = append(module.functions, Function{
+			signature: module.functionSignatures[funcSignatureIndex],
+		})
 	}
 	return nil
 }

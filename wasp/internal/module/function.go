@@ -8,10 +8,14 @@ import (
 	"wasp/wasp/internal/memory"
 )
 
-type Function struct {
+type FunctionSignature struct {
 	params  []int
 	results []int
-	body    *iterator.Iterator
+}
+
+type Function struct {
+	signature FunctionSignature
+	body      *iterator.Iterator
 }
 
 func (fn *Function) call(stack *memory.Stack, args []any) ([]any, error) {
@@ -44,8 +48,8 @@ func (fn *Function) call(stack *memory.Stack, args []any) ([]any, error) {
 		}
 	}
 
-	results := make([]any, len(fn.results))
-	for i := range fn.results {
+	results := make([]any, len(fn.signature.results))
+	for i := range fn.signature.results {
 		results[i] = stack.Pop()
 	}
 	return results, nil

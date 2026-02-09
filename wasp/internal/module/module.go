@@ -6,9 +6,12 @@ import (
 )
 
 type Module struct {
-	functions      []Function
-	exports        map[string]Export
-	imports        map[string]map[string]Import
+	functionSignatures []FunctionSignature
+	functions          []Function
+
+	exports map[string]Export
+	imports map[string]map[string]Import
+
 	startFuncIndex int
 }
 
@@ -18,15 +21,6 @@ func NewModule() *Module {
 		imports:        make(map[string]map[string]Import),
 		startFuncIndex: -1,
 	}
-}
-
-func (module *Module) addFunction(params, results []int) int {
-	index := len(module.functions)
-	module.functions = append(module.functions, Function{
-		params:  params,
-		results: results,
-	})
-	return index
 }
 
 func (module *Module) GetExportedFunction(name string) (func(args ...any) ([]any, error), error) {
@@ -39,25 +33,30 @@ func (module *Module) GetExportedFunction(name string) (func(args ...any) ([]any
 		return nil, fmt.Errorf("export is not a function: %s", name)
 	}
 
-	fn := module.functions[export.index]
+	fn := module.FunctionAt(export.index)
 
 	return wrapCallable(fn), nil
 }
 
 func (module *Module) StartFunction() (func(args ...any) ([]any, error), error) {
-	if module.startFuncIndex < 0 || module.startFuncIndex >= len(module.functions) {
+	if module.startFuncIndex < 0 {
 		return nil, fmt.Errorf("invalid start function index: %d", module.startFuncIndex)
 	}
 
-	fn := module.functions[module.startFuncIndex]
+	fn := module.FunctionAt(module.startFuncIndex)
 
 	return wrapCallable(fn), nil
 }
 
+func (module *Module) FunctionAt(index int) Function {
+	// function index is offset by number of imports
+	return module.functions[index-len(module.imports)]
+}
+
 func wrapCallable(fn Function) func(args ...any) ([]any, error) {
 	return func(args ...any) ([]any, error) {
-		if len(args) != len(fn.params) {
-			return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.params), len(args))
+		if len(args) != len(fn.signature.params) {
+			return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.signature.params), len(args))
 		}
 
 		stack := memory.NewStack()
