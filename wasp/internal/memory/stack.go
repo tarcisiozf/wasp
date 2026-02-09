@@ -1,20 +1,20 @@
-package wasp
+package memory
 
 type Stack struct {
 	items []any
 }
 
-func newStack() *Stack {
+func NewStack() *Stack {
 	return &Stack{}
 }
 
-func (s *Stack) push(value any) {
+func (s *Stack) Push(value any) {
 	s.items = append(s.items, value)
 }
 
-func (s *Stack) pop() any {
+func (s *Stack) Pop() any {
 	if len(s.items) == 0 {
-		panic("stack underflow")
+		panic("memory underflow")
 	}
 
 	value := s.items[len(s.items)-1]

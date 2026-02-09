@@ -1,4 +1,4 @@
-package wasp
+package iterator
 
 import (
 	"encoding/binary"
@@ -11,32 +11,32 @@ type Iterator struct {
 	pos  int
 }
 
-func (it *Iterator) uint32() uint32 {
+func (it *Iterator) Uint32() uint32 {
 	value := binary.LittleEndian.Uint32(it.data[it.pos:])
 	it.pos += 4
 	return value
 }
 
-func (it *Iterator) done() bool {
+func (it *Iterator) Done() bool {
 	return it.pos >= it.size
 }
 
-func (it *Iterator) byte() byte {
+func (it *Iterator) Byte() byte {
 	b := it.data[it.pos]
 	it.pos++
 	return b
 }
 
-func (it *Iterator) bytes(n int) []byte {
+func (it *Iterator) Bytes(n int) []byte {
 	b := it.data[it.pos : it.pos+n]
 	it.pos += n
 	return b
 }
 
-func (it *Iterator) readUntil(target byte) ([]byte, error) {
+func (it *Iterator) ReadUntil(target byte) ([]byte, error) {
 	var bytes []byte
-	for !it.done() {
-		b := it.byte()
+	for !it.Done() {
+		b := it.Byte()
 		bytes = append(bytes, b)
 		if b == target {
 			return bytes, nil
@@ -46,7 +46,7 @@ func (it *Iterator) readUntil(target byte) ([]byte, error) {
 }
 
 // All integer constants are encoded using a space-efficient, variable-length LEB128 encoding
-func (it *Iterator) varint() int {
+func (it *Iterator) Varint() int {
 	var x uint64
 
 	b := it.data[it.pos]
@@ -59,7 +59,7 @@ func (it *Iterator) varint() int {
 	panic("varint parsing not implemented yet")
 }
 
-func newIterator(data []byte) *Iterator {
+func NewIterator(data []byte) *Iterator {
 	return &Iterator{
 		data: data,
 		size: len(data),

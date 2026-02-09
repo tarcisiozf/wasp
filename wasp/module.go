@@ -3,6 +3,7 @@ package wasp
 import (
 	"fmt"
 	"os"
+	"wasp/wasp/internal/memory"
 )
 
 const (
@@ -71,9 +72,8 @@ func (module *Module) GetExportedFunction(name string) (func(args ...any) ([]any
 			return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.params), len(args))
 		}
 
-		stack := newStack()
-		results := fn.call(stack, args)
+		stack := memory.NewStack()
 
-		return results, nil
+		return fn.call(stack, args)
 	}, nil
 }

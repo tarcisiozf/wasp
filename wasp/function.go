@@ -1,23 +1,21 @@
 package wasp
 
-import "fmt"
-
-const (
-	opcodeLocalGet = 0x20
-
-	opcodeI32Mul = 0x6c
-
-	opcodeEnd = 0x0b
+import (
+	"fmt"
+	"wasp/wasp/internal/execution"
+	"wasp/wasp/internal/instructions"
+	"wasp/wasp/internal/iterator"
+	"wasp/wasp/internal/memory"
 )
 
 type Function struct {
 	params  []int
 	results []int
-	body    *Iterator
+	body    *iterator.Iterator
 }
 
-func (fn *Function) call(stack *Stack, args []any) []any {
-	localDeclCount := fn.body.varint()
+func (fn *Function) call(stack *memory.Stack, args []any) ([]any, error) {
+	localDeclCount := fn.body.Varint()
 
 	if localDeclCount != 0 {
 		panic("unsupported local declarations")
@@ -29,29 +27,26 @@ func (fn *Function) call(stack *Stack, args []any) []any {
 		local[i] = arg
 	}
 
-loop:
-	for {
-		opcode := fn.body.byte()
+	ctx := &execution.Context{
+		Stack: stack,
+		Local: local,
+		Body:  fn.body,
+	}
 
-		switch opcode {
-		case opcodeLocalGet:
-			localIndex := fn.body.varint()
-			stack.push(local[localIndex])
-		case opcodeI32Mul:
-			b := stack.pop()
-			a := stack.pop()
-			result := a.(int32) * b.(int32)
-			stack.push(result)
-		case opcodeEnd:
-			break loop
-		default:
-			panic(fmt.Sprintf("unsupported opcode: 0x%x", opcode))
+	for !ctx.Done {
+		opcode := fn.body.Byte()
+		ix := instructions.Instruction(opcode)
+		if ix == nil {
+			return nil, fmt.Errorf("invalid opcode: 0x%x", opcode)
+		}
+		if err := ix(ctx); err != nil {
+			return nil, fmt.Errorf("failed to execute instruction 0x%x: %w", opcode, err)
 		}
 	}
 
 	results := make([]any, len(fn.results))
 	for i := range fn.results {
-		results[i] = stack.pop()
+		results[i] = stack.Pop()
 	}
-	return results
+	return results, nil
 }

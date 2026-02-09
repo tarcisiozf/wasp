@@ -1,16 +1,20 @@
 package wasp
 
-import "fmt"
+import (
+	"fmt"
+	"wasp/wasp/internal/iterator"
+	"wasp/wasp/internal/opcodes"
+)
 
 func parseModule(module *Module, data []byte) error {
-	iter := newIterator(data)
+	iter := iterator.NewIterator(data)
 
-	binaryMagic := iter.uint32()
+	binaryMagic := iter.Uint32()
 	if binaryMagic != wasmBinaryMagic {
 		return fmt.Errorf("invalid wasm binary magic: 0x%x", binaryMagic)
 	}
 
-	version := iter.uint32()
+	version := iter.Uint32()
 	if version != wasmBinaryVersion {
 		return fmt.Errorf("unsupported wasm version: %d", version)
 	}
@@ -22,10 +26,10 @@ func parseModule(module *Module, data []byte) error {
 	return nil
 }
 
-func parseSections(module *Module, iter *Iterator) (err error) {
-	for !iter.done() {
-		sectionOpcode := iter.varint()
-		sectionSize := iter.varint()
+func parseSections(module *Module, iter *iterator.Iterator) (err error) {
+	for !iter.Done() {
+		sectionOpcode := iter.Varint()
+		sectionSize := iter.Varint()
 
 		switch sectionOpcode {
 		case sectionType:
@@ -45,16 +49,16 @@ func parseSections(module *Module, iter *Iterator) (err error) {
 		}
 
 		if sectionSize == guessSize {
-			sectionSize = iter.varint()
+			sectionSize = iter.Varint()
 		}
 	}
 	return nil
 }
 
-func parseTypeSection(module *Module, iter *Iterator) (err error) {
-	numTypes := iter.varint()
+func parseTypeSection(module *Module, iter *iterator.Iterator) (err error) {
+	numTypes := iter.Varint()
 	for i := 0; i < numTypes; i++ {
-		typeCode := iter.varint()
+		typeCode := iter.Varint()
 
 		switch typeCode {
 		case typeFunc:
@@ -70,17 +74,17 @@ func parseTypeSection(module *Module, iter *Iterator) (err error) {
 	return nil
 }
 
-func parseFuncType(module *Module, iter *Iterator) error {
-	numParams := iter.varint()
+func parseFuncType(module *Module, iter *iterator.Iterator) error {
+	numParams := iter.Varint()
 	params := make([]int, numParams)
 	for i := 0; i < numParams; i++ {
-		params[i] = iter.varint()
+		params[i] = iter.Varint()
 	}
 
-	numResults := iter.varint()
+	numResults := iter.Varint()
 	results := make([]int, numResults)
 	for i := 0; i < numResults; i++ {
-		results[i] = iter.varint()
+		results[i] = iter.Varint()
 	}
 
 	module.addFunction(params, results)
@@ -88,21 +92,21 @@ func parseFuncType(module *Module, iter *Iterator) error {
 	return nil
 }
 
-func parseFunctionSection(module *Module, iter *Iterator) error {
-	numFunctions := iter.varint()
+func parseFunctionSection(module *Module, iter *iterator.Iterator) error {
+	numFunctions := iter.Varint()
 	for i := 0; i < numFunctions; i++ {
-		_ = iter.varint() // func signature index
+		_ = iter.Varint() // func signature index
 	}
 	return nil
 }
 
-func parseExportSection(module *Module, iter *Iterator) error {
-	numExports := iter.varint()
+func parseExportSection(module *Module, iter *iterator.Iterator) error {
+	numExports := iter.Varint()
 	for i := 0; i < numExports; i++ {
-		nameLen := iter.varint()
-		name := string(iter.bytes(nameLen))
-		exportKind := iter.varint()
-		exportIndex := iter.varint()
+		nameLen := iter.Varint()
+		name := string(iter.Bytes(nameLen))
+		exportKind := iter.Varint()
+		exportIndex := iter.Varint()
 
 		if exportKind != exportKindFunc {
 			return fmt.Errorf("unsupported export kind: 0x%x", exportKind)
@@ -116,23 +120,23 @@ func parseExportSection(module *Module, iter *Iterator) error {
 	return nil
 }
 
-func parseCodeSection(module *Module, iter *Iterator) (err error) {
-	numFunctions := iter.varint()
+func parseCodeSection(module *Module, iter *iterator.Iterator) (err error) {
+	numFunctions := iter.Varint()
 	for i := 0; i < numFunctions; i++ {
-		bodySize := iter.varint()
+		bodySize := iter.Varint()
 
 		var body []byte
 		if bodySize == guessSize {
-			body, err = iter.readUntil(opcodeEnd) // read until end opcode
+			body, err = iter.ReadUntil(opcodes.End) // read until end opcode
 			if err != nil {
 				return fmt.Errorf("failed to read function body: %w", err)
 			}
-			bodySize = iter.varint()
+			bodySize = iter.Varint()
 		} else {
-			body = iter.bytes(bodySize)
+			body = iter.Bytes(bodySize)
 		}
 
-		module.functions[i].body = newIterator(body)
+		module.functions[i].body = iterator.NewIterator(body)
 	}
 	return nil
 }
