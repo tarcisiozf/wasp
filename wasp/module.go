@@ -67,8 +67,8 @@ func (module *Module) parse(data []byte) error {
 
 func (module *Module) parseSections(iter *Iterator) (err error) {
 	for !iter.done() {
-		sectionOpcode := iter.byte()
-		sectionSize := iter.byte()
+		sectionOpcode := iter.varint()
+		sectionSize := iter.varint()
 
 		switch sectionOpcode {
 		case sectionType:
@@ -88,16 +88,16 @@ func (module *Module) parseSections(iter *Iterator) (err error) {
 		}
 
 		if sectionSize == guessSize {
-			sectionSize = iter.byte()
+			sectionSize = iter.varint()
 		}
 	}
 	return nil
 }
 
 func (module *Module) parseTypeSection(iter *Iterator) (err error) {
-	numTypes := iter.byte()
-	for i := 0; i < int(numTypes); i++ {
-		typeCode := iter.byte()
+	numTypes := iter.varint()
+	for i := 0; i < numTypes; i++ {
+		typeCode := iter.varint()
 
 		switch typeCode {
 		case typeFunc:
@@ -114,16 +114,16 @@ func (module *Module) parseTypeSection(iter *Iterator) (err error) {
 }
 
 func (module *Module) parseFuncType(iter *Iterator) error {
-	numParams := iter.byte()
-	params := make([]byte, numParams)
-	for i := 0; i < int(numParams); i++ {
-		params[i] = iter.byte()
+	numParams := iter.varint()
+	params := make([]int, numParams)
+	for i := 0; i < numParams; i++ {
+		params[i] = iter.varint()
 	}
 
-	numResults := iter.byte()
-	results := make([]byte, numResults)
-	for i := 0; i < int(numResults); i++ {
-		results[i] = iter.byte()
+	numResults := iter.varint()
+	results := make([]int, numResults)
+	for i := 0; i < numResults; i++ {
+		results[i] = iter.varint()
 	}
 
 	module.addFunction(params, results)
@@ -132,20 +132,20 @@ func (module *Module) parseFuncType(iter *Iterator) error {
 }
 
 func (module *Module) parseFunctionSection(iter *Iterator) error {
-	numFunctions := iter.byte()
-	for i := 0; i < int(numFunctions); i++ {
-		_ = iter.byte() // func signature index
+	numFunctions := iter.varint()
+	for i := 0; i < numFunctions; i++ {
+		_ = iter.varint() // func signature index
 	}
 	return nil
 }
 
 func (module *Module) parseExportSection(iter *Iterator) error {
-	numExports := iter.byte()
-	for i := 0; i < int(numExports); i++ {
-		nameLen := iter.byte()
-		name := string(iter.bytes(int(nameLen)))
-		exportKind := iter.byte()
-		exportIndex := iter.byte()
+	numExports := iter.varint()
+	for i := 0; i < numExports; i++ {
+		nameLen := iter.varint()
+		name := string(iter.bytes(nameLen))
+		exportKind := iter.varint()
+		exportIndex := iter.varint()
 
 		if exportKind != exportKindFunc {
 			return fmt.Errorf("unsupported export kind: 0x%x", exportKind)
@@ -160,9 +160,9 @@ func (module *Module) parseExportSection(iter *Iterator) error {
 }
 
 func (module *Module) parseCodeSection(iter *Iterator) (err error) {
-	numFunctions := iter.byte()
-	for i := 0; i < int(numFunctions); i++ {
-		bodySize := iter.byte()
+	numFunctions := iter.varint()
+	for i := 0; i < numFunctions; i++ {
+		bodySize := iter.varint()
 
 		var body []byte
 		if bodySize == guessSize {
@@ -170,9 +170,9 @@ func (module *Module) parseCodeSection(iter *Iterator) (err error) {
 			if err != nil {
 				return fmt.Errorf("failed to read function body: %w", err)
 			}
-			bodySize = iter.byte()
+			bodySize = iter.varint()
 		} else {
-			body = iter.bytes(int(bodySize))
+			body = iter.bytes(bodySize)
 		}
 
 		module.functions[i].body = body
@@ -180,7 +180,7 @@ func (module *Module) parseCodeSection(iter *Iterator) (err error) {
 	return nil
 }
 
-func (module *Module) addFunction(params []byte, results []byte) int {
+func (module *Module) addFunction(params, results []int) int {
 	index := len(module.functions)
 	module.functions = append(module.functions, Function{
 		params:  params,

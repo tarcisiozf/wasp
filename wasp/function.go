@@ -1,7 +1,7 @@
 package wasp
 
 type Function struct {
-	params  []byte
-	results []byte
+	params  []int
+	results []int
 	body    []byte
 }

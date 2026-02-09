@@ -45,6 +45,20 @@ func (it *Iterator) readUntil(target byte) ([]byte, error) {
 	return nil, fmt.Errorf("target byte 0x%x not found", target)
 }
 
+// All integer constants are encoded using a space-efficient, variable-length LEB128 encoding
+func (it *Iterator) varint() int {
+	var x uint64
+
+	b := it.data[it.pos]
+	x = uint64(b & 0x7F)
+	if b < 0x80 {
+		it.pos++
+		return int(x)
+	}
+
+	panic("varint parsing not implemented yet")
+}
+
 func NewIterator(data []byte) *Iterator {
 	return &Iterator{
 		data: data,

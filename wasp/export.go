@@ -1,6 +1,6 @@
 package wasp
 
 type Export struct {
-	kind  byte
-	index byte
+	kind  int
+	index int
 }
