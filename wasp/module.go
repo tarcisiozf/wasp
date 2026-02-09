@@ -21,17 +21,6 @@ const (
 	guessSize = 0x0
 )
 
-type Function struct {
-	params  []byte
-	results []byte
-	body    []byte
-}
-
-type Export struct {
-	kind  byte
-	index byte
-}
-
 type Module struct {
 	functions []Function
 	exports   map[string]Export
@@ -158,7 +147,7 @@ func (module *Module) parseExportSection(iter *Iterator) error {
 		exportKind := iter.byte()
 		exportIndex := iter.byte()
 
-		if exportKind != 0x00 {
+		if exportKind != exportKindFunc {
 			return fmt.Errorf("unsupported export kind: 0x%x", exportKind)
 		}
 
@@ -198,4 +187,17 @@ func (module *Module) addFunction(params []byte, results []byte) int {
 		results: results,
 	})
 	return index
+}
+
+func (module *Module) GetExportedFunction(name string) (Function, error) {
+	export, ok := module.exports[name]
+	if !ok {
+		return Function{}, fmt.Errorf("export not found: %s", name)
+	}
+
+	if export.kind != exportKindFunc {
+		return Function{}, fmt.Errorf("export is not a function: %s", name)
+	}
+
+	return module.functions[export.index], nil
 }

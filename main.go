@@ -9,5 +9,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	_ = module
+
+	fn, err := module.GetExportedFunction("square")
+	if err != nil {
+		panic(err)
+	}
+
+	_ = fn
 }
