@@ -3,7 +3,7 @@ package wasp
 import "fmt"
 
 func parseModule(module *Module, data []byte) error {
-	iter := NewIterator(data)
+	iter := newIterator(data)
 
 	binaryMagic := iter.uint32()
 	if binaryMagic != wasmBinaryMagic {
@@ -123,7 +123,7 @@ func parseCodeSection(module *Module, iter *Iterator) (err error) {
 
 		var body []byte
 		if bodySize == guessSize {
-			body, err = iter.readUntil(0x0b) // read until end opcode
+			body, err = iter.readUntil(opcodeEnd) // read until end opcode
 			if err != nil {
 				return fmt.Errorf("failed to read function body: %w", err)
 			}
@@ -132,7 +132,7 @@ func parseCodeSection(module *Module, iter *Iterator) (err error) {
 			body = iter.bytes(bodySize)
 		}
 
-		module.functions[i].body = body
+		module.functions[i].body = newIterator(body)
 	}
 	return nil
 }

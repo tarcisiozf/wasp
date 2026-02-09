@@ -59,7 +59,7 @@ func (it *Iterator) varint() int {
 	panic("varint parsing not implemented yet")
 }
 
-func NewIterator(data []byte) *Iterator {
+func newIterator(data []byte) *Iterator {
 	return &Iterator{
 		data: data,
 		size: len(data),

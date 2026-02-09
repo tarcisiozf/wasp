@@ -54,15 +54,26 @@ func (module *Module) addFunction(params, results []int) int {
 	return index
 }
 
-func (module *Module) GetExportedFunction(name string) (Function, error) {
+func (module *Module) GetExportedFunction(name string) (func(args ...any) ([]any, error), error) {
 	export, ok := module.exports[name]
 	if !ok {
-		return Function{}, fmt.Errorf("export not found: %s", name)
+		return nil, fmt.Errorf("export not found: %s", name)
 	}
 
 	if export.kind != exportKindFunc {
-		return Function{}, fmt.Errorf("export is not a function: %s", name)
+		return nil, fmt.Errorf("export is not a function: %s", name)
 	}
 
-	return module.functions[export.index], nil
+	fn := module.functions[export.index]
+
+	return func(args ...any) ([]any, error) {
+		if len(args) != len(fn.params) {
+			return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.params), len(args))
+		}
+
+		stack := newStack()
+		results := fn.call(stack, args)
+
+		return results, nil
+	}, nil
 }

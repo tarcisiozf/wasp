@@ -15,5 +15,10 @@ func main() {
 		panic(err)
 	}
 
-	_ = fn
+	results, err := fn(int32(5))
+	if err != nil {
+		panic(err)
+	}
+
+	println(results[0].(int32))
 }
