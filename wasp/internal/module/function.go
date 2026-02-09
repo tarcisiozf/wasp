@@ -1,4 +1,4 @@
-package wasp
+package module
 
 import (
 	"fmt"

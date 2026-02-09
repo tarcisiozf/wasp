@@ -21,4 +21,41 @@ func main() {
 	}
 
 	println(results[0].(int32))
+
+	module, err = wasp.NewModuleFromFile("local.wasm")
+	if err != nil {
+		panic(err)
+	}
+
+	//wat := `(module
+	//  (import "console" "log" (func $log (param i32)))
+	//  (func $main
+	//
+	//	(local $var i32) ;; create a local variable named $var
+	//	(local.set $var (i32.const 10)) ;; set $var to 10
+	//	local.get $var ;; load $var onto the stack
+	//	call $log ;; log the result
+	//
+	//  )
+	//  (start $main)
+	//)`
+	//wasmBytes, err := wasmtime.Wat2Wasm(wat)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//f, _ := os.ReadFile("local.wasm")
+	//if len(f) != len(wasmBytes) {
+	//	panic("wasm bytes length mismatch")
+	//}
+	//for i := range f {
+	//	if f[i] != wasmBytes[i] {
+	//		panic("wasm bytes content mismatch")
+	//	}
+	//}
+	//
+	//module, err = wasp.NewModule(wasmBytes)
+	//if err != nil {
+	//	panic(err)
+	//}
 }

@@ -1,4 +1,4 @@
-package wasp
+package module
 
 import (
 	"fmt"
@@ -6,7 +6,24 @@ import (
 	"wasp/wasp/internal/opcodes"
 )
 
-func parseModule(module *Module, data []byte) error {
+const (
+	wasmBinaryMagic   = 0x6d736100
+	wasmBinaryVersion = 0x1
+
+	sectionType     = 0x1
+	sectionImport   = 0x2
+	sectionFunction = 0x3
+	sectionExport   = 0x7
+	sectionCode     = 0xa
+
+	typeFunc = 0x60
+
+	kindFunc = 0x00
+
+	guessSize = 0x0
+)
+
+func Parse(module *Module, data []byte) error {
 	iter := iterator.NewIterator(data)
 
 	binaryMagic := iter.Uint32()
@@ -40,6 +57,8 @@ func parseSections(module *Module, iter *iterator.Iterator) (err error) {
 			err = parseExportSection(module, iter)
 		case sectionCode:
 			err = parseCodeSection(module, iter)
+		case sectionImport:
+			err = parseImportSection(module, iter)
 		default:
 			return fmt.Errorf("invalid section type: 0x%x", sectionOpcode)
 		}
@@ -51,6 +70,37 @@ func parseSections(module *Module, iter *iterator.Iterator) (err error) {
 		if sectionSize == guessSize {
 			sectionSize = iter.Varint()
 		}
+	}
+	return nil
+}
+
+func parseImportSection(module *Module, iter *iterator.Iterator) error {
+	numImports := iter.Varint()
+	for i := 0; i < numImports; i++ {
+		moduleNameLen := iter.Varint()
+		moduleName := iter.String(moduleNameLen)
+		fieldNameLen := iter.Varint()
+		fieldName := iter.String(fieldNameLen)
+		importKind := iter.Byte()
+		importSignatureIndex := iter.Varint()
+
+		if importKind != kindFunc {
+
+		}
+
+		imp := Import{
+			ModuleName:     moduleName,
+			FieldName:      fieldName,
+			Kind:           importKind,
+			SignatureIndex: importSignatureIndex,
+		}
+
+		importModuleMap := module.imports[moduleName]
+		if importModuleMap == nil {
+			importModuleMap = make(map[string]Import)
+			module.imports[moduleName] = importModuleMap
+		}
+		importModuleMap[fieldName] = imp
 	}
 	return nil
 }
@@ -104,11 +154,11 @@ func parseExportSection(module *Module, iter *iterator.Iterator) error {
 	numExports := iter.Varint()
 	for i := 0; i < numExports; i++ {
 		nameLen := iter.Varint()
-		name := string(iter.Bytes(nameLen))
+		name := iter.String(nameLen)
 		exportKind := iter.Varint()
 		exportIndex := iter.Varint()
 
-		if exportKind != exportKindFunc {
+		if exportKind != kindFunc {
 			return fmt.Errorf("unsupported export kind: 0x%x", exportKind)
 		}
 

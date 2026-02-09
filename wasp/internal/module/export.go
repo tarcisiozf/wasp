@@ -1,4 +1,4 @@
-package wasp
+package module
 
 type Export struct {
 	kind  int

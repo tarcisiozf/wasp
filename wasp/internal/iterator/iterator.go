@@ -59,6 +59,10 @@ func (it *Iterator) Varint() int {
 	panic("varint parsing not implemented yet")
 }
 
+func (it *Iterator) String(len int) string {
+	return string(it.Bytes(len))
+}
+
 func NewIterator(data []byte) *Iterator {
 	return &Iterator{
 		data: data,
