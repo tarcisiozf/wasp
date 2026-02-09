@@ -21,14 +21,25 @@ type Function struct {
 func (fn *Function) call(stack *memory.Stack, args []any) ([]any, error) {
 	localDeclCount := fn.body.Varint()
 
-	if localDeclCount != 0 {
-		panic("unsupported local declarations")
+	// TODO: whats the order? args then local decls? or local decls then args?
+	local := make([]memory.Local, 0, len(args)+localDeclCount)
+
+	for _, arg := range args {
+		local = append(local, memory.Local{Value: arg})
 	}
 
-	local := make([]any, len(args)+localDeclCount)
+	for i := 0; i < localDeclCount; i++ {
+		localTypeCount := fn.body.Varint()
+		for j := 0; j < localTypeCount; j++ {
+			localType := fn.body.Byte()
+			isConst := isConstOfType(fn.body, localType)
+			value := readValue(fn.body, localType)
 
-	for i, arg := range args {
-		local[i] = arg
+			local = append(local, memory.Local{
+				Value: value,
+				Const: isConst,
+			})
+		}
 	}
 
 	ctx := &execution.Context{
@@ -53,4 +64,22 @@ func (fn *Function) call(stack *memory.Stack, args []any) ([]any, error) {
 		results[i] = stack.Pop()
 	}
 	return results, nil
+}
+
+func readValue(iter *iterator.Iterator, typeCode byte) any {
+	switch typeCode {
+	case typeI32:
+		v := iter.Varint()
+		return int32(v)
+	default:
+		panic(fmt.Sprintf("unsupported type code: 0x%x", typeCode))
+	}
+}
+
+func isConstOfType(iter *iterator.Iterator, typeCode byte) bool {
+	if int(typeCode) <= len(constOfTypes) && iter.Peek() == constOfTypes[typeCode] {
+		iter.Next()
+		return true
+	}
+	return false
 }

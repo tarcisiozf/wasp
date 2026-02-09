@@ -6,7 +6,7 @@ import (
 )
 
 type Context struct {
-	Local []any
+	Local []memory.Local
 	Stack *memory.Stack
 	Body  *iterator.Iterator
 	Done  bool

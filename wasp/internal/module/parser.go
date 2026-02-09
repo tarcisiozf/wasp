@@ -18,11 +18,16 @@ const (
 	sectionCode     = 0xa
 
 	typeFunc = 0x60
+	typeI32  = 0x7f
 
 	kindFunc = 0x00
 
 	guessSize = 0x0
 )
+
+var constOfTypes = []byte{
+	typeI32: 0x41, // i32.const
+}
 
 func Parse(module *Module, data []byte) error {
 	iter := iterator.NewIterator(data)

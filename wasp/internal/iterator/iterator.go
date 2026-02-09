@@ -63,6 +63,14 @@ func (it *Iterator) String(len int) string {
 	return string(it.Bytes(len))
 }
 
+func (it *Iterator) Peek() byte {
+	return it.data[it.pos]
+}
+
+func (it *Iterator) Next() {
+	it.pos++
+}
+
 func NewIterator(data []byte) *Iterator {
 	return &Iterator{
 		data: data,
