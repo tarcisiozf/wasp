@@ -10,6 +10,17 @@
 - [X] global.set
 
 ### Control flow instructions
+- [ ] block
+- [ ] br
+- [ ] br_if
+- [ ] br_table
+- [ ] drop
+- [ ] if...else
+- [ ] loop
+- [X] nop
+- [ ] return
+- [ ] select
+- [ ] unreachable
 - [X] end
 - [ ] call
   - [X] call

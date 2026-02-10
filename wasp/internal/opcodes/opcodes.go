@@ -1,6 +1,8 @@
 package opcodes
 
 const (
+	Nop = 0x01
+
 	Call = 0x10
 
 	End = 0x0b

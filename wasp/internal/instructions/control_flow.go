@@ -6,6 +6,10 @@ import (
 )
 
 var (
+	Nop = addInstruction(opcodes.Nop, func(ctx *execution.Context) error {
+		return nil
+	})
+
 	Call = addInstruction(opcodes.Call, func(ctx *execution.Context) error {
 		functionIndex := ctx.Body.Varint()
 		ctx.FunctionCallRequest = functionIndex
