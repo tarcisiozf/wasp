@@ -21,11 +21,17 @@ func WithLinker(linker *Linker) RuntimeOption {
 }
 
 type Runtime struct {
+	module *module.Module
+
 	linker *Linker
+
+	indexedImportedFunctions []*external.Function
 }
 
-func NewRuntime(options ...RuntimeOption) (*Runtime, error) {
-	runtime := &Runtime{}
+func NewRuntime(module *module.Module, options ...RuntimeOption) (*Runtime, error) {
+	runtime := &Runtime{
+		module: module,
+	}
 	for _, option := range options {
 		if err := option(runtime); err != nil {
 			return nil, fmt.Errorf("failed to apply runtime option: %w", err)
@@ -36,10 +42,14 @@ func NewRuntime(options ...RuntimeOption) (*Runtime, error) {
 		runtime.linker = NewLinker()
 	}
 
+	if err := runtime.mapImportsToExternalFunctions(); err != nil {
+		return nil, fmt.Errorf("invalid imports: %w", err)
+	}
+
 	return runtime, nil
 }
 
-func (runtime *Runtime) Call(module *module.Module, fn funcs.Function, args ...any) ([]any, error) {
+func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 	if len(args) != len(fn.Signature.Params) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.Signature.Params), len(args))
 	}
@@ -81,24 +91,11 @@ func (runtime *Runtime) Call(module *module.Module, fn funcs.Function, args ...a
 		}
 
 		if ctx.FunctionCallRequest >= 0 {
-			imp := module.GetImport(ctx.FunctionCallRequest)
-
-			// TODO: index by name
-			extFunc, err := runtime.linker.Get(imp.ModuleName, imp.FieldName)
-			if err != nil {
-				return nil, fmt.Errorf("failed to find external function %s.%s: %w", imp.ModuleName, imp.FieldName, err)
-			}
-			if extFunc.NumInputs != len(imp.Signature.Params) {
-				return nil, fmt.Errorf("external function %s.%s expects %d parameters, got %d", imp.ModuleName, imp.FieldName, extFunc.NumInputs, len(imp.Signature.Params))
-			}
-			if extFunc.NumOutputs != len(imp.Signature.Results) {
-				return nil, fmt.Errorf("external function %s.%s expects %d results, got %d", imp.ModuleName, imp.FieldName, extFunc.NumOutputs, len(imp.Signature.Results))
-			}
-
+			extFunc := runtime.indexedImportedFunctions[ctx.FunctionCallRequest]
 			params := ctx.Stack.PopN(extFunc.NumInputs)
 			results, err := extFunc.Call(params)
 			if err != nil {
-				return nil, fmt.Errorf("failed to call external function %s.%s: %w", imp.ModuleName, imp.FieldName, err)
+				return nil, fmt.Errorf("failed to call external function %s.%s: %w", extFunc.ModuleName, extFunc.FieldName, err)
 			}
 			for _, result := range results {
 				ctx.Stack.Push(result)
@@ -113,4 +110,25 @@ func (runtime *Runtime) Call(module *module.Module, fn funcs.Function, args ...a
 		results[i] = ctx.Stack.Pop()
 	}
 	return results, nil
+}
+
+func (runtime *Runtime) mapImportsToExternalFunctions() error {
+	imports := runtime.module.Imports()
+	runtime.indexedImportedFunctions = make([]*external.Function, len(imports))
+
+	for i, imp := range imports {
+		extFunc, err := runtime.linker.Get(imp.ModuleName, imp.FieldName)
+		if err != nil {
+			return fmt.Errorf("import %s.%s not found: %w", imp.ModuleName, imp.FieldName, err)
+		}
+		if extFunc.NumInputs != len(imp.Signature.Params) {
+			return fmt.Errorf("external function %s.%s expects %d parameters, got %d", imp.ModuleName, imp.FieldName, extFunc.NumInputs, len(imp.Signature.Params))
+		}
+		if extFunc.NumOutputs != len(imp.Signature.Results) {
+			return fmt.Errorf("external function %s.%s expects %d results, got %d", imp.ModuleName, imp.FieldName, extFunc.NumOutputs, len(imp.Signature.Results))
+		}
+		runtime.indexedImportedFunctions[i] = extFunc
+	}
+
+	return nil
 }
