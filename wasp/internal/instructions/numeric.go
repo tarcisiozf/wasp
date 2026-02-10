@@ -2,6 +2,7 @@ package instructions
 
 import (
 	"wasp/wasp/internal/execution"
+	"wasp/wasp/internal/opcodes"
 )
 
 type number interface {
@@ -16,11 +17,11 @@ func mul[T number](ctx *execution.Context) error {
 }
 
 var (
-	Const = addInstruction(0x41, func(ctx *execution.Context) error {
+	Const = addInstruction(opcodes.Const, func(ctx *execution.Context) error {
 		value := ctx.Body.Varint()
 		ctx.Stack.Push(value)
 		return nil
 	})
 
-	I32Mul = addInstruction(0x6c, mul[int32])
+	I32Mul = addInstruction(opcodes.MulI32, mul[int32])
 )

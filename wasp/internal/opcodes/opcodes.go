@@ -1,0 +1,18 @@
+package opcodes
+
+const (
+	Call = 0x10
+
+	End = 0x0b
+
+	LocalGet = 0x20
+	LocalSet = 0x21
+	LocalTee = 0x22
+
+	GlobalGet = 0x23
+	GlobalSet = 0x24
+
+	Const = 0x41
+
+	MulI32 = 0x6c
+)

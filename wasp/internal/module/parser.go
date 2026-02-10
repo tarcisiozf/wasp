@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/funcs"
-	"wasp/wasp/internal/instructions"
+	"wasp/wasp/internal/opcodes"
 	"wasp/wasp/internal/types"
 )
 
@@ -87,13 +87,13 @@ func parseGlobalSection(module *Module, iter *binary.Iterator) error {
 	for i := 0; i < numGlobals; i++ {
 		globalType := types.ForCode(iter.Byte())
 		isMutable := iter.BoolByte()
-		iter.Assert(instructions.Const.Opcode)
+		iter.Assert(opcodes.Const)
 		value := globalType.Read(iter)
 
 		module.Globals.Push(value, isMutable)
 	}
 
-	iter.Assert(instructions.End.Opcode)
+	iter.Assert(opcodes.End)
 
 	return nil
 }
@@ -205,7 +205,7 @@ func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 
 		var body []byte
 		if bodySize == guessSize {
-			body, err = iter.ReadUntil(instructions.End.Opcode) // read until end opcode
+			body, err = iter.ReadUntil(opcodes.End) // read until end opcode
 			if err != nil {
 				return fmt.Errorf("failed to read function body: %w", err)
 			}
