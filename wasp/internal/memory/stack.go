@@ -14,7 +14,7 @@ func (s *Stack) Push(value any) {
 
 func (s *Stack) Pop() any {
 	if len(s.items) == 0 {
-		panic("memory underflow")
+		panic("stack underflow")
 	}
 
 	value := s.items[len(s.items)-1]
@@ -23,6 +23,9 @@ func (s *Stack) Pop() any {
 }
 
 func (s *Stack) PopN(n int) []any {
+	if n > len(s.items) {
+		panic("stack underflow")
+	}
 	items := s.items[:n]
 	s.items = s.items[n:]
 	return items
