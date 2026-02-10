@@ -2,7 +2,6 @@ package module
 
 import (
 	"fmt"
-	"wasp/wasp/external"
 	"wasp/wasp/funcs"
 	"wasp/wasp/internal/instructions"
 	"wasp/wasp/internal/iterator"
@@ -98,7 +97,7 @@ func parseImportSection(module *Module, iter *iterator.Iterator) error {
 			return fmt.Errorf("invalid import kind 0x%x", importKind)
 		}
 
-		module.imports = append(module.imports, external.Import{
+		module.imports = append(module.imports, Import{
 			ModuleName: moduleName,
 			FieldName:  fieldName,
 			Kind:       importKind,

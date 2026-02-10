@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"wasp/wasp"
-	"wasp/wasp/external"
 )
 
 func main() {
@@ -24,7 +23,9 @@ func main() {
 	//
 	//println(results[0].(int32))
 
-	consoleLog, err := external.WrapFunc("console", "log", func(args ...any) {
+	linker := wasp.NewLinker()
+
+	err := linker.Define("console", "log", func(args ...any) {
 		fmt.Println(args...)
 	})
 	if err != nil {
@@ -43,7 +44,7 @@ func main() {
 		}
 
 		engine, err := wasp.NewEngine(
-			wasp.WithExternalFunc(consoleLog),
+			wasp.WithLinker(linker),
 		)
 		if err != nil {
 			panic(err)

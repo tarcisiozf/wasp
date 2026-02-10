@@ -2,7 +2,6 @@ package wasp
 
 import (
 	"fmt"
-	"wasp/wasp/external"
 	"wasp/wasp/funcs"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/instructions"
@@ -13,15 +12,15 @@ import (
 
 type EngineOption func(*Engine) error
 
-func WithExternalFunc(fn *external.Function) EngineOption {
+func WithLinker(linker *Linker) EngineOption {
 	return func(e *Engine) error {
-		e.externalFuncs = append(e.externalFuncs, fn)
+		e.linker = linker
 		return nil
 	}
 }
 
 type Engine struct {
-	externalFuncs []*external.Function
+	linker *Linker
 }
 
 func NewEngine(options ...EngineOption) (*Engine, error) {
@@ -31,6 +30,11 @@ func NewEngine(options ...EngineOption) (*Engine, error) {
 			return nil, fmt.Errorf("failed to apply engine option: %w", err)
 		}
 	}
+
+	if engine.linker == nil {
+		engine.linker = NewLinker()
+	}
+
 	return engine, nil
 }
 
@@ -79,21 +83,15 @@ func (engine *Engine) Call(module *module.Module, fn funcs.Function, args ...any
 			imp := module.GetImport(ctx.FunctionCallRequest)
 
 			// TODO: index by name
-			var extFunc *external.Function
-			for _, ext := range engine.externalFuncs {
-				if ext.ModuleName == imp.ModuleName && ext.FieldName == imp.FieldName {
-					if ext.NumInputs != len(imp.Signature.Params) {
-						return nil, fmt.Errorf("external function %s.%s expects %d parameters, got %d", imp.ModuleName, imp.FieldName, ext.NumInputs, len(imp.Signature.Params))
-					}
-					if ext.NumOutputs != len(imp.Signature.Results) {
-						return nil, fmt.Errorf("external function %s.%s expects %d results, got %d", imp.ModuleName, imp.FieldName, ext.NumOutputs, len(imp.Signature.Results))
-					}
-					extFunc = ext
-					break
-				}
+			extFunc, err := engine.linker.Get(imp.ModuleName, imp.FieldName)
+			if err != nil {
+				return nil, fmt.Errorf("failed to find external function %s.%s: %w", imp.ModuleName, imp.FieldName, err)
 			}
-			if extFunc == nil {
-				return nil, fmt.Errorf("external function not found: %s.%s", imp.ModuleName, imp.FieldName)
+			if extFunc.NumInputs != len(imp.Signature.Params) {
+				return nil, fmt.Errorf("external function %s.%s expects %d parameters, got %d", imp.ModuleName, imp.FieldName, extFunc.NumInputs, len(imp.Signature.Params))
+			}
+			if extFunc.NumOutputs != len(imp.Signature.Results) {
+				return nil, fmt.Errorf("external function %s.%s expects %d results, got %d", imp.ModuleName, imp.FieldName, extFunc.NumOutputs, len(imp.Signature.Results))
 			}
 
 			params := ctx.Stack.PopN(extFunc.NumInputs)

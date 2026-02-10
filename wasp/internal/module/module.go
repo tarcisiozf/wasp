@@ -2,7 +2,6 @@ package module
 
 import (
 	"fmt"
-	"wasp/wasp/external"
 	"wasp/wasp/funcs"
 )
 
@@ -11,7 +10,7 @@ type Module struct {
 	functions          []funcs.Function
 
 	exports map[string]Export
-	imports []external.Import
+	imports []Import
 
 	startFuncIndex int
 }
@@ -53,6 +52,6 @@ func (module *Module) FunctionAt(index int) funcs.Function {
 	return module.functions[index-len(module.imports)]
 }
 
-func (module *Module) GetImport(index int) external.Import {
+func (module *Module) GetImport(index int) Import {
 	return module.imports[index]
 }
