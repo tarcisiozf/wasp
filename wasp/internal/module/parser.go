@@ -2,7 +2,7 @@ package module
 
 import (
 	"fmt"
-	"wasp/wasp/funcs"
+	"wasp/wasp/internal/funcs"
 	"wasp/wasp/internal/instructions"
 	"wasp/wasp/internal/iterator"
 )

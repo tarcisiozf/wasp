@@ -2,12 +2,13 @@ package wasp
 
 import (
 	"fmt"
-	"wasp/wasp/funcs"
 	"wasp/wasp/internal/execution"
+	"wasp/wasp/internal/external"
+	"wasp/wasp/internal/funcs"
 	"wasp/wasp/internal/instructions"
 	"wasp/wasp/internal/memory"
 	"wasp/wasp/internal/module"
-	"wasp/wasp/types"
+	"wasp/wasp/internal/types"
 )
 
 type RuntimeOption func(*Runtime) error

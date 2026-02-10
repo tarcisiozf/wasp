@@ -1,6 +1,8 @@
 package module
 
-import "wasp/wasp/funcs"
+import (
+	"wasp/wasp/internal/funcs"
+)
 
 type Import struct {
 	ModuleName string
