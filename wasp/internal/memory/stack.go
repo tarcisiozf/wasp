@@ -32,3 +32,11 @@ func (s *Stack) PopN(n int) []any {
 	s.items = s.items[:size-n]
 	return items
 }
+
+func (s *Stack) Peek() any {
+	size := len(s.items)
+	if size == 0 {
+		panic("stack underflow")
+	}
+	return s.items[size-1]
+}

@@ -16,4 +16,10 @@ var (
 		ctx.Local[localIndex] = ctx.Stack.Pop()
 		return nil
 	})
+	LocalTee = addInstruction(0x22, func(ctx *execution.Context) error {
+		localIndex := ctx.Body.Varint()
+		value := ctx.Stack.Peek()
+		ctx.Local[localIndex] = value
+		return nil
+	})
 )
