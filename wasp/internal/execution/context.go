@@ -11,4 +11,5 @@ type Context struct {
 	Body                *iterator.Iterator
 	Done                bool
 	FunctionCallRequest int
+	Globals             *memory.Global
 }

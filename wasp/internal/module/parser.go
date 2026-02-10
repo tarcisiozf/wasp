@@ -5,6 +5,7 @@ import (
 	"wasp/wasp/internal/funcs"
 	"wasp/wasp/internal/instructions"
 	"wasp/wasp/internal/iterator"
+	"wasp/wasp/internal/types"
 )
 
 const (
@@ -17,6 +18,7 @@ const (
 	sectionExport   = 0x7
 	sectionStart    = 0x8
 	sectionCode     = 0xa
+	sectionGlobal   = 0x6
 
 	typeFunc = 0x60
 
@@ -63,6 +65,8 @@ func parseSections(module *Module, iter *iterator.Iterator) (err error) {
 			err = parseImportSection(module, iter)
 		case sectionStart:
 			err = parseStartSection(module, iter)
+		case sectionGlobal:
+			err = parseGlobalSection(module, iter)
 		default:
 			return fmt.Errorf("invalid section type: 0x%x", sectionOpcode)
 		}
@@ -75,6 +79,22 @@ func parseSections(module *Module, iter *iterator.Iterator) (err error) {
 			sectionSize = iter.Varint()
 		}
 	}
+	return nil
+}
+
+func parseGlobalSection(module *Module, iter *iterator.Iterator) error {
+	numGlobals := iter.Varint()
+	for i := 0; i < numGlobals; i++ {
+		globalType := types.ForCode(iter.Byte())
+		isMutable := iter.BoolByte()
+		iter.Assert(instructions.Const.Opcode)
+		value := globalType.Read(iter)
+
+		module.Globals.Push(value, isMutable)
+	}
+
+	iter.Assert(instructions.End.Opcode)
+
 	return nil
 }
 
@@ -97,7 +117,7 @@ func parseImportSection(module *Module, iter *iterator.Iterator) error {
 			return fmt.Errorf("invalid import kind 0x%x", importKind)
 		}
 
-		module.imports = append(module.imports, Import{
+		module.Imports = append(module.Imports, Import{
 			ModuleName: moduleName,
 			FieldName:  fieldName,
 			Kind:       importKind,

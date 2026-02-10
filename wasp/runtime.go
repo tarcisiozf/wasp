@@ -56,7 +56,9 @@ func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 
 	stack := memory.NewStack()
 	ctx := &execution.Context{
-		Stack:               stack,
+		Stack:   stack,
+		Globals: runtime.module.Globals,
+
 		Body:                fn.Body,
 		FunctionCallRequest: -1,
 	}
@@ -113,7 +115,7 @@ func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 }
 
 func (runtime *Runtime) mapImportsToExternalFunctions() error {
-	imports := runtime.module.Imports()
+	imports := runtime.module.Imports
 	runtime.indexedImportedFunctions = make([]*external.Function, len(imports))
 
 	for i, imp := range imports {

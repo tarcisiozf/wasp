@@ -56,6 +56,30 @@ func main() {
 		}
 	}
 
+	{
+		module, err := wasp.NewModuleFromFile("global.wasm")
+		if err != nil {
+			panic(err)
+		}
+
+		fn, err := module.StartFunction()
+		if err != nil {
+			panic(err)
+		}
+
+		runtime, err := wasp.NewRuntime(
+			module,
+			wasp.WithLinker(linker),
+		)
+		if err != nil {
+			panic(err)
+		}
+
+		if _, err := runtime.Call(fn); err != nil {
+			panic(err)
+		}
+	}
+
 	//wat := `(module
 	//  (import "console" "log" (func $log (param i32)))
 	//  (func $main

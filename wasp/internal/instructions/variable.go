@@ -22,4 +22,16 @@ var (
 		ctx.Local[localIndex] = value
 		return nil
 	})
+
+	GlobalGet = addInstruction(0x23, func(ctx *execution.Context) error {
+		globalIndex := ctx.Body.Varint()
+		value := ctx.Globals.Get(globalIndex)
+		ctx.Stack.Push(value)
+		return nil
+	})
+	GlobalSet = addInstruction(0x24, func(ctx *execution.Context) error {
+		globalIndex := ctx.Body.Varint()
+		ctx.Globals.Set(globalIndex, ctx.Stack.Pop())
+		return nil
+	})
 )

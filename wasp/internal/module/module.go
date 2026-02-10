@@ -3,6 +3,7 @@ package module
 import (
 	"fmt"
 	"wasp/wasp/internal/funcs"
+	"wasp/wasp/internal/memory"
 )
 
 type Module struct {
@@ -10,14 +11,19 @@ type Module struct {
 	functions          []funcs.Function
 
 	exports map[string]Export
-	imports []Import
+	Imports []Import
 
 	startFuncIndex int
+
+	Globals *memory.Global
 }
 
 func NewModule() *Module {
 	return &Module{
-		exports:        make(map[string]Export),
+		exports: make(map[string]Export),
+
+		Globals: memory.NewGlobal(),
+
 		startFuncIndex: -1,
 	}
 }
@@ -48,10 +54,6 @@ func (module *Module) StartFunction() (funcs.Function, error) {
 }
 
 func (module *Module) FunctionAt(index int) funcs.Function {
-	// function index is offset by number of imports
-	return module.functions[index-len(module.imports)]
-}
-
-func (module *Module) Imports() []Import {
-	return module.imports
+	// function index is offset by number of Imports
+	return module.functions[index-len(module.Imports)]
 }
