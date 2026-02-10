@@ -57,7 +57,7 @@ func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 	stack := memory.NewStack()
 	ctx := &execution.Context{
 		Stack:   stack,
-		Globals: runtime.module.Globals,
+		Globals: runtime.module.Globals.Clone(),
 
 		Body:                fn.Body,
 		FunctionCallRequest: -1,
