@@ -10,35 +10,35 @@ import (
 	"wasp/wasp/types"
 )
 
-type EngineOption func(*Engine) error
+type RuntimeOption func(*Runtime) error
 
-func WithLinker(linker *Linker) EngineOption {
-	return func(e *Engine) error {
+func WithLinker(linker *Linker) RuntimeOption {
+	return func(e *Runtime) error {
 		e.linker = linker
 		return nil
 	}
 }
 
-type Engine struct {
+type Runtime struct {
 	linker *Linker
 }
 
-func NewEngine(options ...EngineOption) (*Engine, error) {
-	engine := &Engine{}
+func NewRuntime(options ...RuntimeOption) (*Runtime, error) {
+	runtime := &Runtime{}
 	for _, option := range options {
-		if err := option(engine); err != nil {
-			return nil, fmt.Errorf("failed to apply engine option: %w", err)
+		if err := option(runtime); err != nil {
+			return nil, fmt.Errorf("failed to apply runtime option: %w", err)
 		}
 	}
 
-	if engine.linker == nil {
-		engine.linker = NewLinker()
+	if runtime.linker == nil {
+		runtime.linker = NewLinker()
 	}
 
-	return engine, nil
+	return runtime, nil
 }
 
-func (engine *Engine) Call(module *module.Module, fn funcs.Function, args ...any) ([]any, error) {
+func (runtime *Runtime) Call(module *module.Module, fn funcs.Function, args ...any) ([]any, error) {
 	if len(args) != len(fn.Signature.Params) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.Signature.Params), len(args))
 	}
@@ -83,7 +83,7 @@ func (engine *Engine) Call(module *module.Module, fn funcs.Function, args ...any
 			imp := module.GetImport(ctx.FunctionCallRequest)
 
 			// TODO: index by name
-			extFunc, err := engine.linker.Get(imp.ModuleName, imp.FieldName)
+			extFunc, err := runtime.linker.Get(imp.ModuleName, imp.FieldName)
 			if err != nil {
 				return nil, fmt.Errorf("failed to find external function %s.%s: %w", imp.ModuleName, imp.FieldName, err)
 			}

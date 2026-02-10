@@ -43,14 +43,14 @@ func main() {
 			panic(err)
 		}
 
-		engine, err := wasp.NewEngine(
+		runtime, err := wasp.NewRuntime(
 			wasp.WithLinker(linker),
 		)
 		if err != nil {
 			panic(err)
 		}
 
-		if _, err := engine.Call(module, fn); err != nil {
+		if _, err := runtime.Call(module, fn); err != nil {
 			panic(err)
 		}
 	}
