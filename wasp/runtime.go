@@ -61,9 +61,9 @@ func (runtime *Runtime) Call(module *module.Module, fn funcs.Function, args ...a
 
 	for i := 0; i < localDeclCount; i++ {
 		localTypeCount := fn.Body.Varint()
-		localType := fn.Body.Byte()
+		localType := types.ForCode(fn.Body.Byte())
 		for j := 0; j < localTypeCount; j++ {
-			local = append(local, zeroValue(localType))
+			local = append(local, localType.Zero())
 		}
 	}
 
@@ -112,13 +112,4 @@ func (runtime *Runtime) Call(module *module.Module, fn funcs.Function, args ...a
 		results[i] = ctx.Stack.Pop()
 	}
 	return results, nil
-}
-
-func zeroValue(typeCode byte) any {
-	switch typeCode {
-	case types.Int32:
-		return int32(0)
-	default:
-		panic(fmt.Sprintf("unsupported type code: 0x%x", typeCode))
-	}
 }
