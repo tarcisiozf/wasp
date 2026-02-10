@@ -5,9 +5,9 @@
 - [X] local.get
 - [X] local.set
 - [X] local.tee
-- [ ] global
-- [ ] global.get
-- [ ] global.set
+- [X] global
+- [X] global.get
+- [X] global.set
 
 ### Control flow instructions
 - [X] end

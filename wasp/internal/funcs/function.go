@@ -1,10 +1,10 @@
 package funcs
 
 import (
-	"wasp/wasp/internal/iterator"
+	"wasp/wasp/internal/binary"
 )
 
 type Function struct {
 	Signature Signature
-	Body      *iterator.Iterator
+	Body      *binary.Iterator
 }

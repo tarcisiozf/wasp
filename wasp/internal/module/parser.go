@@ -2,9 +2,9 @@ package module
 
 import (
 	"fmt"
+	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/funcs"
 	"wasp/wasp/internal/instructions"
-	"wasp/wasp/internal/iterator"
 	"wasp/wasp/internal/types"
 )
 
@@ -28,7 +28,7 @@ const (
 )
 
 func Parse(module *Module, data []byte) error {
-	iter := iterator.NewIterator(data)
+	iter := binary.NewIterator(data)
 
 	binaryMagic := iter.Uint32()
 	if binaryMagic != wasmBinaryMagic {
@@ -47,7 +47,7 @@ func Parse(module *Module, data []byte) error {
 	return nil
 }
 
-func parseSections(module *Module, iter *iterator.Iterator) (err error) {
+func parseSections(module *Module, iter *binary.Iterator) (err error) {
 	for !iter.Done() {
 		sectionOpcode := iter.Varint()
 		sectionSize := iter.Varint()
@@ -82,7 +82,7 @@ func parseSections(module *Module, iter *iterator.Iterator) (err error) {
 	return nil
 }
 
-func parseGlobalSection(module *Module, iter *iterator.Iterator) error {
+func parseGlobalSection(module *Module, iter *binary.Iterator) error {
 	numGlobals := iter.Varint()
 	for i := 0; i < numGlobals; i++ {
 		globalType := types.ForCode(iter.Byte())
@@ -98,12 +98,12 @@ func parseGlobalSection(module *Module, iter *iterator.Iterator) error {
 	return nil
 }
 
-func parseStartSection(module *Module, iter *iterator.Iterator) error {
+func parseStartSection(module *Module, iter *binary.Iterator) error {
 	module.startFuncIndex = iter.Varint()
 	return nil
 }
 
-func parseImportSection(module *Module, iter *iterator.Iterator) error {
+func parseImportSection(module *Module, iter *binary.Iterator) error {
 	numImports := iter.Varint()
 	for i := 0; i < numImports; i++ {
 		moduleNameLen := iter.Varint()
@@ -127,7 +127,7 @@ func parseImportSection(module *Module, iter *iterator.Iterator) error {
 	return nil
 }
 
-func parseTypeSection(module *Module, iter *iterator.Iterator) (err error) {
+func parseTypeSection(module *Module, iter *binary.Iterator) (err error) {
 	numTypes := iter.Varint()
 	for i := 0; i < numTypes; i++ {
 		typeCode := iter.Varint()
@@ -146,7 +146,7 @@ func parseTypeSection(module *Module, iter *iterator.Iterator) (err error) {
 	return nil
 }
 
-func parseFuncType(module *Module, iter *iterator.Iterator) error {
+func parseFuncType(module *Module, iter *binary.Iterator) error {
 	numParams := iter.Varint()
 	params := make([]int, numParams)
 	for i := 0; i < numParams; i++ {
@@ -167,7 +167,7 @@ func parseFuncType(module *Module, iter *iterator.Iterator) error {
 	return nil
 }
 
-func parseFunctionSection(module *Module, iter *iterator.Iterator) error {
+func parseFunctionSection(module *Module, iter *binary.Iterator) error {
 	numFunctions := iter.Varint()
 	for i := 0; i < numFunctions; i++ {
 		funcSignatureIndex := iter.Varint()
@@ -178,7 +178,7 @@ func parseFunctionSection(module *Module, iter *iterator.Iterator) error {
 	return nil
 }
 
-func parseExportSection(module *Module, iter *iterator.Iterator) error {
+func parseExportSection(module *Module, iter *binary.Iterator) error {
 	numExports := iter.Varint()
 	for i := 0; i < numExports; i++ {
 		nameLen := iter.Varint()
@@ -198,7 +198,7 @@ func parseExportSection(module *Module, iter *iterator.Iterator) error {
 	return nil
 }
 
-func parseCodeSection(module *Module, iter *iterator.Iterator) (err error) {
+func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 	numFunctions := iter.Varint()
 	for i := 0; i < numFunctions; i++ {
 		bodySize := iter.Varint()
@@ -214,7 +214,7 @@ func parseCodeSection(module *Module, iter *iterator.Iterator) (err error) {
 			body = iter.Bytes(bodySize)
 		}
 
-		module.functions[i].Body = iterator.NewIterator(body)
+		module.functions[i].Body = binary.NewIterator(body)
 	}
 	return nil
 }

@@ -1,11 +1,11 @@
 package types
 
-import "wasp/wasp/internal/iterator"
+import "wasp/wasp/internal/binary"
 
 type Type struct {
 	Code byte
 	Zero func() any
-	Read func(*iterator.Iterator) any
+	Read func(*binary.Iterator) any
 }
 
 var types = make([]*Type, 256)
@@ -15,12 +15,12 @@ func newType[T any](code byte) *Type {
 	var y any = x
 
 	var zero func() any
-	var read func(*iterator.Iterator) any
+	var read func(*binary.Iterator) any
 
 	switch y.(type) {
 	case int32:
 		zero = func() any { return int32(0) }
-		read = func(it *iterator.Iterator) any { return int32(it.Varint()) }
+		read = func(it *binary.Iterator) any { return int32(it.Varint()) }
 	default:
 		panic("unsupported type")
 	}

@@ -1,4 +1,4 @@
-package iterator
+package binary
 
 import (
 	"encoding/binary"
