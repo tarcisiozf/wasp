@@ -7,7 +7,13 @@ import (
 var (
 	LocalGet = addInstruction(0x20, func(ctx *execution.Context) error {
 		localIndex := ctx.Body.Varint()
-		ctx.Stack.Push(ctx.Local[localIndex].Value)
+		value := ctx.Local[localIndex]
+		ctx.Stack.Push(value)
+		return nil
+	})
+	LocalSet = addInstruction(0x21, func(ctx *execution.Context) error {
+		localIndex := ctx.Body.Varint()
+		ctx.Local[localIndex] = ctx.Stack.Pop()
 		return nil
 	})
 )

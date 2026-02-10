@@ -6,8 +6,9 @@ import (
 )
 
 type Context struct {
-	Local []memory.Local
-	Stack *memory.Stack
-	Body  *iterator.Iterator
-	Done  bool
+	Local               []any
+	Stack               *memory.Stack
+	Body                *iterator.Iterator
+	Done                bool
+	FunctionCallRequest int
 }

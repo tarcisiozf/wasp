@@ -21,3 +21,9 @@ func (s *Stack) Pop() any {
 	s.items = s.items[:len(s.items)-1]
 	return value
 }
+
+func (s *Stack) PopN(n int) []any {
+	items := s.items[:n]
+	s.items = s.items[n:]
+	return items
+}

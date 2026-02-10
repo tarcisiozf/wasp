@@ -2,6 +2,8 @@ package module
 
 import (
 	"fmt"
+	"wasp/wasp/external"
+	"wasp/wasp/funcs"
 	"wasp/wasp/internal/instructions"
 	"wasp/wasp/internal/iterator"
 )
@@ -18,16 +20,11 @@ const (
 	sectionCode     = 0xa
 
 	typeFunc = 0x60
-	typeI32  = 0x7f
 
 	kindFunc = 0x00
 
 	guessSize = 0x0
 )
-
-var constOfTypes = []byte{
-	typeI32: 0x41, // i32.const
-}
 
 func Parse(module *Module, data []byte) error {
 	iter := iterator.NewIterator(data)
@@ -101,19 +98,12 @@ func parseImportSection(module *Module, iter *iterator.Iterator) error {
 			return fmt.Errorf("invalid import kind 0x%x", importKind)
 		}
 
-		imp := Import{
-			ModuleName:     moduleName,
-			FieldName:      fieldName,
-			Kind:           importKind,
-			SignatureIndex: importSignatureIndex,
-		}
-
-		importModuleMap := module.imports[moduleName]
-		if importModuleMap == nil {
-			importModuleMap = make(map[string]Import)
-			module.imports[moduleName] = importModuleMap
-		}
-		importModuleMap[fieldName] = imp
+		module.imports = append(module.imports, external.Import{
+			ModuleName: moduleName,
+			FieldName:  fieldName,
+			Kind:       importKind,
+			Signature:  module.functionSignatures[importSignatureIndex],
+		})
 	}
 	return nil
 }
@@ -150,9 +140,9 @@ func parseFuncType(module *Module, iter *iterator.Iterator) error {
 		results[i] = iter.Varint()
 	}
 
-	module.functionSignatures = append(module.functionSignatures, FunctionSignature{
-		params:  params,
-		results: results,
+	module.functionSignatures = append(module.functionSignatures, funcs.Signature{
+		Params:  params,
+		Results: results,
 	})
 
 	return nil
@@ -162,8 +152,8 @@ func parseFunctionSection(module *Module, iter *iterator.Iterator) error {
 	numFunctions := iter.Varint()
 	for i := 0; i < numFunctions; i++ {
 		funcSignatureIndex := iter.Varint()
-		module.functions = append(module.functions, Function{
-			signature: module.functionSignatures[funcSignatureIndex],
+		module.functions = append(module.functions, funcs.Function{
+			Signature: module.functionSignatures[funcSignatureIndex],
 		})
 	}
 	return nil
@@ -205,7 +195,7 @@ func parseCodeSection(module *Module, iter *iterator.Iterator) (err error) {
 			body = iter.Bytes(bodySize)
 		}
 
-		module.functions[i].body = iterator.NewIterator(body)
+		module.functions[i].Body = iterator.NewIterator(body)
 	}
 	return nil
 }

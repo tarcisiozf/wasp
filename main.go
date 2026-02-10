@@ -1,40 +1,57 @@
 package main
 
 import (
+	"fmt"
 	"wasp/wasp"
+	"wasp/wasp/external"
 )
 
 func main() {
-	module, err := wasp.NewModuleFromFile("math.wasm")
+	//module, err := wasp.NewModuleFromFile("math.wasm")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//fn, err := module.GetExportedFunction("square")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//results, err := fn(int32(5))
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//println(results[0].(int32))
+
+	consoleLog, err := external.WrapFunc("console", "log", func(args ...any) {
+		fmt.Println(args...)
+	})
 	if err != nil {
 		panic(err)
 	}
 
-	fn, err := module.GetExportedFunction("square")
-	if err != nil {
-		panic(err)
-	}
+	{
+		module, err := wasp.NewModuleFromFile("local.wasm")
+		if err != nil {
+			panic(err)
+		}
 
-	results, err := fn(int32(5))
-	if err != nil {
-		panic(err)
-	}
+		fn, err := module.StartFunction()
+		if err != nil {
+			panic(err)
+		}
 
-	println(results[0].(int32))
+		engine, err := wasp.NewEngine(
+			wasp.WithExternalFunc(consoleLog),
+		)
+		if err != nil {
+			panic(err)
+		}
 
-	module, err = wasp.NewModuleFromFile("local.wasm")
-	if err != nil {
-		panic(err)
-	}
-
-	fn, err = module.StartFunction()
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = fn()
-	if err != nil {
-		panic(err)
+		if _, err := engine.Call(module, fn); err != nil {
+			panic(err)
+		}
 	}
 
 	//wat := `(module
