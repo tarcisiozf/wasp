@@ -214,7 +214,7 @@ func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 			body = iter.Bytes(bodySize)
 		}
 
-		module.functions[i].Body = binary.NewIterator(body)
+		module.functions[i].Body = body
 	}
 	return nil
 }

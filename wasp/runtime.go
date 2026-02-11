@@ -2,6 +2,7 @@ package wasp
 
 import (
 	"fmt"
+	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/external"
 	"wasp/wasp/internal/funcs"
@@ -59,11 +60,11 @@ func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 		Stack:   stack,
 		Globals: runtime.module.Globals.Clone(),
 
-		Body:                fn.Body,
+		Body:                binary.NewIterator(fn.Body),
 		FunctionCallRequest: -1,
 	}
 
-	localDeclCount := fn.Body.Varint()
+	localDeclCount := ctx.Body.Varint()
 
 	local := make([]any, 0, len(args)+localDeclCount)
 
@@ -73,8 +74,8 @@ func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 	}
 
 	for i := 0; i < localDeclCount; i++ {
-		localTypeCount := fn.Body.Varint()
-		localType := types.ForCode(fn.Body.Byte())
+		localTypeCount := ctx.Body.Varint()
+		localType := types.ForCode(ctx.Body.Byte())
 		for j := 0; j < localTypeCount; j++ {
 			local = append(local, localType.Zero())
 		}
@@ -83,7 +84,7 @@ func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 	ctx.Local = local
 
 	for !ctx.Done {
-		opcode := fn.Body.Byte()
+		opcode := ctx.Body.Byte()
 		ix := instructions.Instruction(opcode)
 		if ix.Handler == nil {
 			return nil, fmt.Errorf("invalid opcode: 0x%x", opcode)
