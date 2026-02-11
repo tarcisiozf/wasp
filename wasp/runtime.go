@@ -94,7 +94,10 @@ func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 		}
 
 		if ctx.FunctionCallRequest >= 0 {
-			extFunc := runtime.indexedImportedFunctions[ctx.FunctionCallRequest]
+			extFunc, err := runtime.getImportedFunc(ctx.FunctionCallRequest)
+			if err != nil {
+				return nil, fmt.Errorf("invalid function call request: %w", err)
+			}
 			params := ctx.Stack.PopN(extFunc.NumInputs())
 			results, err := extFunc.Call(params)
 			if err != nil {
@@ -131,4 +134,11 @@ func (runtime *Runtime) mapImportsToExternalFunctions() error {
 	}
 
 	return nil
+}
+
+func (runtime *Runtime) getImportedFunc(index int) (*external.Function, error) {
+	if index < 0 || index >= len(runtime.indexedImportedFunctions) {
+		return nil, fmt.Errorf("import index %d out of bounds", index)
+	}
+	return runtime.indexedImportedFunctions[index], nil
 }

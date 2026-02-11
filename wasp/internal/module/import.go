@@ -10,3 +10,7 @@ type Import struct {
 	Kind       byte
 	Signature  funcs.Signature
 }
+
+func (i Import) String() string {
+	return i.ModuleName + "." + i.FieldName
+}
