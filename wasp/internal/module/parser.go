@@ -95,6 +95,18 @@ func parseSections(module *Module, iter *binary.Iterator) (err error) {
 }
 
 func parseMemorySection(module *Module, iter *binary.Iterator) error {
+	numMemories := iter.Varint()
+	for i := 0; i < numMemories; i++ {
+		flag := iter.Byte()
+		initialPages := iter.Varint()
+		var maxPages int
+		if flag == 0x1 {
+			maxPages = iter.Varint()
+		}
+
+		// TODO: store memory info in module struct instead of printing
+		fmt.Printf("Memory %d: initial=%d pages, max=%d pages\n", i, initialPages, maxPages)
+	}
 	return nil
 }
 
@@ -131,9 +143,8 @@ func parseGlobalSection(module *Module, iter *binary.Iterator) error {
 		value := globalType.Read(iter)
 
 		module.Globals.Push(value, isMutable)
+		iter.Assert(opcodes.End)
 	}
-
-	iter.Assert(opcodes.End)
 
 	return nil
 }
