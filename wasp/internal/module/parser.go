@@ -314,11 +314,12 @@ func parseFuncType(module *Module, iter *binary.Iterator) error {
 
 func parseFunctionSection(module *Module, iter *binary.Iterator) error {
 	numFunctions := iter.Varint()
+	module.functions = make([]funcs.Function, numFunctions)
 	for i := 0; i < numFunctions; i++ {
 		funcSignatureIndex := iter.Varint()
-		module.functions = append(module.functions, funcs.Function{
+		module.functions[i] = funcs.Function{
 			Signature: module.functionSignatures[funcSignatureIndex],
-		})
+		}
 	}
 	return nil
 }
@@ -343,6 +344,7 @@ func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 	numFunctions := iter.Varint()
 	for i := 0; i < numFunctions; i++ {
 		bodySize := iter.Varint()
+		offset := iter.Position()
 
 		var body []byte
 		if bodySize == guessSize {
@@ -356,6 +358,7 @@ func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 		}
 
 		module.functions[i].Body = body
+		module.functions[i].Offset = offset
 	}
 	return nil
 }
