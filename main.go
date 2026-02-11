@@ -1,114 +1,100 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"os"
+	"os/exec"
 	"wasp/wasp"
 )
 
+var linker = wasp.NewLinker()
+
+var examples = map[string]string{
+	"eq": `(module
+	  (import "env" "log_bool" (func $log_bool (param i32)))
+	  (func $main
+		;; load 10 and 2 onto the stack
+		i32.const 10
+		i32.const 2
+	
+		i32.eq ;; check if 10 is equal to 2
+		call $log_bool ;; log the result
+	  )
+	  (start $main)
+	)`,
+}
+
 func main() {
-	//module, err := wasp.NewModuleFromFile("math.wasm")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//fn, err := module.GetExportedFunction("square")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//results, err := fn(int32(5))
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//println(results[0].(int32))
-
-	linker := wasp.NewLinker()
-
-	err := linker.Define("console", "log", func(args ...any) {
-		fmt.Println(args...)
-	})
-	if err != nil {
+	if err := linker.Define("console", "log", log); err != nil {
 		panic(err)
 	}
 
-	{
-		module, err := wasp.NewModuleFromFile("local.wasm")
-		if err != nil {
-			panic(err)
-		}
-
-		fn, err := module.StartFunction()
-		if err != nil {
-			panic(err)
-		}
-
-		runtime, err := wasp.NewRuntime(
-			module,
-			wasp.WithLinker(linker),
-		)
-		if err != nil {
-			panic(err)
-		}
-
-		if _, err := runtime.Call(fn); err != nil {
-			panic(err)
-		}
+	if err := linker.Define("env", "log_bool", log); err != nil {
+		panic(err)
 	}
 
-	{
-		module, err := wasp.NewModuleFromFile("global.wasm")
-		if err != nil {
-			panic(err)
+	for name, wat := range examples {
+		watPath := fmt.Sprintf("builds/%s.wat", name)
+		outputPath := fmt.Sprintf("builds/%s.wasm", name)
+		bytecodePath := fmt.Sprintf("builds/%s.s", name)
+
+		_, err := os.Stat(watPath)
+		if os.IsNotExist(err) {
+			if err := os.WriteFile(watPath, []byte(wat), 0644); err != nil {
+				panic(fmt.Sprintf("failed to write wat file: %v", err))
+			}
+
+			cmd := exec.Command("wat2wasm", watPath, "-o", outputPath, "-v")
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+			if err := cmd.Run(); err != nil {
+				os.Remove(watPath)
+				fmt.Fprintf(os.Stderr, "failed to run wat2wasm: %v\nstdout: %s\nstderr: %s\n", err, stdout.String(), stderr.String())
+			}
+
+			if err := os.WriteFile(bytecodePath, stderr.Bytes(), 0644); err != nil {
+				panic(fmt.Sprintf("failed to write bytecode file: %v", err))
+			}
 		}
 
-		fn, err := module.StartFunction()
+		results, err := run(outputPath)
 		if err != nil {
-			panic(err)
+			panic(fmt.Sprintf("failed to run wasm module %s: %v", name, err))
 		}
 
-		runtime, err := wasp.NewRuntime(
-			module,
-			wasp.WithLinker(linker),
-		)
-		if err != nil {
-			panic(err)
-		}
+		fmt.Printf("results of %s: %v\n", name, results)
+	}
+}
 
-		if _, err := runtime.Call(fn); err != nil {
-			panic(err)
-		}
+func run(path string) ([]any, error) {
+	module, err := wasp.NewModuleFromFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load module: %w", err)
 	}
 
-	//wat := `(module
-	//  (import "console" "log" (func $log (param i32)))
-	//  (func $main
-	//
-	//	(local $var i32) ;; create a local variable named $var
-	//	(local.set $var (i32.const 10)) ;; set $var to 10
-	//	local.get $var ;; load $var onto the stack
-	//	call $log ;; log the result
-	//
-	//  )
-	//  (start $main)
-	//)`
-	//wasmBytes, err := wasmtime.Wat2Wasm(wat)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//f, _ := os.ReadFile("local.wasm")
-	//if len(f) != len(wasmBytes) {
-	//	panic("wasm bytes length mismatch")
-	//}
-	//for i := range f {
-	//	if f[i] != wasmBytes[i] {
-	//		panic("wasm bytes content mismatch")
-	//	}
-	//}
-	//
-	//module, err = wasp.NewModule(wasmBytes)
-	//if err != nil {
-	//	panic(err)
-	//}
+	fn, err := module.StartFunction()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get start function: %w", err)
+	}
+
+	runtime, err := wasp.NewRuntime(
+		module,
+		wasp.WithLinker(linker),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create runtime: %w", err)
+	}
+
+	results, err := runtime.Call(fn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute start function: %w", err)
+	}
+
+	return results, nil
+}
+
+func log(args ...any) {
+	fmt.Println(args...)
 }

@@ -1,0 +1,3 @@
+/builds/*.s
+/builds/*.wasm
+/builds/*.wat
