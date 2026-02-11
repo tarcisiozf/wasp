@@ -86,9 +86,7 @@ func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 	for !ctx.Done {
 		opcode := ctx.Body.Byte()
 		ix := instructions.Instruction(opcode)
-		if ix.Handler == nil {
-			return nil, fmt.Errorf("invalid opcode: 0x%x", opcode)
-		}
+		fmt.Printf("Executing instruction %s\n", ix.String())
 		if err := ix.Handler(ctx); err != nil {
 			return nil, fmt.Errorf("failed to execute instruction 0x%x: %w", opcode, err)
 		}

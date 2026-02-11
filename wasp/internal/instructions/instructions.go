@@ -3,6 +3,7 @@ package instructions
 import (
 	"fmt"
 	"wasp/wasp/internal/execution"
+	"wasp/wasp/internal/opcodes"
 )
 
 type handler func(ctx *execution.Context) error
@@ -10,6 +11,10 @@ type handler func(ctx *execution.Context) error
 type instruction struct {
 	Opcode  byte
 	Handler handler
+}
+
+func (i instruction) String() any {
+	return fmt.Sprintf("%s(0x%x)", opcodes.Name(i.Opcode), i.Opcode)
 }
 
 var instructions = make([]instruction, 256)
