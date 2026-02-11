@@ -50,7 +50,7 @@ func NewRuntime(module *module.Module, options ...RuntimeOption) (*Runtime, erro
 	return runtime, nil
 }
 
-func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
+func (runtime *Runtime) Call(store *Store, fn funcs.Function, args ...any) ([]any, error) {
 	if len(args) != len(fn.Signature.Params) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.Signature.Params), len(args))
 	}
@@ -58,7 +58,7 @@ func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 	stack := memory.NewStack[any]()
 	ctx := &execution.Context{
 		Stack:   stack,
-		Globals: runtime.module.Globals.Clone(),
+		Globals: store.globals,
 
 		Body:                binary.NewIterator(fn.Body),
 		FunctionCallRequest: -1,

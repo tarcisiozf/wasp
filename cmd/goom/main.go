@@ -41,6 +41,8 @@ func main() {
 			os.Exit(1)
 		}
 
+		store := wasp.NewStore(module)
+
 		funcs := []string{
 			"emscripten_stack_init",
 			"__wasm_call_ctors",
@@ -57,7 +59,7 @@ func main() {
 
 			var results []any
 			elapsed(func() {
-				results, err = r.Call(fn)
+				results, err = r.Call(store, fn)
 				if err != nil {
 					println("Error calling function:", err.Error())
 					os.Exit(1)
