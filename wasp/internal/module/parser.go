@@ -78,6 +78,8 @@ func parseSections(module *Module, iter *binary.Iterator) (err error) {
 			err = parseExportSection(module, iter)
 		case sectionStart:
 			err = parseStartSection(module, iter)
+		case sectionElement:
+			err = parseElementSection(module, iter)
 		case sectionCode:
 			err = parseCodeSection(module, iter)
 		default:
@@ -90,6 +92,29 @@ func parseSections(module *Module, iter *binary.Iterator) (err error) {
 
 		if sectionSize == guessSize {
 			sectionSize = iter.Varint()
+		}
+	}
+	return nil
+}
+
+func parseElementSection(module *Module, iter *binary.Iterator) error {
+	numElementSegments := iter.Varint()
+	for i := 0; i < numElementSegments; i++ {
+		segmentFlags := iter.Byte()
+		if segmentFlags != 0x0 {
+			return fmt.Errorf("unsupported element segment flag: 0x%x", segmentFlags)
+		}
+
+		iter.Assert(opcodes.Const)
+		offset := iter.Varint()
+		iter.Assert(opcodes.End)
+
+		_ = offset // TODO: store offset info in module struct instead of ignoring
+
+		numElements := iter.Varint()
+		for j := 0; j < numElements; j++ {
+			elementFuncIndex := iter.Varint()
+			_ = elementFuncIndex // TODO: store element info in module struct instead of ignoring
 		}
 	}
 	return nil
