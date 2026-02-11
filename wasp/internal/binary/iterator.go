@@ -56,6 +56,27 @@ func (it *Iterator) Varint() int {
 		return int(x)
 	}
 
+	b = it.data[it.pos+1]
+	x |= uint64(b&0x7F) << 7
+	if b < 0x80 {
+		it.pos += 2
+		return int(x)
+	}
+
+	b = it.data[it.pos+2]
+	x |= uint64(b&0x7F) << 14
+	if b < 0x80 {
+		it.pos += 3
+		return int(x)
+	}
+
+	b = it.data[it.pos+3]
+	x |= uint64(b&0x7F) << 21
+	if b < 0x80 {
+		it.pos += 4
+		return int(x)
+	}
+
 	panic("varint parsing not implemented yet")
 }
 
