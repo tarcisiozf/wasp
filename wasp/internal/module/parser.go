@@ -82,6 +82,10 @@ func parseSections(module *Module, iter *binary.Iterator) (err error) {
 			err = parseElementSection(module, iter)
 		case sectionCode:
 			err = parseCodeSection(module, iter)
+		case sectionData:
+			err = parseDataSection(module, iter)
+		case sectionDataCount:
+			err = parseDataCountSection(module, iter)
 		default:
 			return fmt.Errorf("invalid section type: 0x%x", sectionOpcode)
 		}
@@ -94,6 +98,49 @@ func parseSections(module *Module, iter *binary.Iterator) (err error) {
 			sectionSize = iter.Varint()
 		}
 	}
+	return nil
+}
+
+func parseDataSection(module *Module, iter *binary.Iterator) error {
+	numDataSegments := iter.Varint()
+	for i := 0; i < numDataSegments; i++ {
+		segmentFlags := iter.Byte()
+
+		var memoryIndex int
+		var offset int
+
+		switch segmentFlags {
+		case 0x00: // active segment with memory index 0
+			memoryIndex = 0
+			iter.Assert(opcodes.Const)
+			offset = iter.Varint()
+			iter.Assert(opcodes.End)
+		case 0x01: // passive segment
+			// Passive segments have no memory index or offset
+		case 0x02: // active segment with explicit memory index
+			memoryIndex = iter.Varint()
+			iter.Assert(opcodes.Const)
+			offset = iter.Varint()
+			iter.Assert(opcodes.End)
+		default:
+			return fmt.Errorf("unsupported data segment flag: 0x%x", segmentFlags)
+		}
+
+		dataLen := iter.Varint()
+		data := iter.Bytes(dataLen)
+
+		module.Data = append(module.Data, DataSegment{
+			MemoryIndex: memoryIndex,
+			Offset:      offset,
+			Data:        data,
+		})
+	}
+	return nil
+}
+
+func parseDataCountSection(module *Module, iter *binary.Iterator) error {
+	dataCount := iter.Varint()
+	_ = dataCount // TODO: store data count info in module struct instead of ignoring
 	return nil
 }
 

@@ -6,6 +6,18 @@ import (
 	"wasp/wasp/internal/memory"
 )
 
+type DataSegment struct {
+	MemoryIndex int
+	Offset      int
+	Data        []byte
+}
+
+type Table struct {
+	ElementType byte
+	InitialSize int
+	MaxSize     int
+}
+
 type Module struct {
 	functionSignatures []funcs.Signature
 	functions          []funcs.Function
@@ -17,6 +29,7 @@ type Module struct {
 
 	Globals memory.Global
 	Tables  []Table
+	Data    []DataSegment
 }
 
 func NewModule() *Module {
