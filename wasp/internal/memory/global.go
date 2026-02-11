@@ -47,7 +47,3 @@ func (global *Global) Clone() *Global {
 		entries: entries,
 	}
 }
-
-func NewGlobal() *Global {
-	return &Global{}
-}

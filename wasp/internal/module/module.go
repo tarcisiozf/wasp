@@ -15,14 +15,13 @@ type Module struct {
 
 	startFuncIndex int
 
-	Globals *memory.Global
+	Globals memory.Global
+	Tables  []Table
 }
 
 func NewModule() *Module {
 	return &Module{
 		exports: make(map[string]Export),
-
-		Globals: memory.NewGlobal(),
 
 		startFuncIndex: -1,
 	}

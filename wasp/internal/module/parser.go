@@ -12,19 +12,27 @@ const (
 	wasmBinaryMagic   = 0x6d736100
 	wasmBinaryVersion = 0x1
 
-	sectionType     = 0x1
-	sectionImport   = 0x2
-	sectionFunction = 0x3
-	sectionGlobal   = 0x6
-	sectionExport   = 0x7
-	sectionStart    = 0x8
-	sectionCode     = 0xa
+	sectionType      = 0x1
+	sectionImport    = 0x2
+	sectionFunction  = 0x3
+	sectionTable     = 0x4
+	sectionMemory    = 0x5
+	sectionGlobal    = 0x6
+	sectionExport    = 0x7
+	sectionStart     = 0x8
+	sectionElement   = 0x9
+	sectionCode      = 0xa
+	sectionData      = 0xb
+	sectionDataCount = 0xc
+	sectionTag       = 0xd
 
 	typeFunc = 0x60
 
 	kindFunc = 0x00
 
 	guessSize = 0x0
+
+	funcRef = 0x70
 )
 
 func Parse(module *Module, data []byte) error {
@@ -55,18 +63,22 @@ func parseSections(module *Module, iter *binary.Iterator) (err error) {
 		switch sectionOpcode {
 		case sectionType:
 			err = parseTypeSection(module, iter)
-		case sectionFunction:
-			err = parseFunctionSection(module, iter)
-		case sectionExport:
-			err = parseExportSection(module, iter)
-		case sectionCode:
-			err = parseCodeSection(module, iter)
 		case sectionImport:
 			err = parseImportSection(module, iter)
-		case sectionStart:
-			err = parseStartSection(module, iter)
+		case sectionFunction:
+			err = parseFunctionSection(module, iter)
+		case sectionTable:
+			err = parseTableSection(module, iter)
+		case sectionMemory:
+			err = parseMemorySection(module, iter)
 		case sectionGlobal:
 			err = parseGlobalSection(module, iter)
+		case sectionExport:
+			err = parseExportSection(module, iter)
+		case sectionStart:
+			err = parseStartSection(module, iter)
+		case sectionCode:
+			err = parseCodeSection(module, iter)
 		default:
 			return fmt.Errorf("invalid section type: 0x%x", sectionOpcode)
 		}
@@ -78,6 +90,34 @@ func parseSections(module *Module, iter *binary.Iterator) (err error) {
 		if sectionSize == guessSize {
 			sectionSize = iter.Varint()
 		}
+	}
+	return nil
+}
+
+func parseMemorySection(module *Module, iter *binary.Iterator) error {
+	return nil
+}
+
+func parseTableSection(module *Module, iter *binary.Iterator) error {
+	numTables := iter.Varint()
+	for i := 0; i < numTables; i++ {
+		elementType := iter.Byte()
+		if elementType != funcRef {
+			return fmt.Errorf("unsupported table element type: 0x%x", elementType)
+		}
+
+		flag := iter.Byte()
+		initialSize := iter.Varint()
+		var maxSize int
+		if flag == 0x1 {
+			maxSize = iter.Varint()
+		}
+
+		module.Tables = append(module.Tables, Table{
+			ElementType: elementType,
+			InitialSize: initialSize,
+			MaxSize:     maxSize,
+		})
 	}
 	return nil
 }
