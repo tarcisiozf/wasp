@@ -17,6 +17,20 @@ func mul[T number](ctx *execution.Context) error {
 	return nil
 }
 
+func add[T number](ctx *execution.Context) error {
+	b := castNumber[T](ctx.Stack.Pop())
+	a := castNumber[T](ctx.Stack.Pop())
+	ctx.Stack.Push(a + b)
+	return nil
+}
+
+func and[T number](ctx *execution.Context) error {
+	b := castNumber[T](ctx.Stack.Pop())
+	a := castNumber[T](ctx.Stack.Pop())
+	ctx.Stack.Push(a & b)
+	return nil
+}
+
 func eq[T number](ctx *execution.Context) error {
 	b := castNumber[T](ctx.Stack.Pop())
 	a := castNumber[T](ctx.Stack.Pop())
@@ -47,5 +61,7 @@ var (
 
 	EqI32 = addInstruction(opcodes.EqI32, eq[int32])
 
-	MulI32 = addInstruction(opcodes.MulI32, mul[int32])
+	I32Add = addInstruction(opcodes.I32Add, add[int32])
+	I32Mul = addInstruction(opcodes.I32Mul, mul[int32])
+	I32And = addInstruction(opcodes.I32And, and[int32])
 )

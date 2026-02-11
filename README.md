@@ -37,3 +37,11 @@
   - [ ] f32.eq
   - [ ] f64.eq
   - [X] i32.eq
+- [ ] and
+  - [X] i32.and
+  - [ ] i64.and
+- [ ] add
+  - [X] i32.add
+  - [ ] i64.add
+  - [ ] f32.add
+  - [ ] f64.add

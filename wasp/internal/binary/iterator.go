@@ -46,6 +46,7 @@ func (it *Iterator) ReadUntil(target byte) ([]byte, error) {
 }
 
 // All integer constants are encoded using a space-efficient, variable-length LEB128 encoding
+// unrolled by hand for performance
 func (it *Iterator) Varint() int {
 	var x uint64
 

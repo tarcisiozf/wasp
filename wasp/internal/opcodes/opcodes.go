@@ -18,5 +18,7 @@ const (
 
 	EqI32 = 0x46
 
-	MulI32 = 0x6c
+	I32Add = 0x6a
+	I32Mul = 0x6c
+	I32And = 0x71
 )
