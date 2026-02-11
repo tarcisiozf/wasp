@@ -28,7 +28,8 @@ const (
 
 	typeFunc = 0x60
 
-	kindFunc = 0x00
+	exportKindFunc   = 0x00
+	exportKindMemory = 0x02
 
 	guessSize = 0x0
 
@@ -164,7 +165,7 @@ func parseImportSection(module *Module, iter *binary.Iterator) error {
 		importKind := iter.Byte()
 		importSignatureIndex := iter.Varint()
 
-		if importKind != kindFunc {
+		if importKind != exportKindFunc { // TODO: check kind
 			return fmt.Errorf("invalid import kind 0x%x", importKind)
 		}
 
@@ -234,12 +235,8 @@ func parseExportSection(module *Module, iter *binary.Iterator) error {
 	for i := 0; i < numExports; i++ {
 		nameLen := iter.Varint()
 		name := iter.String(nameLen)
-		exportKind := iter.Varint()
+		exportKind := iter.Varint() // TODO: check kind
 		exportIndex := iter.Varint()
-
-		if exportKind != kindFunc {
-			return fmt.Errorf("unsupported export kind: 0x%x", exportKind)
-		}
 
 		module.exports[name] = Export{
 			kind:  exportKind,

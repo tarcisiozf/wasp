@@ -33,7 +33,7 @@ func (module *Module) GetExportedFunction(name string) (funcs.Function, error) {
 		return funcs.Function{}, fmt.Errorf("export not found: %s", name)
 	}
 
-	if export.kind != kindFunc {
+	if export.kind != exportKindFunc {
 		return funcs.Function{}, fmt.Errorf("export is not a function: %s", name)
 	}
 
