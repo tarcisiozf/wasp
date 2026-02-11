@@ -293,15 +293,15 @@ func parseTypeSection(module *Module, iter *binary.Iterator) (err error) {
 
 func parseFuncType(module *Module, iter *binary.Iterator) error {
 	numParams := iter.Varint()
-	params := make([]int, numParams)
+	params := make([]byte, numParams)
 	for i := 0; i < numParams; i++ {
-		params[i] = iter.Varint()
+		params[i] = iter.Byte()
 	}
 
 	numResults := iter.Varint()
-	results := make([]int, numResults)
+	results := make([]byte, numResults)
 	for i := 0; i < numResults; i++ {
-		results[i] = iter.Varint()
+		results[i] = iter.Byte()
 	}
 
 	module.functionSignatures = append(module.functionSignatures, funcs.Signature{

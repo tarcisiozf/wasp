@@ -17,6 +17,9 @@ func NewLinker() *Linker {
 }
 
 func (linker *Linker) Define(moduleName, fieldName string, asExtern any) error {
+	if asExtern == nil {
+		return fmt.Errorf("handler cannot be nil")
+	}
 	valueOf := reflect.ValueOf(asExtern)
 	typeOf := valueOf.Type()
 

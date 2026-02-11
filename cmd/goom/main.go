@@ -28,7 +28,6 @@ func main() {
 			println("Error loading module:", err.Error())
 			os.Exit(1)
 		}
-		_ = module
 		fmt.Println("WASM loaded in ", time.Since(start))
 
 		linker := wasp.NewLinker()

@@ -95,10 +95,10 @@ func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 
 		if ctx.FunctionCallRequest >= 0 {
 			extFunc := runtime.indexedImportedFunctions[ctx.FunctionCallRequest]
-			params := ctx.Stack.PopN(extFunc.NumInputs)
+			params := ctx.Stack.PopN(extFunc.NumInputs())
 			results, err := extFunc.Call(params)
 			if err != nil {
-				return nil, fmt.Errorf("failed to call external function %s.%s: %w", extFunc.ModuleName, extFunc.FieldName, err)
+				return nil, fmt.Errorf("failed to call external function %s.%s: %w", extFunc.ModuleName(), extFunc.FieldName(), err)
 			}
 			for _, result := range results {
 				ctx.Stack.Push(result)
@@ -124,11 +124,8 @@ func (runtime *Runtime) mapImportsToExternalFunctions() error {
 		if err != nil {
 			return fmt.Errorf("import %s.%s not found: %w", imp.ModuleName, imp.FieldName, err)
 		}
-		if extFunc.NumInputs != len(imp.Signature.Params) {
-			return fmt.Errorf("external function %s.%s expects %d parameters, got %d", imp.ModuleName, imp.FieldName, extFunc.NumInputs, len(imp.Signature.Params))
-		}
-		if extFunc.NumOutputs != len(imp.Signature.Results) {
-			return fmt.Errorf("external function %s.%s expects %d results, got %d", imp.ModuleName, imp.FieldName, extFunc.NumOutputs, len(imp.Signature.Results))
+		if err := extFunc.CheckSignatureCompatibility(imp.Signature); err != nil {
+			return fmt.Errorf("import %s.%s has incompatible signature: %w", imp.ModuleName, imp.FieldName, err)
 		}
 		runtime.indexedImportedFunctions[i] = extFunc
 	}
