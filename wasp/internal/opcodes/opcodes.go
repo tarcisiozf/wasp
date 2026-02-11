@@ -16,5 +16,7 @@ const (
 
 	Const = 0x41
 
+	EqI32 = 0x46
+
 	MulI32 = 0x6c
 )

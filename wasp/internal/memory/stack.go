@@ -34,11 +34,7 @@ func (s *Stack[T]) PopN(n int) []T {
 }
 
 func (s *Stack[T]) Peek() T {
-	return s.PeekAt(0)
-}
-
-func (s *Stack[T]) PeekAt(n int) T {
-	pos := len(s.items) + n - 1
+	pos := len(s.items) - 1
 	if pos < 0 {
 		panic("stack underflow")
 	}

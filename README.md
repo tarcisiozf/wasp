@@ -27,3 +27,13 @@
   - [ ] call_indirect
   - [ ] return_call
   - [ ] return_call_indirect
+
+### Numeric instructions
+- [X] const
+- [ ] eq
+  - [ ] i32.eqz
+  - [ ] i64.eqz
+  - [ ] i64.eq
+  - [ ] f32.eq
+  - [ ] f64.eq
+  - [X] i32.eq

@@ -67,6 +67,10 @@ func (it *Iterator) Peek() byte {
 	return it.data[it.pos]
 }
 
+func (it *Iterator) PeekAt(n int) byte {
+	return it.data[it.pos+n]
+}
+
 func (it *Iterator) Next() {
 	it.pos++
 }

@@ -1,6 +1,7 @@
 package instructions
 
 import (
+	"fmt"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/opcodes"
 )
@@ -16,6 +17,23 @@ func mul[T number](ctx *execution.Context) error {
 	return nil
 }
 
+func eq[T number](ctx *execution.Context) error {
+	b := castNumber[T](ctx.Stack.Pop())
+	a := castNumber[T](ctx.Stack.Pop())
+	ctx.Stack.Push(a == b)
+	return nil
+}
+
+func castNumber[T number](item any) T {
+	if value, ok := item.(T); ok {
+		return value
+	}
+	if value, ok := item.(int); ok {
+		return T(value)
+	}
+	panic(fmt.Sprintf("expected number, got %T", item))
+}
+
 var (
 	Const = addInstruction(opcodes.Const, func(ctx *execution.Context) error {
 		value := ctx.Body.Varint()
@@ -23,5 +41,7 @@ var (
 		return nil
 	})
 
-	I32Mul = addInstruction(opcodes.MulI32, mul[int32])
+	EqI32 = addInstruction(opcodes.EqI32, eq[int32])
+
+	MulI32 = addInstruction(opcodes.MulI32, mul[int32])
 )
