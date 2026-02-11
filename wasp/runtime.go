@@ -54,7 +54,7 @@ func (runtime *Runtime) Call(fn funcs.Function, args ...any) ([]any, error) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.Signature.Params), len(args))
 	}
 
-	stack := memory.NewStack()
+	stack := memory.NewStack[any]()
 	ctx := &execution.Context{
 		Stack:   stack,
 		Globals: runtime.module.Globals.Clone(),

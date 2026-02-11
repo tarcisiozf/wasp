@@ -1,18 +1,18 @@
 package memory
 
-type Stack struct {
-	items []any
+type Stack[T any] struct {
+	items []T
 }
 
-func NewStack() *Stack {
-	return &Stack{}
+func NewStack[T any]() *Stack[T] {
+	return &Stack[T]{}
 }
 
-func (s *Stack) Push(value any) {
+func (s *Stack[T]) Push(value T) {
 	s.items = append(s.items, value)
 }
 
-func (s *Stack) Pop() any {
+func (s *Stack[T]) Pop() T {
 	size := len(s.items)
 	if size == 0 {
 		panic("stack underflow")
@@ -23,7 +23,7 @@ func (s *Stack) Pop() any {
 	return value
 }
 
-func (s *Stack) PopN(n int) []any {
+func (s *Stack[T]) PopN(n int) []T {
 	size := len(s.items)
 	if n > size {
 		panic("stack underflow")
@@ -33,10 +33,14 @@ func (s *Stack) PopN(n int) []any {
 	return items
 }
 
-func (s *Stack) Peek() any {
-	size := len(s.items)
-	if size == 0 {
+func (s *Stack[T]) Peek() T {
+	return s.PeekAt(0)
+}
+
+func (s *Stack[T]) PeekAt(n int) T {
+	pos := len(s.items) + n - 1
+	if pos < 0 {
 		panic("stack underflow")
 	}
-	return s.items[size-1]
+	return s.items[pos]
 }

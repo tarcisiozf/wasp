@@ -7,7 +7,7 @@ import (
 
 type Context struct {
 	Local               []any
-	Stack               *memory.Stack
+	Stack               *memory.Stack[any]
 	Body                *binary.Iterator
 	Done                bool
 	FunctionCallRequest int
