@@ -110,6 +110,10 @@ func (it *Iterator) Assert(expected ...byte) {
 	}
 }
 
+func (it *Iterator) Position() int {
+	return it.pos
+}
+
 func NewIterator(data []byte) *Iterator {
 	return &Iterator{
 		data: data,

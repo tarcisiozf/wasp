@@ -12,6 +12,7 @@ const (
 	wasmBinaryMagic   = 0x6d736100
 	wasmBinaryVersion = 0x1
 
+	sectionCustom    = 0x0
 	sectionType      = 0x1
 	sectionImport    = 0x2
 	sectionFunction  = 0x3
@@ -62,6 +63,8 @@ func parseSections(module *Module, iter *binary.Iterator) (err error) {
 		sectionSize := iter.Varint()
 
 		switch sectionOpcode {
+		case sectionCustom:
+			err = parseCustomSection(module, iter, sectionSize)
 		case sectionType:
 			err = parseTypeSection(module, iter)
 		case sectionImport:
@@ -98,6 +101,24 @@ func parseSections(module *Module, iter *binary.Iterator) (err error) {
 			sectionSize = iter.Varint()
 		}
 	}
+	return nil
+}
+
+func parseCustomSection(module *Module, iter *binary.Iterator, sectionSize int) error {
+	startPos := iter.Position()
+
+	nameLen := iter.Varint()
+	name := iter.String(nameLen)
+
+	// Calculate remaining bytes in the section
+	bytesRead := iter.Position() - startPos
+	dataLen := sectionSize - bytesRead
+	data := iter.Bytes(dataLen)
+
+	module.CustomSections = append(module.CustomSections, CustomSection{
+		Name: name,
+		Data: data,
+	})
 	return nil
 }
 

@@ -12,6 +12,11 @@ type DataSegment struct {
 	Data        []byte
 }
 
+type CustomSection struct {
+	Name string
+	Data []byte
+}
+
 type Table struct {
 	ElementType byte
 	InitialSize int
@@ -27,9 +32,10 @@ type Module struct {
 
 	startFuncIndex int
 
-	Globals memory.Global
-	Tables  []Table
-	Data    []DataSegment
+	Globals        memory.Global
+	Tables         []Table
+	Data           []DataSegment
+	CustomSections []CustomSection
 }
 
 func NewModule() *Module {
