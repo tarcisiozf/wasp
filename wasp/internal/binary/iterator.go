@@ -77,7 +77,35 @@ func (it *Iterator) Varint() int {
 		return int(x)
 	}
 
-	panic("varint parsing not implemented yet")
+	b = it.data[it.pos+4]
+	x |= uint64(b&0x7F) << 28
+	if b < 0x80 {
+		it.pos += 5
+		return int(x)
+	}
+
+	b = it.data[it.pos+5]
+	x |= uint64(b&0x7F) << 35
+	if b < 0x80 {
+		it.pos += 6
+		return int(x)
+	}
+
+	b = it.data[it.pos+6]
+	x |= uint64(b&0x7F) << 42
+	if b < 0x80 {
+		it.pos += 7
+		return int(x)
+	}
+
+	b = it.data[it.pos+7]
+	x |= uint64(b&0x7F) << 49
+	if b < 0x80 {
+		it.pos += 8
+		return int(x)
+	}
+
+	panic("varint too large")
 }
 
 func (it *Iterator) String(len int) string {
