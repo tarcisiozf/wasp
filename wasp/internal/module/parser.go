@@ -15,10 +15,10 @@ const (
 	sectionType     = 0x1
 	sectionImport   = 0x2
 	sectionFunction = 0x3
+	sectionGlobal   = 0x6
 	sectionExport   = 0x7
 	sectionStart    = 0x8
 	sectionCode     = 0xa
-	sectionGlobal   = 0x6
 
 	typeFunc = 0x60
 

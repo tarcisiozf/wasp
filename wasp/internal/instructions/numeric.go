@@ -11,8 +11,8 @@ type number interface {
 }
 
 func mul[T number](ctx *execution.Context) error {
-	b := ctx.Stack.Pop().(T)
-	a := ctx.Stack.Pop().(T)
+	b := castNumber[T](ctx.Stack.Pop())
+	a := castNumber[T](ctx.Stack.Pop())
 	ctx.Stack.Push(a * b)
 	return nil
 }
@@ -20,7 +20,11 @@ func mul[T number](ctx *execution.Context) error {
 func eq[T number](ctx *execution.Context) error {
 	b := castNumber[T](ctx.Stack.Pop())
 	a := castNumber[T](ctx.Stack.Pop())
-	ctx.Stack.Push(a == b)
+	if a == b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
 	return nil
 }
 
