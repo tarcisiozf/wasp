@@ -3,11 +3,11 @@ package parser
 import (
 	"fmt"
 	"wasp/cmd/wat/wat/ast"
+	"wasp/cmd/wat/wat/lex"
 	"wasp/cmd/wat/wat/tokens"
 )
 
-func Parse(data []byte) (ast.Node, error) {
-	lexer := NewLexer(data)
+func Parse(lexer *lex.Lexer) (ast.Node, error) {
 	program := ast.Program{}
 	for lexer.HasNext() {
 		switch lexer.Next() {
@@ -28,13 +28,13 @@ func Parse(data []byte) (ast.Node, error) {
 	return program, nil
 }
 
-func parseList(lexer *Lexer) (ast.Node, error) {
+func parseList(lexer *lex.Lexer) (ast.Node, error) {
 	return nil, nil
 }
 
-func parseComment(lexer *Lexer) (ast.LeadingComment, error) {
+func parseComment(lexer *lex.Lexer) (ast.LeadingComment, error) {
 	if err := lexer.Assert(tokens.Semicolon); err != nil {
-		return ast.LeadingComment{}, fmt.Errorf("expected ';;' at position %d", lexer.pos)
+		return ast.LeadingComment{}, fmt.Errorf("expected ';;' at position %d", lexer.Position())
 	}
 	lexer.Skip()
 	value := lexer.ReadUntil(tokens.NewLine)

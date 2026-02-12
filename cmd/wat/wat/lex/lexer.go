@@ -1,4 +1,4 @@
-package parser
+package lex
 
 import "fmt"
 
@@ -54,6 +54,10 @@ func (lexer *Lexer) ReadUntil(delimiter byte) []byte {
 		data = append(data, ch)
 	}
 	return data
+}
+
+func (lexer *Lexer) Position() int {
+	return lexer.pos
 }
 
 func isEmpty(b byte) bool {

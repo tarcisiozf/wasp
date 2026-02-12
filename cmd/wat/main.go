@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"wasp/cmd/wat/wat/lex"
 	"wasp/cmd/wat/wat/parser"
 )
 
@@ -35,7 +36,8 @@ func main() {
   "\0b"                    ;; end
 )`)
 
-	root, err := parser.Parse(file)
+	lexer := lex.NewLexer(file)
+	root, err := parser.Parse(lexer)
 	if err != nil {
 		println("Error parsing file:", err.Error())
 		os.Exit(1)
