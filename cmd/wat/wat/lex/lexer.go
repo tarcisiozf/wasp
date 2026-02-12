@@ -1,6 +1,9 @@
 package lex
 
-import "fmt"
+import (
+	"fmt"
+	"wasp/cmd/wat/wat/tokens"
+)
 
 type Lexer struct {
 	data []byte
@@ -60,8 +63,28 @@ func (lexer *Lexer) Position() int {
 	return lexer.pos
 }
 
-func isEmpty(b byte) bool {
-	return b == ' ' || b == '\t' || b == '\r'
+func (lexer *Lexer) Keyword() (string, error) {
+	var keyword []byte
+	for lexer.HasNext() {
+		ch := lexer.Peek()
+		if isEndOfSequence(ch) {
+			break
+		}
+		if ch > 'a' && ch < 'z' || ch > 'A' && ch < 'Z' {
+			keyword = append(keyword, lexer.Next())
+		} else {
+			return "", fmt.Errorf("unexpected character %q at position %d", ch, lexer.pos)
+		}
+	}
+	return string(keyword), nil
+}
+
+func isEmpty(ch byte) bool {
+	return ch == ' ' || ch == '\t' || ch == '\r'
+}
+
+func isEndOfSequence(ch byte) bool {
+	return isEmpty(ch) || tokens.IsToken(ch)
 }
 
 func NewLexer(data []byte) *Lexer {

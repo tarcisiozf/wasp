@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"iter"
 	"wasp/cmd/wat/wat/ast"
 	"wasp/cmd/wat/wat/lex"
 	"wasp/cmd/wat/wat/tokens"
@@ -9,26 +10,42 @@ import (
 
 func Parse(lexer *lex.Lexer) (ast.Node, error) {
 	program := ast.Program{}
-	for lexer.HasNext() {
-		switch lexer.Next() {
-		case tokens.Semicolon:
-			comment, err := parseComment(lexer)
-			if err != nil {
-				return nil, err
-			}
-			program.Append(comment)
-		case tokens.OpenParen:
-			node, err := parseList(lexer)
-			if err != nil {
-				return nil, err
-			}
-			program.Append(node)
+	for node, err := range parse(lexer) {
+		if err != nil {
+			return nil, err
 		}
+		program.Append(node)
 	}
 	return program, nil
 }
 
+func parse(lexer *lex.Lexer) iter.Seq2[ast.Node, error] {
+	return func(yield func(ast.Node, error) bool) {
+		for lexer.HasNext() {
+			switch lexer.Next() {
+			case tokens.Semicolon:
+				yield(parseComment(lexer))
+			case tokens.OpenParen:
+				yield(parseList(lexer))
+			}
+		}
+	}
+}
+
 func parseList(lexer *lex.Lexer) (ast.Node, error) {
+	lexer.Skip()
+	keyword, err := lexer.Keyword()
+	if err != nil {
+		return nil, fmt.Errorf("expected keyword at position %d", lexer.Position())
+	}
+	switch keyword {
+	case "module":
+		return parseModule(lexer)
+	}
+	return nil, nil
+}
+
+func parseModule(lexer *lex.Lexer) (ast.Node, error) {
 	return nil, nil
 }
 
