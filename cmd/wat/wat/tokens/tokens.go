@@ -8,10 +8,12 @@ func addToken(ch byte) byte {
 }
 
 var (
-	Semicolon  = addToken(';')
-	NewLine    = addToken('\n')
-	OpenParen  = addToken('(')
-	CloseParen = addToken(')')
+	Semicolon   = addToken(';')
+	NewLine     = addToken('\n')
+	OpenParen   = addToken('(')
+	CloseParen  = addToken(')')
+	DoubleQuote = addToken('"')
+	Escape      = addToken('\\')
 )
 
 func IsToken(ch byte) bool {

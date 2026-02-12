@@ -66,7 +66,84 @@ func parseModule(lexer *lex.Lexer) (ast.Node, error) {
 }
 
 func parseBinaryModule(lexer *lex.Lexer) (ast.BinaryModule, error) {
-	return ast.BinaryModule{}, nil
+	list, err := readStrings(lexer)
+	if err != nil {
+		return ast.BinaryModule{}, err
+	}
+	var blob []byte
+	for _, encoded := range list {
+		decoded := decodeString(encoded)
+		blob = append(blob, decoded...)
+	}
+	return ast.BinaryModule{
+		Blob: blob,
+	}, nil
+}
+
+func decodeString(s string) []byte {
+	off := 0
+	size := len(s)
+	var data []byte
+	for off < size {
+		ch := s[off]
+		b := ch
+		if ch == tokens.Escape {
+			if off+3 > size {
+				break
+			}
+			b = (hexToByte(s[off+1]) << 4) | hexToByte(s[off+2])
+			off += 2
+		}
+		data = append(data, b)
+		off++
+	}
+	return data
+}
+
+func hexToByte(u uint8) uint8 {
+	if u >= '0' && u <= '9' {
+		return u - '0'
+	} else if u >= 'a' && u <= 'f' {
+		return u - 'a' + 10
+	} else if u >= 'A' && u <= 'F' {
+		return u - 'A' + 10
+	}
+	panic(fmt.Sprintf("invalid hex character: %q", u))
+}
+
+func readStrings(lexer *lex.Lexer) ([]string, error) {
+	var list []string
+	for lexer.HasNext() {
+		lexer.Skip()
+		ch := lexer.Peek()
+		if ch == tokens.DoubleQuote {
+			str, err := parseString(lexer)
+			if err != nil {
+				return nil, err
+			}
+			list = append(list, str)
+		} else if ch == tokens.Semicolon {
+			lexer.JumpLine()
+		} else {
+			break
+		}
+	}
+	return list, nil
+}
+
+func parseString(lexer *lex.Lexer) (string, error) {
+	if err := lexer.Assert(tokens.DoubleQuote); err != nil {
+		return "", fmt.Errorf("expected '\"' at position %d", lexer.Position())
+	}
+	var str []byte
+	for lexer.HasNext() {
+		ch := lexer.Next()
+		if ch == tokens.DoubleQuote && lexer.PeekAt(-1) != tokens.Escape {
+			break
+		}
+		str = append(str, ch)
+	}
+	return string(str), nil
 }
 
 func readKeywords(lexer *lex.Lexer) ([]syntax.Keyword, error) {

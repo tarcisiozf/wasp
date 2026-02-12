@@ -16,7 +16,7 @@ func (lexer *Lexer) HasNext() bool {
 }
 
 func (lexer *Lexer) Peek() byte {
-	return lexer.data[lexer.pos]
+	return lexer.PeekAt(0)
 }
 
 func (lexer *Lexer) Next() byte {
@@ -42,8 +42,13 @@ func (lexer *Lexer) Bytes(n int) []byte {
 }
 
 func (lexer *Lexer) Skip() {
-	for IsBlank(lexer.Peek()) {
-		lexer.Next()
+	for lexer.HasNext() {
+		ch := lexer.Peek()
+		if IsBlank(ch) || ch == tokens.NewLine {
+			lexer.Next()
+		} else {
+			break
+		}
 	}
 }
 
@@ -61,6 +66,14 @@ func (lexer *Lexer) ReadUntil(delimiter byte) []byte {
 
 func (lexer *Lexer) Position() int {
 	return lexer.pos
+}
+
+func (lexer *Lexer) PeekAt(at int) byte {
+	return lexer.data[lexer.pos+at]
+}
+
+func (lexer *Lexer) JumpLine() {
+	lexer.ReadUntil('\n')
 }
 
 func IsAlpha(ch byte) bool {
