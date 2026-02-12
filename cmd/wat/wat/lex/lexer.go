@@ -42,7 +42,7 @@ func (lexer *Lexer) Bytes(n int) []byte {
 }
 
 func (lexer *Lexer) Skip() {
-	for isEmpty(lexer.Peek()) {
+	for IsBlank(lexer.Peek()) {
 		lexer.Next()
 	}
 }
@@ -63,28 +63,16 @@ func (lexer *Lexer) Position() int {
 	return lexer.pos
 }
 
-func (lexer *Lexer) Keyword() (string, error) {
-	var keyword []byte
-	for lexer.HasNext() {
-		ch := lexer.Peek()
-		if isEndOfSequence(ch) {
-			break
-		}
-		if ch > 'a' && ch < 'z' || ch > 'A' && ch < 'Z' {
-			keyword = append(keyword, lexer.Next())
-		} else {
-			return "", fmt.Errorf("unexpected character %q at position %d", ch, lexer.pos)
-		}
-	}
-	return string(keyword), nil
+func IsAlpha(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
 }
 
-func isEmpty(ch byte) bool {
+func IsBlank(ch byte) bool {
 	return ch == ' ' || ch == '\t' || ch == '\r'
 }
 
-func isEndOfSequence(ch byte) bool {
-	return isEmpty(ch) || tokens.IsToken(ch)
+func IsEndOfSequence(ch byte) bool {
+	return IsBlank(ch) || tokens.IsToken(ch)
 }
 
 func NewLexer(data []byte) *Lexer {

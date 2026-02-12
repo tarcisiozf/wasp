@@ -5,6 +5,7 @@ import (
 	"iter"
 	"wasp/cmd/wat/wat/ast"
 	"wasp/cmd/wat/wat/lex"
+	"wasp/cmd/wat/wat/syntax"
 	"wasp/cmd/wat/wat/tokens"
 )
 
@@ -22,7 +23,8 @@ func Parse(lexer *lex.Lexer) (ast.Node, error) {
 func parse(lexer *lex.Lexer) iter.Seq2[ast.Node, error] {
 	return func(yield func(ast.Node, error) bool) {
 		for lexer.HasNext() {
-			switch lexer.Next() {
+			ch := lexer.Next()
+			switch ch {
 			case tokens.Semicolon:
 				yield(parseComment(lexer))
 			case tokens.OpenParen:
@@ -34,7 +36,7 @@ func parse(lexer *lex.Lexer) iter.Seq2[ast.Node, error] {
 
 func parseList(lexer *lex.Lexer) (ast.Node, error) {
 	lexer.Skip()
-	keyword, err := lexer.Keyword()
+	keyword, err := parseKeyword(lexer)
 	if err != nil {
 		return nil, fmt.Errorf("expected keyword at position %d", lexer.Position())
 	}
@@ -46,7 +48,59 @@ func parseList(lexer *lex.Lexer) (ast.Node, error) {
 }
 
 func parseModule(lexer *lex.Lexer) (ast.Node, error) {
+	lexer.Skip()
+	keywords, err := readKeywords(lexer)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(keywords) == 1 {
+		if keywords[0] == syntax.Binary {
+			return parseBinaryModule(lexer)
+		}
+	} else if len(keywords) > 1 {
+		return nil, fmt.Errorf("expected only one keyword at position %d", lexer.Position())
+	}
+
 	return nil, nil
+}
+
+func parseBinaryModule(lexer *lex.Lexer) (ast.BinaryModule, error) {
+	return ast.BinaryModule{}, nil
+}
+
+func readKeywords(lexer *lex.Lexer) ([]syntax.Keyword, error) {
+	var list []syntax.Keyword
+	for lexer.HasNext() {
+		lexer.Skip()
+		ch := lexer.Peek()
+		if lex.IsAlpha(ch) {
+			keyword, err := parseKeyword(lexer)
+			if err != nil {
+				return list, err
+			}
+			list = append(list, keyword)
+		} else {
+			break
+		}
+	}
+	return list, nil
+}
+
+func parseKeyword(lexer *lex.Lexer) (syntax.Keyword, error) {
+	var keyword []byte
+	for lexer.HasNext() {
+		ch := lexer.Peek()
+		if lex.IsEndOfSequence(ch) {
+			break
+		}
+		if lex.IsAlpha(ch) {
+			keyword = append(keyword, lexer.Next())
+		} else {
+			return "", fmt.Errorf("unexpected character %q at position %d", ch, lexer.Position())
+		}
+	}
+	return syntax.MustParse(string(keyword)), nil
 }
 
 func parseComment(lexer *lex.Lexer) (ast.LeadingComment, error) {
