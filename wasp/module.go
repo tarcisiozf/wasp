@@ -17,6 +17,10 @@ func (module *Module) GetExportedFunction(name string) (function, error) {
 	return module.internal.GetExportedFunction(name)
 }
 
+func (module *Module) StartFunction() (function, error) {
+	return module.internal.StartFunction()
+}
+
 func NewModule(binary []byte) (*Module, error) {
 	mod := module.NewModule()
 	if err := module.Parse(mod, binary); err != nil {
