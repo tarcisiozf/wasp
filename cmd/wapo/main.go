@@ -52,10 +52,9 @@ func parseList(it *Iterator) (*List, error) {
 	end := -1
 loop:
 	for it.HasNext() {
-		switch it.Next() {
+		switch it.Peek() {
 		case quote:
 			if it.PeekPrev() != backslash {
-				fmt.Println(it.String())
 				inString = !inString
 			}
 		case openParen:
@@ -65,10 +64,11 @@ loop:
 		case closeParen:
 			depth--
 			if depth == 0 {
-				end = it.Position()
+				end = it.Position() + 1
 				break loop
 			}
 		}
+		it.Next()
 	}
 	if end == -1 {
 		return nil, fmt.Errorf("unexpected end of list, line: %d, col: %d", it.Line(start), it.Col(start))

@@ -67,8 +67,8 @@ func (it *Iterator) Col(index int) int {
 	return index - line
 }
 
-func (it *Iterator) PeekPrev() byte {
-	return it.data[it.pos-1]
+func (it *Iterator) PeekAt(delta int) byte {
+	return it.data[it.pos+delta]
 }
 
 func (it *Iterator) String() string {
@@ -90,8 +90,12 @@ func (it *Iterator) String() string {
 		}
 	}
 	str += string(line) + "\n"
-	str += fmt.Sprintf("%s^", string(make([]byte, it.pos-start)))
+	str += fmt.Sprintf("%s^", string(make([]byte, it.pos-start+1)))
 	return str
+}
+
+func (it *Iterator) PeekPrev() byte {
+	return it.data[it.pos-1]
 }
 
 func NewIterator(data []byte) *Iterator {
