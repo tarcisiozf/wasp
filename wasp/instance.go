@@ -86,14 +86,7 @@ func (instance *Instance) Call(fn funcs.Function, args ...any) ([]any, error) {
 	ctx.Local = local
 
 	for !ctx.Done {
-		opcode := ctx.Body.Byte()
-		ix := instructions.Instruction(opcode)
-		fmt.Printf("Executing instruction %s\n", ix.String())
-		if err := ix.Handler(ctx); err != nil {
-			return nil, fmt.Errorf("failed to execute instruction 0x%x: %w", opcode, err)
-		}
-
-		if ctx.FunctionCallRequest >= 0 {
+		if instance.module.IsImport(ctx.FunctionCallRequest) {
 			extFunc, err := instance.getImportedFunc(ctx.FunctionCallRequest)
 			if err != nil {
 				return nil, fmt.Errorf("invalid function call request: %w", err)
@@ -108,6 +101,27 @@ func (instance *Instance) Call(fn funcs.Function, args ...any) ([]any, error) {
 			}
 
 			ctx.FunctionCallRequest = -1
+		} else if instance.module.IsFunction(ctx.FunctionCallRequest) {
+			foo := instance.module.FunctionAt(ctx.FunctionCallRequest)
+			results, err := instance.Call(foo)
+			if err != nil {
+				return nil, fmt.Errorf("failed to call function at index %d: %w", ctx.FunctionCallRequest, err)
+			}
+			for _, result := range results {
+				ctx.Stack.Push(result)
+			}
+
+			ctx.FunctionCallRequest = -1
+		}
+
+		opcode := ctx.Body.Byte()
+		ix := instructions.Instruction(opcode)
+		fmt.Printf("Executing instruction %s\n", ix.String())
+		if ix.Handler == nil { // TODO: remove before flight
+			return nil, fmt.Errorf("unimplemented instruction: 0x%x", opcode)
+		}
+		if err := ix.Handler(ctx); err != nil {
+			return nil, fmt.Errorf("failed to execute instruction 0x%x: %w", opcode, err)
 		}
 	}
 

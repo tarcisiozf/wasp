@@ -83,3 +83,11 @@ func (module *Module) Globals() *memory.Global {
 func (module *Module) Imports() []Import {
 	return module.imports
 }
+
+func (module *Module) IsImport(index int) bool {
+	return index >= 0 && index < len(module.imports)
+}
+
+func (module *Module) IsFunction(index int) bool {
+	return index >= len(module.imports) && index < len(module.imports)+len(module.functions)
+}
