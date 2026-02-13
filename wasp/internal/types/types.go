@@ -5,22 +5,28 @@ import (
 	"wasp/wasp/internal/binary"
 )
 
-type Type interface {
-	Code() byte
+type asType interface {
 	Zero() any
 	Read(*binary.Iterator) any
 	Kind() reflect.Kind
 }
 
+type Type struct {
+	asType
+
+	Code byte
+}
+
 var types = make([]Type, 256)
 
-func addType(t Type) Type {
-	types[t.Code()] = t
-	return t
+func addType(code byte, t asType) Type {
+	types[code] = Type{asType: t, Code: code}
+	return types[code]
 }
 
 var (
-	Int32 = addType(&typeInt32{})
+	Int32 = addType(0x7F, &typeInt32{})
+	Void  = addType(0x40, &typeVoid{})
 )
 
 func ForCode(code byte) Type {

@@ -7,10 +7,6 @@ import (
 
 type typeInt32 struct{}
 
-func (t *typeInt32) Code() byte {
-	return 0x7F
-}
-
 func (t *typeInt32) Zero() any {
 	return int32(0)
 }
