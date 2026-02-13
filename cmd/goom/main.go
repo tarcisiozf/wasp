@@ -54,7 +54,7 @@ func main() {
 				println("Error getting function:", err.Error())
 				os.Exit(1)
 			}
-
+			
 			var results []any
 			elapsed(func() {
 				results, err = instance.Call(fn)

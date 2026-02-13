@@ -30,10 +30,10 @@ type Instance struct {
 	indexedImportedFunctions []*external.Function
 }
 
-func NewInstance(module *module.Module, options ...InstanceOption) (*Instance, error) {
+func NewInstance(module *Module, options ...InstanceOption) (*Instance, error) {
 	instance := &Instance{
-		module:  module,
-		globals: module.Globals.Clone(),
+		module:  module.internal,
+		globals: module.internal.Globals(),
 	}
 	for _, option := range options {
 		if err := option(instance); err != nil {
@@ -119,7 +119,7 @@ func (instance *Instance) Call(fn funcs.Function, args ...any) ([]any, error) {
 }
 
 func (instance *Instance) mapImportsToExternalFunctions() error {
-	imports := instance.module.Imports
+	imports := instance.module.Imports()
 	instance.indexedImportedFunctions = make([]*external.Function, len(imports))
 
 	for i, imp := range imports {

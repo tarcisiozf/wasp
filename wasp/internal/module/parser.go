@@ -115,7 +115,7 @@ func parseCustomSection(module *Module, iter *binary.Iterator, sectionSize int) 
 	dataLen := sectionSize - bytesRead
 	data := iter.Bytes(dataLen)
 
-	module.CustomSections = append(module.CustomSections, CustomSection{
+	module.customSections = append(module.customSections, CustomSection{
 		Name: name,
 		Data: data,
 	})
@@ -150,7 +150,7 @@ func parseDataSection(module *Module, iter *binary.Iterator) error {
 		dataLen := iter.Varint()
 		data := iter.Bytes(dataLen)
 
-		module.Data = append(module.Data, DataSegment{
+		module.data = append(module.data, DataSegment{
 			MemoryIndex: memoryIndex,
 			Offset:      offset,
 			Data:        data,
@@ -219,7 +219,7 @@ func parseTableSection(module *Module, iter *binary.Iterator) error {
 			maxSize = iter.Varint()
 		}
 
-		module.Tables = append(module.Tables, Table{
+		module.tables = append(module.tables, Table{
 			ElementType: elementType,
 			InitialSize: initialSize,
 			MaxSize:     maxSize,
@@ -236,7 +236,7 @@ func parseGlobalSection(module *Module, iter *binary.Iterator) error {
 		iter.Assert(opcodes.Const)
 		value := globalType.Read(iter)
 
-		module.Globals.Push(value, isMutable)
+		module.globals.Push(value, isMutable)
 		iter.Assert(opcodes.End)
 	}
 
@@ -262,7 +262,7 @@ func parseImportSection(module *Module, iter *binary.Iterator) error {
 			return fmt.Errorf("invalid import kind 0x%x", importKind)
 		}
 
-		module.Imports = append(module.Imports, Import{
+		module.imports = append(module.imports, Import{
 			ModuleName: moduleName,
 			FieldName:  fieldName,
 			Kind:       importKind,
@@ -318,6 +318,7 @@ func parseFunctionSection(module *Module, iter *binary.Iterator) error {
 	for i := 0; i < numFunctions; i++ {
 		funcSignatureIndex := iter.Varint()
 		module.functions[i] = funcs.Function{
+			Index:     i,
 			Signature: module.functionSignatures[funcSignatureIndex],
 		}
 	}

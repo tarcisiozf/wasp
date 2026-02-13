@@ -28,14 +28,14 @@ type Module struct {
 	functions          []funcs.Function
 
 	exports map[string]Export
-	Imports []Import
+	imports []Import
 
 	startFuncIndex int
 
-	Globals        memory.Global
-	Tables         []Table
-	Data           []DataSegment
-	CustomSections []CustomSection
+	globals        memory.Global
+	tables         []Table
+	data           []DataSegment
+	customSections []CustomSection
 }
 
 func NewModule() *Module {
@@ -72,6 +72,14 @@ func (module *Module) StartFunction() (funcs.Function, error) {
 }
 
 func (module *Module) FunctionAt(index int) funcs.Function {
-	// function index is offset by number of Imports
-	return module.functions[index-len(module.Imports)]
+	// function index is offset by number of imports
+	return module.functions[index-len(module.imports)]
+}
+
+func (module *Module) Globals() *memory.Global {
+	return module.globals.Clone()
+}
+
+func (module *Module) Imports() []Import {
+	return module.imports
 }
