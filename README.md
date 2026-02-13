@@ -45,3 +45,8 @@
   - [ ] i64.add
   - [ ] f32.add
   - [ ] f64.add
+- [ ] sub
+  - [X] i32.sub
+  - [ ] i64.sub
+  - [ ] f32.sub
+  - [ ] f64.sub
