@@ -1,4 +1,8 @@
-package main
+package ast
+
+import "regexp"
+
+var keywordPattern = regexp.MustCompile(`(\w+)`)
 
 type List struct {
 	nodeType string
@@ -14,12 +18,14 @@ func NewList(content string, offset int) *List {
 	}
 }
 
+func (list *List) String() string {
+	return list.content
+}
+
 func readNodeType(data string) string {
-	for i := 1; i < len(data); i++ {
-		if isWordChar(data[i]) {
-			continue
-		}
-		return data[1 : i-1]
+	keyword := keywordPattern.FindString(data)
+	if keyword == "" {
+		return "unknown"
 	}
-	panic("invalid")
+	return keyword
 }

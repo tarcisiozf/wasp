@@ -1,14 +1,8 @@
-package main
+package lex
 
-import "fmt"
-
-const (
-	semicolon  = ';'
-	newline    = '\n'
-	openParen  = '('
-	closeParen = ')'
-	quote      = '"'
-	backslash  = '\\'
+import (
+	"fmt"
+	"wasp/cmd/wapo/parser/tokens"
 )
 
 type Iterator struct {
@@ -27,7 +21,7 @@ func (it *Iterator) Peek() byte {
 
 func (it *Iterator) SkipLine() {
 	for it.HasNext() {
-		if it.Next() == newline {
+		if it.Next() == tokens.Newline {
 			break
 		}
 	}
@@ -50,7 +44,7 @@ func (it *Iterator) Position() int {
 func (it *Iterator) Line(index int) int {
 	var line int
 	for i := 0; i < index; i++ {
-		if it.data[i] == newline {
+		if it.data[i] == tokens.Newline {
 			line++
 		}
 	}
@@ -60,7 +54,7 @@ func (it *Iterator) Line(index int) int {
 func (it *Iterator) Col(index int) int {
 	var line int
 	for i := 0; i < index; i++ {
-		if it.data[i] == newline {
+		if it.data[i] == tokens.Newline {
 			line = i
 		}
 	}
@@ -83,7 +77,7 @@ func (it *Iterator) String() string {
 	}
 	line := make([]byte, 0, end-start)
 	for i := start; i < end; i++ {
-		if it.data[i] == newline {
+		if it.data[i] == tokens.Newline {
 			line = append(line, '\\', 'n')
 		} else {
 			line = append(line, it.data[i])
@@ -91,11 +85,24 @@ func (it *Iterator) String() string {
 	}
 	str += string(line) + "\n"
 	str += fmt.Sprintf("%s^", string(make([]byte, it.pos-start+1)))
+	str += "\n-----------------\n"
 	return str
 }
 
 func (it *Iterator) PeekPrev() byte {
 	return it.data[it.pos-1]
+}
+
+func (it *Iterator) PeekNext() byte {
+	return it.data[it.pos+1]
+}
+
+func (it *Iterator) ReadUntil(b byte) {
+	for it.HasNext() {
+		if it.Next() == b {
+			break
+		}
+	}
 }
 
 func NewIterator(data []byte) *Iterator {
@@ -104,12 +111,4 @@ func NewIterator(data []byte) *Iterator {
 		size: len(data),
 		pos:  0,
 	}
-}
-
-func isBlank(ch byte) bool {
-	return ch == ' ' || ch == '\t' || ch == '\n'
-}
-
-func isWordChar(ch byte) bool {
-	return ch >= 'a' && ch <= 'z'
 }
