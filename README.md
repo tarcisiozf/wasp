@@ -10,43 +10,223 @@
 - [X] global.set
 
 ### Control flow instructions
-- [X] block
-- [X] br
-- [ ] br_if
-- [ ] br_table
-- [ ] drop
-- [X] if...else
-- [ ] loop
-- [X] nop
-- [ ] return
-- [ ] select
-- [ ] unreachable
-- [X] end
-- [ ] call
-  - [X] call
-  - [ ] call_indirect
-  - [ ] return_call
-  - [ ] return_call_indirect
+- [X] block (0x2)
+- [ ] br (0x0c)
+- [ ] br_if (0x0d)
+- [ ] br_table (0x0e)
+- [ ] drop (0x1a)
+- [X] if (0x04)
+- [X] else (0x05)
+- [ ] loop (0x03)
+- [X] nop (0x01)
+- [ ] return (0x0f)
+- [ ] select (0x1b)
+- [ ] select t (0x1c)
+- [ ] unreachable (0x00)
+- [X] end (0x0b)
+- [ ] call (0x)
+  - [X] call (0x10)
+  - [ ] call_indirect (0x11)
+  - [ ] return_call (0x12)
+  - [ ] return_call_indirect (0x13)
+
+### Memory instructions
+- [ ] memory.grow (0x40)
+- [ ] memory.size (0x3f)
+- [ ] load
+  - [ ] i32.load (0x28)
+  - [ ] i64.load (0x29)
+  - [ ] f32.load (0x2a)
+  - [ ] f64.load (0x2b)
+  - [ ] i32.load8_s (0x2c)
+  - [ ] i32.load8_u (0x2d)
+  - [ ] i32.load16_s (0x2e)
+  - [ ] i32.load16_u (0x2f)
+  - [ ] i64.load8_s (0x30)
+  - [ ] i64.load8_u (0x31)
+  - [ ] i64.load16_s (0x32)
+  - [ ] i64.load16_u (0x33)
+  - [ ] i64.load32_s (0x34)
+  - [ ] i64.load32_u (0x35)
+- [ ] store
+  - [ ] i32.store (0x36)
+  - [ ] i64.store (0x37)
+  - [ ] f32.store (0x38)
+  - [ ] f64.store (0x39)
+  - [ ] i32.store8 (0x3a)
+  - [ ] i32.store16 (0x3b)
+  - [ ] i64.store8 (0x3c)
+  - [ ] i64.store16 (0x3d)
+  - [ ] i64.store32 (0x3e)
+- [ ] memory.copy (0xfc 0x0a)
+- [ ] memory.fill (0xfc 0x0b)
 
 ### Numeric instructions
-- [X] const
+- [ ] const 
+  - [X] i32.const (0x41)
+  - [ ] i64.const (0x42)
+  - [ ] f32.const (0x43)
+  - [ ] f64.const (0x44)
 - [ ] eq
-  - [ ] i32.eqz
-  - [ ] i64.eqz
-  - [ ] i64.eq
-  - [ ] f32.eq
-  - [ ] f64.eq
-  - [X] i32.eq
+  - [ ] i32.eqz (0x45)
+  - [X] i32.eq (0x46)
+  - [ ] i64.eqz (0x50)
+  - [ ] i64.eq (0x51)
+  - [ ] f32.eq (0x5b)
+  - [ ] f64.eq (0x61)
+- [ ] ne
+  - [ ] i32.ne (0x47)
+  - [ ] i64.ne (0x52)
+  - [ ] f32.ne (0x5c)
+  - [ ] f64.ne (0x62)
+- [ ] gt
+  - [ ] i32.gt_s (0x4a)
+  - [ ] i32.gt_u (0x4b)
+  - [ ] i64.gt_s (0x55)
+  - [ ] i64.gt_u (0x56)
+  - [ ] f32.gt (0x5e)
+  - [ ] f64.gt (0x64)
 - [ ] and
-  - [X] i32.and
-  - [ ] i64.and
+  - [X] i32.and (0x6a)
+  - [ ] i64.and (0x7c)
+  - [ ] f32.and (0x92)
+  - [ ] f64.and (0xa0)
 - [ ] add
-  - [X] i32.add
-  - [ ] i64.add
-  - [ ] f32.add
-  - [ ] f64.add
+  - [X] i32.add (0x)
+  - [ ] i64.add (0x)
+  - [ ] f32.add (0x)
+  - [ ] f64.add (0x)
 - [ ] sub
-  - [X] i32.sub
-  - [ ] i64.sub
-  - [ ] f32.sub
-  - [ ] f64.sub
+  - [X] i32.sub (0x6b)
+  - [ ] i64.sub (0x7d)
+  - [ ] f32.sub (0x93)
+  - [ ] f64.sub (0xa1)
+- [ ] mul
+  - [ ] i32.mul (0x6c)
+  - [ ] i64.mul (0x7e)
+  - [ ] f32.mul (0x94)
+  - [ ] f64.mul (0xa2)
+- [ ] ge
+  - [ ] i32.ge_s (0x4e)
+  - [ ] i32.ge_u (0x4f)
+  - [ ] i64.ge_s (0x59)
+  - [ ] i64.ge_u (0x5a)
+  - [ ] f32.ge (0x60)
+  - [ ] f64.ge (0x66)
+- [ ] le
+  - [ ] i32.le_s (0x4C)
+  - [ ] i32.le_u (0x4D)
+  - [ ] i64.le_s (0x57)
+  - [ ] i64.le_u (0x58)
+  - [ ] f32.le (0x5F)
+  - [ ] f64.le (0x65)
+- [ ] lt
+  - [ ] i32.lt_s (0x48)
+  - [ ] i32.lt_u (0x49)
+  - [ ] i64.lt_s (0x53)
+  - [ ] i64.lt_u (0x54)
+  - [ ] f32.lt (0x5d)
+  - [ ] f64.lt (0x63)
+- [ ] div
+  - [ ] i32.div_s (0x6d)
+  - [ ] i32.div_u (0x6e)
+  - [ ] i64.div_s (0x7f)
+  - [ ] i64.div_u (0x80)
+  - [ ] f32.div (0x95)
+  - [ ] f64.div (0xa3)
+- [ ] rem
+  - [ ] i32.rem_s (0x6f)
+  - [ ] i32.rem_u (0x70)
+  - [ ] i64.rem_s (0x81)
+  - [ ] i64.rem_u (0x82)
+- [ ] extend
+  - [ ] i64.extend_i32_s (0xac)
+  - [ ] i64.extend_i32_u (0xad)
+- [ ] i32.wrap_i64 (0xa7)
+- [ ] f64.promote_f32 (0xbb)
+- [ ] f32.demote_f64 (0xb6)
+- [ ] convert
+  - [ ] f32.convert_i32_s (0xb2)
+  - [ ] f32.convert_i32_u (0xb3)
+  - [ ] f32.convert_i64_s (0xb4)
+  - [ ] f32.convert_i64_u (0xb5)
+  - [ ] f64.convert_i32_s (0xb7)
+  - [ ] f64.convert_i32_u (0xb8)
+  - [ ] f64.convert_i64_s (0xb9)
+  - [ ] f64.convert_i64_u (0xba)
+- [ ] trunc
+  - [ ] i32.trunc_f32_s (0xa8)
+  - [ ] i32.trunc_f32_u (0xa9)
+  - [ ] i32.trunc_f64_s (0xaa)
+  - [ ] i32.trunc_f64_u (0xab)
+  - [ ] i64.trunc_f32_s (0xae)
+  - [ ] i64.trunc_f32_u (0xaf)
+  - [ ] i64.trunc_f64_s (0xb0)
+  - [ ] i64.trunc_f64_u (0xb1)
+- [ ] reinterpret
+  - [ ] i32.reinterpret_f32 (0xbc)
+  - [ ] i64.reinterpret_f64 (0xbd)
+  - [ ] f32.reinterpret_i32 (0xbe)
+  - [ ] f64.reinterpret_i64 (0xbf)
+- [ ] min
+  - [ ] f32.min (0x96)
+  - [ ] f64.min (0xa4)
+- [ ] max
+  - [ ] f32.max (0x97)
+  - [ ] f64.max (0xa5)
+- [ ] nearest
+  - [ ] f32.nearest (0x90)
+  - [ ] f64.nearest (0x9e)
+- [ ] ceil
+  - [ ] f32.ceil (0x8d)
+  - [ ] f64.ceil (0x9b)
+- [ ] floor
+  - [ ] f32.floor (0x8e)
+  - [ ] f64.floor (0x9c)
+- [ ] trunc
+  - [ ] f32.trunc (0x8f)
+  - [ ] f64.trunc (0x9d)
+- [ ] abs
+  - [ ] f32.abs (0x8b)
+  - [ ] f64.abs (0x99)
+- [ ] neg
+  - [ ] f32.neg (0x8c)
+  - [ ] f64.neg (0x9a)
+- [ ] sqrt
+  - [ ] f32.sqrt (0x91)
+  - [ ] f64.sqrt (0x9f)
+- [ ] copysign
+  - [ ] f32.copysign (0x98)
+  - [ ] f64.copysign (0xa6)
+- [ ] and
+  - [ ] i32.and (0x71)
+  - [ ] i64.and (0x83)
+- [ ] or
+  - [ ] i32.or (0x72)
+  - [ ] i64.or (0x84)
+- [ ] xor
+  - [ ] i32.xor (0x73)
+  - [ ] i64.xor (0x85)
+- [ ] shl
+  - [ ] i32.shl (0x74)
+  - [ ] i64.shl (0x86)
+- [ ] shr
+  - [ ] i32.shr_s (0x75)
+  - [ ] i32.shr_u (0x76)
+  - [ ] i64.shr_s (0x87)
+  - [ ] i64.shr_u (0x88)
+- [ ] rotl
+  - [ ] i32.rotl (0x77)
+  - [ ] i64.rotl (0x89)
+- [ ] rotr
+  - [ ] i32.rotr (0x78)
+  - [ ] i64.rotr (0x8a)
+- [ ] clz
+  - [ ] i32.clz (0x67)
+  - [ ] i64.clz (0x79)
+- [ ] ctz
+  - [ ] i32.ctz (0x68)
+  - [ ] i64.ctz (0x7a)
+- [ ] popcnt
+  - [ ] i32.popcnt (0x69)
+  - [ ] i64.popcnt (0x7b)
