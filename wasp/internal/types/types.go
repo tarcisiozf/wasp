@@ -26,6 +26,7 @@ func addType(code byte, t asType) Type {
 
 var (
 	Int32 = addType(0x7F, &typeInt32{})
+	Int64 = addType(0x7E, &typeInt64{})
 	Void  = addType(0x40, &typeVoid{})
 )
 

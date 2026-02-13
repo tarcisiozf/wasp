@@ -18,3 +18,17 @@ func (t *typeInt32) Read(iter *binary.Iterator) any {
 func (t *typeInt32) Kind() reflect.Kind {
 	return reflect.Int32
 }
+
+type typeInt64 struct{}
+
+func (t *typeInt64) Zero() any {
+	return int64(0)
+}
+
+func (t *typeInt64) Read(iter *binary.Iterator) any {
+	return int64(iter.Varint())
+}
+
+func (t *typeInt64) Kind() reflect.Kind {
+	return reflect.Int64
+}
