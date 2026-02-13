@@ -1,18 +1,21 @@
 package ast
 
-import "regexp"
+import (
+	"regexp"
+	"wasp/cmd/wapo/types"
+)
 
-var keywordPattern = regexp.MustCompile(`(\w+)`)
+var keywordPattern = regexp.MustCompile(`[^@](\w+)`)
 
 type List struct {
-	nodeType string
+	nodeType types.Type
 	content  string
 	offset   int
 }
 
 func NewList(content string, offset int) *List {
 	return &List{
-		nodeType: readNodeType(content),
+		nodeType: types.MustParse(readNodeType(content)),
 		content:  content,
 		offset:   offset,
 	}
@@ -23,9 +26,9 @@ func (list *List) String() string {
 }
 
 func readNodeType(data string) string {
-	keyword := keywordPattern.FindString(data)
-	if keyword == "" {
+	matches := keywordPattern.FindStringSubmatch(data)
+	if len(matches) == 0 {
 		return "unknown"
 	}
-	return keyword
+	return matches[1]
 }

@@ -5,7 +5,7 @@ import (
 	"iter"
 	"wasp/cmd/wapo/ast"
 	"wasp/cmd/wapo/lex"
-	"wasp/cmd/wapo/parser/tokens"
+	"wasp/cmd/wapo/tokens"
 )
 
 func Parse(it *lex.Iterator) iter.Seq2[ast.Node, error] {

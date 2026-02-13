@@ -2,7 +2,7 @@ package lex
 
 import (
 	"fmt"
-	"wasp/cmd/wapo/parser/tokens"
+	"wasp/cmd/wapo/tokens"
 )
 
 type Iterator struct {
