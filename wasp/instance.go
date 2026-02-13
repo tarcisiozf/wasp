@@ -12,45 +12,47 @@ import (
 	"wasp/wasp/internal/types"
 )
 
-type RuntimeOption func(*Runtime) error
+type InstanceOption func(*Instance) error
 
-func WithLinker(linker *Linker) RuntimeOption {
-	return func(e *Runtime) error {
+func WithLinker(linker *Linker) InstanceOption {
+	return func(e *Instance) error {
 		e.linker = linker
 		return nil
 	}
 }
 
-type Runtime struct {
-	module *module.Module
+type Instance struct {
+	module  *module.Module
+	globals *memory.Global
 
 	linker *Linker
 
 	indexedImportedFunctions []*external.Function
 }
 
-func NewRuntime(module *module.Module, options ...RuntimeOption) (*Runtime, error) {
-	runtime := &Runtime{
-		module: module,
+func NewInstance(module *module.Module, options ...InstanceOption) (*Instance, error) {
+	instance := &Instance{
+		module:  module,
+		globals: module.Globals.Clone(),
 	}
 	for _, option := range options {
-		if err := option(runtime); err != nil {
-			return nil, fmt.Errorf("failed to apply runtime option: %w", err)
+		if err := option(instance); err != nil {
+			return nil, fmt.Errorf("failed to apply instance option: %w", err)
 		}
 	}
 
-	if runtime.linker == nil {
-		runtime.linker = NewLinker()
+	if instance.linker == nil {
+		instance.linker = NewLinker()
 	}
 
-	if err := runtime.mapImportsToExternalFunctions(); err != nil {
+	if err := instance.mapImportsToExternalFunctions(); err != nil {
 		return nil, fmt.Errorf("invalid imports: %w", err)
 	}
 
-	return runtime, nil
+	return instance, nil
 }
 
-func (runtime *Runtime) Call(store *Store, fn funcs.Function, args ...any) ([]any, error) {
+func (instance *Instance) Call(fn funcs.Function, args ...any) ([]any, error) {
 	if len(args) != len(fn.Signature.Params) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.Signature.Params), len(args))
 	}
@@ -58,7 +60,7 @@ func (runtime *Runtime) Call(store *Store, fn funcs.Function, args ...any) ([]an
 	stack := memory.NewStack[any]()
 	ctx := &execution.Context{
 		Stack:   stack,
-		Globals: store.globals,
+		Globals: instance.globals,
 
 		Body:                binary.NewIterator(fn.Body),
 		FunctionCallRequest: -1,
@@ -92,7 +94,7 @@ func (runtime *Runtime) Call(store *Store, fn funcs.Function, args ...any) ([]an
 		}
 
 		if ctx.FunctionCallRequest >= 0 {
-			extFunc, err := runtime.getImportedFunc(ctx.FunctionCallRequest)
+			extFunc, err := instance.getImportedFunc(ctx.FunctionCallRequest)
 			if err != nil {
 				return nil, fmt.Errorf("invalid function call request: %w", err)
 			}
@@ -116,27 +118,27 @@ func (runtime *Runtime) Call(store *Store, fn funcs.Function, args ...any) ([]an
 	return results, nil
 }
 
-func (runtime *Runtime) mapImportsToExternalFunctions() error {
-	imports := runtime.module.Imports
-	runtime.indexedImportedFunctions = make([]*external.Function, len(imports))
+func (instance *Instance) mapImportsToExternalFunctions() error {
+	imports := instance.module.Imports
+	instance.indexedImportedFunctions = make([]*external.Function, len(imports))
 
 	for i, imp := range imports {
-		extFunc, err := runtime.linker.Get(imp.ModuleName, imp.FieldName)
+		extFunc, err := instance.linker.Get(imp.ModuleName, imp.FieldName)
 		if err != nil {
 			return fmt.Errorf("import %s.%s not found: %w", imp.ModuleName, imp.FieldName, err)
 		}
 		if err := extFunc.CheckSignatureCompatibility(imp.Signature); err != nil {
 			return fmt.Errorf("import %s.%s has incompatible signature: %w", imp.ModuleName, imp.FieldName, err)
 		}
-		runtime.indexedImportedFunctions[i] = extFunc
+		instance.indexedImportedFunctions[i] = extFunc
 	}
 
 	return nil
 }
 
-func (runtime *Runtime) getImportedFunc(index int) (*external.Function, error) {
-	if index < 0 || index >= len(runtime.indexedImportedFunctions) {
+func (instance *Instance) getImportedFunc(index int) (*external.Function, error) {
+	if index < 0 || index >= len(instance.indexedImportedFunctions) {
 		return nil, fmt.Errorf("import index %d out of bounds", index)
 	}
-	return runtime.indexedImportedFunctions[index], nil
+	return instance.indexedImportedFunctions[index], nil
 }

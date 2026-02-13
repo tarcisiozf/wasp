@@ -79,7 +79,7 @@ func run(path string) ([]any, error) {
 		return nil, fmt.Errorf("failed to get start function: %w", err)
 	}
 
-	runtime, err := wasp.NewRuntime(
+	runtime, err := wasp.NewInstance(
 		module,
 		wasp.WithLinker(linker),
 	)

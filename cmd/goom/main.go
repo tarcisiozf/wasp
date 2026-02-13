@@ -32,7 +32,7 @@ func main() {
 
 		linker := wasp.NewLinker()
 
-		r, err := wasp.NewRuntime(
+		instance, err := wasp.NewInstance(
 			module,
 			wasp.WithLinker(linker),
 		)
@@ -40,8 +40,6 @@ func main() {
 			println("Error creating runtime:", err.Error())
 			os.Exit(1)
 		}
-
-		store := wasp.NewStore(module)
 
 		funcs := []string{
 			"emscripten_stack_init",
@@ -59,7 +57,7 @@ func main() {
 
 			var results []any
 			elapsed(func() {
-				results, err = r.Call(store, fn)
+				results, err = instance.Call(fn)
 				if err != nil {
 					println("Error calling function:", err.Error())
 					os.Exit(1)
