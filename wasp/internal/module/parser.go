@@ -58,7 +58,7 @@ func Parse(module *Module, data []byte) error {
 }
 
 func parseSections(module *Module, iter *binary.Iterator) (err error) {
-	for !iter.Done() {
+	for iter.HasNext() {
 		sectionOpcode := iter.Varint()
 		sectionSize := iter.Varint()
 

@@ -17,10 +17,6 @@ func (it *Iterator) Uint32() uint32 {
 	return value
 }
 
-func (it *Iterator) Done() bool {
-	return it.pos >= it.size
-}
-
 func (it *Iterator) Byte() byte {
 	b := it.data[it.pos]
 	it.pos++
@@ -35,7 +31,7 @@ func (it *Iterator) Bytes(n int) []byte {
 
 func (it *Iterator) ReadUntil(target byte) ([]byte, error) {
 	var bytes []byte
-	for !it.Done() {
+	for it.HasNext() {
 		b := it.Byte()
 		bytes = append(bytes, b)
 		if b == target {
@@ -141,6 +137,10 @@ func (it *Iterator) Assert(expected ...byte) {
 
 func (it *Iterator) Position() int {
 	return it.pos
+}
+
+func (it *Iterator) HasNext() bool {
+	return it.pos < it.size
 }
 
 func NewIterator(data []byte) *Iterator {

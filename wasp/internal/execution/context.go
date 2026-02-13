@@ -6,10 +6,15 @@ import (
 )
 
 type Context struct {
-	Local               []any
-	Stack               *memory.Stack[any]
-	Body                *binary.Iterator
-	Done                bool
+	Local   []any
+	Stack   *memory.Stack[any]
+	Globals *memory.Global
+
+	Body *binary.Iterator
+
 	FunctionCallRequest int
-	Globals             *memory.Global
+	BlockType           byte
+	Done                bool
+	Depth               int
+	Condition           bool
 }

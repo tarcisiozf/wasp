@@ -10,12 +10,12 @@
 - [X] global.set
 
 ### Control flow instructions
-- [ ] block
-- [ ] br
+- [X] block
+- [X] br
 - [ ] br_if
 - [ ] br_table
 - [ ] drop
-- [ ] if...else
+- [X] if...else
 - [ ] loop
 - [X] nop
 - [ ] return
