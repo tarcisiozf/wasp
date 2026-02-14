@@ -202,8 +202,4 @@ const (
 	I64ReinterpretF64 = 0xbd
 	F32ReinterpretI32 = 0xbe
 	F64ReinterpretI64 = 0xbf
-
-	// Legacy aliases
-	MemoryLoadI32  = I32Load
-	MemoryStoreI32 = I32Store
 )
