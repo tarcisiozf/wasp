@@ -5,11 +5,13 @@ import "fmt"
 var names = map[byte]string{
 	Nop:   "nop",
 	Block: "block",
+	Loop:  "loop",
 	If:    "if",
 	Else:  "else",
 	Call:  "call",
 	End:   "end",
 	Br:    "br",
+	BrIf:  "br_if",
 
 	LocalGet: "local.get",
 	LocalSet: "local.set",
@@ -22,6 +24,7 @@ var names = map[byte]string{
 
 	I32Eq:  "i32.eq",
 	I32Add: "i32.add",
+	I32Sub: "i32.sub",
 	I32Mul: "i32.mul",
 	I32And: "i32.and",
 }

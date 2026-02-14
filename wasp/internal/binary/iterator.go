@@ -140,6 +140,10 @@ func (it *Iterator) Position() int {
 	return it.pos
 }
 
+func (it *Iterator) Seek(pos int) {
+	it.pos = pos
+}
+
 func (it *Iterator) HasNext() bool {
 	return it.pos < it.size
 }
