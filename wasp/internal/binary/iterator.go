@@ -103,7 +103,21 @@ func (it *Iterator) Varint() int {
 		return int(x)
 	}
 
-	panic("varint too large")
+	b = it.data[it.pos+8]
+	x |= uint64(b&0x7F) << 56
+	if b < 0x80 {
+		it.pos += 9
+		return int(x)
+	}
+
+	b = it.data[it.pos+9]
+	// 10th byte can only contribute 1 bit (bit 0), and must not have continuation
+	if b > 1 {
+		panic("varint overflow")
+	}
+	x |= uint64(b) << 63
+	it.pos += 10
+	return int(x)
 }
 
 func (it *Iterator) String(len int) string {

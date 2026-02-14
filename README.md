@@ -11,13 +11,13 @@
 
 ### Control flow instructions
 - [X] block (0x2)
-- [ ] br (0x0c)
-- [ ] br_if (0x0d)
+- [X] br (0x0c)
+- [X] br_if (0x0d)
 - [ ] br_table (0x0e)
 - [X] drop (0x1a)
 - [X] if (0x04)
 - [X] else (0x05)
-- [ ] loop (0x03)
+- [X] loop (0x03)
 - [X] nop (0x01)
 - [ ] return (0x0f)
 - [ ] select (0x1b)
