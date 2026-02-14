@@ -68,7 +68,8 @@ func (instance *Instance) Call(fn funcs.Function, args ...any) (*execution.Conte
 
 		Body:                binary.NewIterator(fn.Body),
 		FunctionCallRequest: -1,
-		BlockStack:          memory.NewStack[execution.BlockInfo](),
+		BlockStack:          memory.NewStack[execution.BlockFrame](),
+		Blocks:              fn.Blocks,
 	}
 
 	ctx.Locals = memory.NewStackWithCapacity[any](len(args) + len(fn.Locals))

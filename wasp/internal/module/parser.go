@@ -371,9 +371,109 @@ func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 			body = iter.Bytes(bodySize)
 		}
 
+		// Precompute block targets
+		blocks := precomputeBlocks(body)
+
 		module.functions[i].Locals = locals
 		module.functions[i].Body = body
 		module.functions[i].Offset = offset
+		module.functions[i].Blocks = blocks
 	}
 	return nil
+}
+
+// precomputeBlocks scans the function body and computes block target positions
+func precomputeBlocks(body []byte) map[int]funcs.BlockTarget {
+	blocks := make(map[int]funcs.BlockTarget)
+	bodyIter := binary.NewIterator(body)
+
+	// Stack to track nested blocks during scanning
+	type blockEntry struct {
+		kind      funcs.BlockKind
+		startPos  int
+		blockType byte
+		elsePos   int
+	}
+	var stack []blockEntry
+
+	for bodyIter.HasNext() {
+		b := bodyIter.Byte()
+
+		switch b {
+		case opcodes.Block:
+			blockType := bodyIter.Byte()
+			stack = append(stack, blockEntry{
+				kind:      funcs.BlockKindBlock,
+				startPos:  bodyIter.Position(),
+				blockType: blockType,
+			})
+
+		case opcodes.Loop:
+			blockType := bodyIter.Byte()
+			stack = append(stack, blockEntry{
+				kind:      funcs.BlockKindLoop,
+				startPos:  bodyIter.Position(),
+				blockType: blockType,
+			})
+
+		case opcodes.If:
+			blockType := bodyIter.Byte()
+			stack = append(stack, blockEntry{
+				kind:      funcs.BlockKindIf,
+				startPos:  bodyIter.Position(),
+				blockType: blockType,
+			})
+
+		case opcodes.Else:
+			if len(stack) > 0 {
+				stack[len(stack)-1].elsePos = bodyIter.Position()
+			}
+
+		case opcodes.End:
+			if len(stack) > 0 {
+				entry := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				blocks[entry.startPos] = funcs.BlockTarget{
+					Kind:      entry.kind,
+					StartPos:  entry.startPos,
+					ElsePos:   entry.elsePos,
+					EndPos:    bodyIter.Position(),
+					BlockType: entry.blockType,
+				}
+			}
+
+		default:
+			// Skip immediates for other instructions
+			skipParseImmediates(bodyIter, b)
+		}
+	}
+
+	return blocks
+}
+
+// skipParseImmediates skips instruction immediates during block precomputation
+func skipParseImmediates(iter *binary.Iterator, opcode byte) {
+	switch opcode {
+	case opcodes.Br, opcodes.BrIf:
+		iter.Varint() // label index
+	case opcodes.Call:
+		iter.Varint() // function index
+	case opcodes.LocalGet, opcodes.LocalSet, opcodes.LocalTee:
+		iter.Varint() // local index
+	case opcodes.GlobalGet, opcodes.GlobalSet:
+		iter.Varint() // global index
+	case opcodes.I32Const:
+		iter.Varint() // i32 value
+	case opcodes.I64Const:
+		iter.Varint() // i64 value
+	case opcodes.F32Const:
+		iter.Bytes(4) // f32 value
+	case opcodes.F64Const:
+		iter.Bytes(8) // f64 value
+	case opcodes.MemoryLoadI32, opcodes.MemoryStoreI32:
+		iter.Varint() // align
+		iter.Varint() // offset
+	case opcodes.MemorySize, opcodes.MemoryGrow:
+		iter.Byte() // memory index
+	}
 }

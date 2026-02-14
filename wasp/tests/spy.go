@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -14,10 +15,35 @@ func (call *spyCall) CalledWith(t *testing.T, args ...any) {
 		return
 	}
 	for i, arg := range args {
-		if call.args[i] != arg {
-			t.Errorf("expected argument %d to be %v, got %v", i, arg, call.args[i])
+		if !valuesEqual(call.args[i], arg) {
+			t.Errorf("expected argument %d to be %v (%T), got %v (%T)", i, arg, arg, call.args[i], call.args[i])
 		}
 	}
+}
+
+// valuesEqual compares two values, handling numeric type conversions
+func valuesEqual(a, b any) bool {
+	// Try direct comparison first
+	if a == b {
+		return true
+	}
+
+	// Handle numeric type conversions
+	aVal := reflect.ValueOf(a)
+	bVal := reflect.ValueOf(b)
+
+	// Check if both are integers
+	if aVal.CanInt() && bVal.CanInt() {
+		return aVal.Int() == bVal.Int()
+	}
+	if aVal.CanUint() && bVal.CanUint() {
+		return aVal.Uint() == bVal.Uint()
+	}
+	if aVal.CanFloat() && bVal.CanFloat() {
+		return aVal.Float() == bVal.Float()
+	}
+
+	return false
 }
 
 type Spy struct {

@@ -45,7 +45,7 @@ func (f *Function) CheckSignatureCompatibility(signature funcs.Signature) error 
 			in := f.typeOf.In(i)
 			t := types.ForCode(signature.Params[i])
 			if !isTypeCompatible(in, t) {
-				return fmt.Errorf("parameter %d of function %s.%s has type %s, but signature expects %s", i, f.moduleName, f.fieldName, in, signature.Params[i])
+				return fmt.Errorf("parameter %d of function %s.%s has type %s, but signature expects %s", i, f.moduleName, f.fieldName, in, t)
 			}
 		}
 		// Check variadic parameters against the slice element type
@@ -53,7 +53,7 @@ func (f *Function) CheckSignatureCompatibility(signature funcs.Signature) error 
 		for i := numInputs - 1; i < numExpected; i++ {
 			t := types.ForCode(signature.Params[i])
 			if !isTypeCompatible(variadicType, t) {
-				return fmt.Errorf("variadic parameter %d of function %s.%s has type %s, but signature expects %s", i, f.moduleName, f.fieldName, variadicType, signature.Params[i])
+				return fmt.Errorf("variadic parameter %d of function %s.%s has type %s, but signature expects %s", i, f.moduleName, f.fieldName, variadicType, t)
 			}
 		}
 	} else {
@@ -64,7 +64,7 @@ func (f *Function) CheckSignatureCompatibility(signature funcs.Signature) error 
 			in := f.typeOf.In(i)
 			t := types.ForCode(signature.Params[i])
 			if !isTypeCompatible(in, t) {
-				return fmt.Errorf("parameter %d of function %s.%s has type %s, but signature expects %s", i, f.moduleName, f.fieldName, in, signature.Params[i])
+				return fmt.Errorf("parameter %d of function %s.%s has type %s, but signature expects %s", i, f.moduleName, f.fieldName, in, t)
 			}
 		}
 	}
@@ -78,7 +78,7 @@ func (f *Function) CheckSignatureCompatibility(signature funcs.Signature) error 
 		out := f.typeOf.Out(i)
 		t := types.ForCode(signature.Results[i])
 		if !isTypeCompatible(out, t) {
-			return fmt.Errorf("return value %d of function %s.%s has type %s, but signature expects %s", i, f.moduleName, f.fieldName, out, signature.Results[i])
+			return fmt.Errorf("return value %d of function %s.%s has type %s, but signature expects %s", i, f.moduleName, f.fieldName, out, t)
 		}
 	}
 

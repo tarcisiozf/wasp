@@ -2,23 +2,13 @@ package execution
 
 import (
 	"wasp/wasp/internal/binary"
+	"wasp/wasp/internal/funcs"
 	"wasp/wasp/internal/memory"
 )
 
-// BlockKind identifies the type of control structure
-type BlockKind int
-
-const (
-	BlockKindBlock BlockKind = iota
-	BlockKindLoop
-	BlockKindIf
-)
-
-// BlockInfo stores information about a control structure for branching
-type BlockInfo struct {
-	Kind      BlockKind
-	StartPos  int // Position after block header (for loops)
-	BlockType byte
+// BlockFrame stores runtime info about a control structure for branching
+type BlockFrame struct {
+	StartPos int // Position after block header (key into Blocks map)
 }
 
 type Context struct {
@@ -33,6 +23,8 @@ type Context struct {
 	Done                bool
 	Condition           bool
 
-	// BlockStack tracks nested blocks for branching
-	BlockStack *memory.Stack[BlockInfo]
+	// BlockStack tracks nested blocks for branching (just the start positions)
+	BlockStack *memory.Stack[BlockFrame]
+	// Blocks is the precomputed block target map from the function
+	Blocks map[int]funcs.BlockTarget
 }
