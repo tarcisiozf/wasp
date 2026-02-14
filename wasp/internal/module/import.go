@@ -1,6 +1,7 @@
 package module
 
 import (
+	"fmt"
 	"wasp/wasp/internal/funcs"
 )
 
@@ -12,5 +13,12 @@ type Import struct {
 }
 
 func (i Import) String() string {
-	return i.ModuleName + "." + i.FieldName
+	str := i.ModuleName + "." + i.FieldName
+	switch i.Kind {
+	case exportKindFunc:
+		str += " " + i.Signature.String()
+	default:
+		str += fmt.Sprintf(" (unknown kind 0x%x)", i.Kind)
+	}
+	return str
 }

@@ -41,31 +41,38 @@ func main() {
 			os.Exit(1)
 		}
 
-		funcs := []string{
-			"emscripten_stack_init",
-			"__wasm_call_ctors",
-			//"__main_argc_argv",
-		}
-		for _, name := range funcs {
-			fmt.Println("Calling function:", name)
+		_ = instance
 
-			fn, err := module.GetExportedFunction(name)
-			if err != nil {
-				println("Error getting function:", err.Error())
-				os.Exit(1)
-			}
-			
-			var results []any
-			elapsed(func() {
-				results, err = instance.Call(fn)
-				if err != nil {
-					println("Error calling function:", err.Error())
-					os.Exit(1)
-				}
-			})
-
-			fmt.Printf("Results: %v\n", results)
+		fmt.Println("imports:")
+		for _, imp := range module.Imports() {
+			fmt.Printf("\t %s\n", imp.String())
 		}
+
+		//funcs := []string{
+		//	"emscripten_stack_init",
+		//	"__wasm_call_ctors",
+		//	//"__main_argc_argv",
+		//}
+		//for _, name := range funcs {
+		//	fmt.Println("Calling function:", name)
+		//
+		//	fn, err := module.GetExportedFunction(name)
+		//	if err != nil {
+		//		println("Error getting function:", err.Error())
+		//		os.Exit(1)
+		//	}
+		//
+		//	var results []any
+		//	elapsed(func() {
+		//		results, err = instance.Call(fn)
+		//		if err != nil {
+		//			println("Error calling function:", err.Error())
+		//			os.Exit(1)
+		//		}
+		//	})
+		//
+		//	fmt.Printf("Results: %v\n", results)
+		//}
 	})
 }
 

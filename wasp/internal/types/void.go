@@ -7,6 +7,10 @@ import (
 
 type typeVoid struct{}
 
+func (t typeVoid) String() string {
+	return "void"
+}
+
 func (t typeVoid) Zero() any {
 	panic("cannot get zero value of void type")
 }

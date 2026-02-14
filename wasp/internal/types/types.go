@@ -10,6 +10,7 @@ type asType interface {
 	Zero() any
 	Read(*binary.Iterator) any
 	Kind() reflect.Kind
+	String() string
 }
 
 type Type struct {
