@@ -48,31 +48,27 @@ func main() {
 			fmt.Printf("\t %s\n", imp.String())
 		}
 
-		//funcs := []string{
-		//	"emscripten_stack_init",
-		//	"__wasm_call_ctors",
-		//	//"__main_argc_argv",
-		//}
-		//for _, name := range funcs {
-		//	fmt.Println("Calling function:", name)
-		//
-		//	fn, err := module.GetExportedFunction(name)
-		//	if err != nil {
-		//		println("Error getting function:", err.Error())
-		//		os.Exit(1)
-		//	}
-		//
-		//	var results []any
-		//	elapsed(func() {
-		//		results, err = instance.Call(fn)
-		//		if err != nil {
-		//			println("Error calling function:", err.Error())
-		//			os.Exit(1)
-		//		}
-		//	})
-		//
-		//	fmt.Printf("Results: %v\n", results)
-		//}
+		fmt.Println("exports:")
+		for name, exp := range module.Exports() {
+			fmt.Printf("\t %s (kind: %d)\n", name, exp.Kind())
+		}
+
+		fn, err := module.GetExportedFunction("_start")
+		if err != nil {
+			println("Error getting function:", err.Error())
+			os.Exit(1)
+		}
+
+		var results []any
+		elapsed(func() {
+			_, results, err = instance.Call(fn)
+			if err != nil {
+				println("Error calling function:", err.Error())
+				os.Exit(1)
+			}
+		})
+
+		fmt.Printf("Results: %v\n", results)
 	})
 }
 

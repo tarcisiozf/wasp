@@ -96,3 +96,7 @@ func (module *Module) IsFunction(index int) bool {
 func (module *Module) Memories() []*memory.Memory {
 	return module.memories
 }
+
+func (module *Module) Exports() map[string]Export {
+	return module.exports
+}
