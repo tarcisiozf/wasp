@@ -17,6 +17,9 @@ const (
 	GlobalGet = 0x23
 	GlobalSet = 0x24
 
+	MemorySize = 0x3f
+	MemoryGrow = 0x40
+
 	I32Const = 0x41
 	I64Const = 0x42
 	F32Const = 0x43

@@ -45,6 +45,10 @@ func (spy *Spy) FirstCall() *spyCall {
 	return spy.calls[0]
 }
 
+func (spy *Spy) OnCall(index int) *spyCall {
+	return spy.calls[index]
+}
+
 func NewSpy() *Spy {
 	return &Spy{}
 }

@@ -19,36 +19,36 @@ type number interface {
 }
 
 func mul[T number](ctx *execution.Context) error {
-	b := castInt[T](ctx.Stack.Pop())
-	a := castInt[T](ctx.Stack.Pop())
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
 	ctx.Stack.Push(a * b)
 	return nil
 }
 
 func add[T number](ctx *execution.Context) error {
-	b := castInt[T](ctx.Stack.Pop())
-	a := castInt[T](ctx.Stack.Pop())
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
 	ctx.Stack.Push(a + b)
 	return nil
 }
 
 func sub[T number](ctx *execution.Context) error {
-	b := castInt[T](ctx.Stack.Pop())
-	a := castInt[T](ctx.Stack.Pop())
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
 	ctx.Stack.Push(a - b)
 	return nil
 }
 
 func and[T ints](ctx *execution.Context) error {
-	b := castInt[T](ctx.Stack.Pop())
-	a := castInt[T](ctx.Stack.Pop())
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
 	ctx.Stack.Push(a & b)
 	return nil
 }
 
 func eq[T number](ctx *execution.Context) error {
-	b := castInt[T](ctx.Stack.Pop())
-	a := castInt[T](ctx.Stack.Pop())
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
 	if a == b {
 		ctx.Stack.Push(1)
 	} else {
@@ -57,12 +57,24 @@ func eq[T number](ctx *execution.Context) error {
 	return nil
 }
 
-func castInt[T number](item any) T {
+func castTypedInt[T number](item any) T {
 	if value, ok := item.(T); ok {
 		return value
 	}
 	if value, ok := item.(int); ok {
 		return T(value)
+	}
+	panic(fmt.Sprintf("expected number, got %T", item))
+}
+
+func castInt(item any) int {
+	switch item.(type) {
+	case int:
+		return item.(int)
+	case int32:
+		return int(item.(int32))
+	case int64:
+		return int(item.(int64))
 	}
 	panic(fmt.Sprintf("expected number, got %T", item))
 }

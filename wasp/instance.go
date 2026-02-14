@@ -57,9 +57,14 @@ func (instance *Instance) Call(fn funcs.Function, args ...any) (*execution.Conte
 	}
 
 	stack := memory.NewStack[any]()
+	memories := instance.module.Memories()
+	for i, mem := range memories {
+		memories[i] = mem.Clone()
+	}
 	ctx := &execution.Context{
-		Stack:   stack,
-		Globals: instance.globals,
+		Stack:    stack,
+		Globals:  instance.globals,
+		Memories: memories,
 
 		Body:                binary.NewIterator(fn.Body),
 		FunctionCallRequest: -1,

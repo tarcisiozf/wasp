@@ -6,9 +6,10 @@ import (
 )
 
 type Context struct {
-	Stack   *memory.Stack[any]
-	Locals  *memory.Stack[any]
-	Globals *memory.Global
+	Stack    *memory.Stack[any]
+	Locals   *memory.Stack[any]
+	Globals  *memory.Global
+	Memories []*memory.Memory
 
 	Body *binary.Iterator
 

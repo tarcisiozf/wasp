@@ -31,8 +31,8 @@
   - [ ] return_call_indirect (0x13)
 
 ### Memory instructions
-- [ ] memory.grow (0x40)
-- [ ] memory.size (0x3f)
+- [X] memory.grow (0x40)
+- [X] memory.size (0x3f)
 - [ ] load
   - [ ] i32.load (0x28)
   - [ ] i64.load (0x29)

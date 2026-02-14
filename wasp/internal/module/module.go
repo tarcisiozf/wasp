@@ -36,6 +36,7 @@ type Module struct {
 	tables         []Table
 	data           []DataSegment
 	customSections []CustomSection
+	memories       []*memory.Memory
 }
 
 func NewModule() *Module {
@@ -90,4 +91,8 @@ func (module *Module) IsImport(index int) bool {
 
 func (module *Module) IsFunction(index int) bool {
 	return index >= len(module.imports) && index < len(module.imports)+len(module.functions)
+}
+
+func (module *Module) Memories() []*memory.Memory {
+	return module.memories
 }

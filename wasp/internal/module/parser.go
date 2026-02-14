@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/funcs"
+	"wasp/wasp/internal/memory"
 	"wasp/wasp/internal/opcodes"
 	"wasp/wasp/internal/types"
 )
@@ -190,6 +191,7 @@ func parseElementSection(module *Module, iter *binary.Iterator) error {
 
 func parseMemorySection(module *Module, iter *binary.Iterator) error {
 	numMemories := iter.Varint()
+	module.memories = make([]*memory.Memory, numMemories)
 	for i := 0; i < numMemories; i++ {
 		flag := iter.Byte()
 		initialPages := iter.Varint()
@@ -197,9 +199,7 @@ func parseMemorySection(module *Module, iter *binary.Iterator) error {
 		if flag == 0x1 {
 			maxPages = iter.Varint()
 		}
-
-		// TODO: store memory info in module struct instead of printing
-		fmt.Printf("Memory %d: initial=%d pages, max=%d pages\n", i, initialPages, maxPages)
+		module.memories[i] = memory.NewMemory(initialPages, maxPages)
 	}
 	return nil
 }

@@ -2,18 +2,40 @@ package memory
 
 const pageSize = 65536 // 64 KiB
 
-type page struct {
-	Data []byte
-}
+type page [pageSize]byte
 
 type Memory struct {
-	Pages []*page
+	pages    []page
+	maxPages int
 }
 
-func NewMemory() *Memory {
-	return &Memory{}
+func NewMemory(numPages, maxPages int) *Memory {
+	return &Memory{
+		pages:    make([]page, numPages),
+		maxPages: maxPages,
+	}
+}
+func (memory *Memory) Size() int {
+	return len(memory.pages)
 }
 
-func (memory *Memory) NumPages() int {
-	return len(memory.Pages)
+func (memory *Memory) Clone() *Memory {
+	pages := make([]page, len(memory.pages))
+	for i, p := range memory.pages {
+		copy(pages[i][:], p[:])
+	}
+	return &Memory{
+		pages:    pages,
+		maxPages: memory.maxPages,
+	}
+}
+
+func (memory *Memory) Grow(delta int) bool {
+	if delta < 0 || len(memory.pages)+delta > memory.maxPages {
+		return false
+	}
+	for i := 0; i < delta; i++ {
+		memory.pages = append(memory.pages, page{})
+	}
+	return true
 }
