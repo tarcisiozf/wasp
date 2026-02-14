@@ -29,10 +29,10 @@ type Instance struct {
 	indexedImportedFunctions []*external.Function
 }
 
-func NewInstance(module *Module, options ...InstanceOption) (*Instance, error) {
+func NewInstance(module *module.Module, options ...InstanceOption) (*Instance, error) {
 	instance := &Instance{
-		module:  module.internal,
-		globals: module.internal.Globals(),
+		module:  module,
+		globals: module.Globals(),
 	}
 	for _, option := range options {
 		if err := option(instance); err != nil {
