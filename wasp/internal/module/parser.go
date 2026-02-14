@@ -470,7 +470,14 @@ func skipParseImmediates(iter *binary.Iterator, opcode byte) {
 		iter.Bytes(4) // f32 value
 	case opcodes.F64Const:
 		iter.Bytes(8) // f64 value
-	case opcodes.MemoryLoadI32, opcodes.MemoryStoreI32:
+	case opcodes.MemoryLoadI32, opcodes.MemoryStoreI32,
+		opcodes.I64Load, opcodes.F32Load, opcodes.F64Load,
+		opcodes.I32Load8S, opcodes.I32Load8U, opcodes.I32Load16S, opcodes.I32Load16U,
+		opcodes.I64Load8S, opcodes.I64Load8U, opcodes.I64Load16S, opcodes.I64Load16U,
+		opcodes.I64Load32S, opcodes.I64Load32U,
+		opcodes.I64Store, opcodes.F32Store, opcodes.F64Store,
+		opcodes.I32Store8, opcodes.I32Store16,
+		opcodes.I64Store8, opcodes.I64Store16, opcodes.I64Store32:
 		iter.Varint() // align
 		iter.Varint() // offset
 	case opcodes.MemorySize, opcodes.MemoryGrow:
