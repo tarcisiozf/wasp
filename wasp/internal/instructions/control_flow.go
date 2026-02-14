@@ -17,7 +17,6 @@ var (
 
 	If = addInstruction(opcodes.If, func(ctx *execution.Context) error {
 		blockType := ctx.Body.Byte()
-		ctx.BlockType = blockType
 		ctx.Condition = ctx.Stack.Pop() != 0
 
 		// Push block info for branching

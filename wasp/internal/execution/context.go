@@ -30,9 +30,7 @@ type Context struct {
 	Body *binary.Iterator
 
 	FunctionCallRequest int
-	BlockType           byte
 	Done                bool
-	Depth               int
 	Condition           bool
 
 	// BlockStack tracks nested blocks for branching
