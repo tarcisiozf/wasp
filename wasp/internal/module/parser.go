@@ -346,17 +346,20 @@ func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 	for i := 0; i < numFunctions; i++ {
 		bodySize := iter.Varint()
 
+		offset := iter.Position()
 		localDeclCount := iter.Varint()
 		locals := make([]any, 0, localDeclCount)
-		for i := 0; i < localDeclCount; i++ {
+		for j := 0; j < localDeclCount; j++ {
 			localTypeCount := iter.Varint()
-			localType := types.ForCode(iter.Byte())
-			for j := 0; j < localTypeCount; j++ {
+			typeCode := iter.Byte()
+			localType := types.ForCode(typeCode)
+			for k := 0; k < localTypeCount; k++ {
 				locals = append(locals, localType.Zero())
 			}
 		}
+		bodySize -= iter.Position() - offset // adjust body size after reading local decls
 
-		offset := iter.Position()
+		offset = iter.Position() // update offset to point to start of function body
 
 		var body []byte
 		if bodySize == guessSize {
@@ -364,7 +367,6 @@ func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 			if err != nil {
 				return fmt.Errorf("failed to read function body: %w", err)
 			}
-			bodySize = iter.Varint()
 		} else {
 			body = iter.Bytes(bodySize)
 		}
