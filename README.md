@@ -34,7 +34,7 @@
 - [X] memory.grow (0x40)
 - [X] memory.size (0x3f)
 - [ ] load
-  - [ ] i32.load (0x28)
+  - [X] i32.load (0x28)
   - [ ] i64.load (0x29)
   - [ ] f32.load (0x2a)
   - [ ] f64.load (0x2b)
@@ -49,7 +49,7 @@
   - [ ] i64.load32_s (0x34)
   - [ ] i64.load32_u (0x35)
 - [ ] store
-  - [ ] i32.store (0x36)
+  - [X] i32.store (0x36)
   - [ ] i64.store (0x37)
   - [ ] f32.store (0x38)
   - [ ] f64.store (0x39)

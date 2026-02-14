@@ -13,12 +13,12 @@ type ExecutionResults struct {
 	Instance *wasp.Instance
 }
 
-func (r *ExecutionResults) RunExport(name string) (*execution.Context, []any, error) {
+func (r *ExecutionResults) RunExport(name string, args ...any) (*execution.Context, []any, error) {
 	fn, err := r.Module.GetExportedFunction(name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get export function: %w", err)
 	}
-	return r.run(fn)
+	return r.run(fn, args...)
 }
 
 func (r *ExecutionResults) RunStart() (*execution.Context, error) {
@@ -33,8 +33,8 @@ func (r *ExecutionResults) RunStart() (*execution.Context, error) {
 	return ctx, nil
 }
 
-func (r *ExecutionResults) run(fn funcs.Function) (*execution.Context, []any, error) {
-	ctx, results, err := r.Instance.Call(fn)
+func (r *ExecutionResults) run(fn funcs.Function, args ...any) (*execution.Context, []any, error) {
+	ctx, results, err := r.Instance.Call(fn, args...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to execute start function: %w", err)
 	}

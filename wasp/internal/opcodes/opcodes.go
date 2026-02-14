@@ -17,6 +17,10 @@ const (
 	GlobalGet = 0x23
 	GlobalSet = 0x24
 
+	MemoryLoadI32 = 0x28
+
+	MemoryStoreI32 = 0x36
+
 	MemorySize = 0x3f
 	MemoryGrow = 0x40
 

@@ -39,3 +39,26 @@ func (memory *Memory) Grow(delta int) bool {
 	}
 	return true
 }
+
+func (memory *Memory) Load(offset int, size int) []byte {
+	pageIndex := offset / pageSize
+	pageOffset := offset % pageSize
+
+	if pageIndex >= len(memory.pages) {
+		panic("memory access out of bounds")
+	}
+
+	page := memory.pages[pageIndex]
+	return page[pageOffset : pageOffset+size]
+}
+
+func (memory *Memory) Store(offset int, bytes []byte) {
+	pageIndex := offset / pageSize
+	pageOffset := offset % pageSize
+
+	if pageIndex >= len(memory.pages) {
+		panic("memory access out of bounds")
+	}
+
+	copy(memory.pages[pageIndex][pageOffset:], bytes)
+}
