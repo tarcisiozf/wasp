@@ -2,12 +2,12 @@
 
 ### Variable instructions
 - [X] local
-- [X] local.get
-- [X] local.set
-- [X] local.tee
+- [X] local.get (0x20)
+- [X] local.set (0x21)
+- [X] local.tee (0x22)
 - [X] global
-- [X] global.get
-- [X] global.set
+- [X] global.get (0x23)
+- [X] global.set (0x24)
 
 ### Control flow instructions
 - [X] block (0x2)
