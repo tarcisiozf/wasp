@@ -10,6 +10,11 @@ var (
 		return nil
 	})
 
+	Drop = addInstruction(opcodes.Drop, func(ctx *execution.Context) error {
+		ctx.Stack.Pop()
+		return nil
+	})
+
 	If = addInstruction(opcodes.If, func(ctx *execution.Context) error {
 		ctx.BlockType = ctx.Body.Byte()
 		ctx.Condition = ctx.Stack.Pop() != 0

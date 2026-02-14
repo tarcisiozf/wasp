@@ -14,7 +14,7 @@
 - [ ] br (0x0c)
 - [ ] br_if (0x0d)
 - [ ] br_table (0x0e)
-- [ ] drop (0x1a)
+- [X] drop (0x1a)
 - [X] if (0x04)
 - [X] else (0x05)
 - [ ] loop (0x03)
@@ -62,7 +62,7 @@
 - [ ] memory.fill (0xfc 0x0b)
 
 ### Numeric instructions
-- [ ] const 
+- [X] const 
   - [X] i32.const (0x41)
   - [X] i64.const (0x42)
   - [X] f32.const (0x43)
