@@ -8,8 +8,14 @@ func NewStack[T any]() *Stack[T] {
 	return &Stack[T]{}
 }
 
-func (s *Stack[T]) Push(value T) {
-	s.items = append(s.items, value)
+func NewStackWithCapacity[T any](capacity int) *Stack[T] {
+	return &Stack[T]{
+		items: make([]T, 0, capacity),
+	}
+}
+
+func (s *Stack[T]) Push(value ...T) {
+	s.items = append(s.items, value...)
 }
 
 func (s *Stack[T]) Pop() T {
@@ -39,4 +45,12 @@ func (s *Stack[T]) Peek() T {
 		panic("stack underflow")
 	}
 	return s.items[pos]
+}
+
+func (s *Stack[T]) At(index int) T {
+	return s.items[index]
+}
+
+func (s *Stack[T]) Set(index int, item T) {
+	s.items[index] = item
 }

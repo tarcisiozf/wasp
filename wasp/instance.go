@@ -9,7 +9,6 @@ import (
 	"wasp/wasp/internal/instructions"
 	"wasp/wasp/internal/memory"
 	"wasp/wasp/internal/module"
-	"wasp/wasp/internal/types"
 )
 
 type InstanceOption func(*Instance) error
@@ -66,24 +65,9 @@ func (instance *Instance) Call(fn funcs.Function, args ...any) ([]any, error) {
 		FunctionCallRequest: -1,
 	}
 
-	localDeclCount := ctx.Body.Varint()
-
-	local := make([]any, 0, len(args)+localDeclCount)
-
-	// TODO: args should not be directly used as local variables (?)
-	for _, arg := range args {
-		local = append(local, arg)
-	}
-
-	for i := 0; i < localDeclCount; i++ {
-		localTypeCount := ctx.Body.Varint()
-		localType := types.ForCode(ctx.Body.Byte())
-		for j := 0; j < localTypeCount; j++ {
-			local = append(local, localType.Zero())
-		}
-	}
-
-	ctx.Local = local
+	ctx.Locals = memory.NewStackWithCapacity[any](len(args) + len(fn.Locals))
+	ctx.Locals.Push(args...)
+	ctx.Locals.Push(fn.Locals...)
 
 	for !ctx.Done {
 		if instance.module.IsImport(ctx.FunctionCallRequest) {

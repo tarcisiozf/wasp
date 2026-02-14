@@ -345,6 +345,17 @@ func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 	numFunctions := iter.Varint()
 	for i := 0; i < numFunctions; i++ {
 		bodySize := iter.Varint()
+
+		localDeclCount := iter.Varint()
+		locals := make([]any, 0, localDeclCount)
+		for i := 0; i < localDeclCount; i++ {
+			localTypeCount := iter.Varint()
+			localType := types.ForCode(iter.Byte())
+			for j := 0; j < localTypeCount; j++ {
+				locals = append(locals, localType.Zero())
+			}
+		}
+
 		offset := iter.Position()
 
 		var body []byte
@@ -358,6 +369,7 @@ func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 			body = iter.Bytes(bodySize)
 		}
 
+		module.functions[i].Locals = locals
 		module.functions[i].Body = body
 		module.functions[i].Offset = offset
 	}

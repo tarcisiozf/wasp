@@ -8,19 +8,19 @@ import (
 var (
 	LocalGet = addInstruction(opcodes.LocalGet, func(ctx *execution.Context) error {
 		localIndex := ctx.Body.Varint()
-		value := ctx.Local[localIndex]
+		value := ctx.Locals.At(localIndex)
 		ctx.Stack.Push(value)
 		return nil
 	})
 	LocalSet = addInstruction(opcodes.LocalSet, func(ctx *execution.Context) error {
 		localIndex := ctx.Body.Varint()
-		ctx.Local[localIndex] = ctx.Stack.Pop()
+		ctx.Locals.Set(localIndex, ctx.Stack.Pop())
 		return nil
 	})
 	LocalTee = addInstruction(opcodes.LocalTee, func(ctx *execution.Context) error {
 		localIndex := ctx.Body.Varint()
 		value := ctx.Stack.Peek()
-		ctx.Local[localIndex] = value
+		ctx.Locals.Set(localIndex, value)
 		return nil
 	})
 
