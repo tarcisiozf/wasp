@@ -13,9 +13,9 @@ const dir = "/Users/tzf/Desktop/webassembly/spec/test/core/"
 func main() {
 	files := scanDir(dir, ".wast")
 	for _, filename := range files {
-		if filename != "annotations.wast" {
-			continue
-		}
+		//if filename != "binary-leb128.wast" {
+		//	continue
+		//}
 		fmt.Printf("Parsing file: %s\n", filename)
 		data, err := os.ReadFile(dir + "/" + filename)
 		if err != nil {
@@ -27,7 +27,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			fmt.Println(node.String())
+			_ = node
 		}
 	}
 }

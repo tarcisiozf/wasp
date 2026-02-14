@@ -31,21 +31,29 @@ func parseList(it *lex.Iterator) (*ast.List, error) {
 	start := it.Position()
 	end := -1
 
+	//fmt.Println(it.String())
+
+loop:
 	for it.HasNext() && end == -1 {
 		switch it.Peek() {
 		case tokens.Semicolon:
+			//fmt.Println(it.String())
 			if !inString {
 				readComment(it)
+				continue loop
 			}
 		case tokens.Quote:
+			//fmt.Println(it.String())
 			if it.PeekPrev() != tokens.Backslash {
 				inString = !inString
 			}
 		case tokens.OpenParen:
+			//fmt.Println(it.String())
 			if !inString {
 				depth++
 			}
 		case tokens.CloseParen:
+			//fmt.Println(it.String())
 			if !inString {
 				depth--
 				if depth == 0 {
@@ -67,5 +75,7 @@ func readComment(it *lex.Iterator) {
 		it.SkipLine()
 	} else if it.PeekPrev() == tokens.OpenParen {
 		it.ReadUntil(tokens.Semicolon)
+	} else {
+		it.Next()
 	}
 }

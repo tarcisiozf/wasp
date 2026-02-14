@@ -5,7 +5,7 @@ import (
 	"wasp/cmd/wapo/types"
 )
 
-var keywordPattern = regexp.MustCompile(`[^@](\w+)`)
+var keywordPattern = regexp.MustCompile(`[ (\n](\w+)`)
 
 type List struct {
 	nodeType types.Type
