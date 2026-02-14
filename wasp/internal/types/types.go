@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"reflect"
 	"wasp/wasp/internal/binary"
 )
@@ -25,11 +26,17 @@ func addType(code byte, t asType) Type {
 }
 
 var (
-	Int32 = addType(0x7F, &typeInt32{})
-	Int64 = addType(0x7E, &typeInt64{})
-	Void  = addType(0x40, &typeVoid{})
+	Int32   = addType(0x7F, &typeInt32{})
+	Int64   = addType(0x7E, &typeInt64{})
+	Float32 = addType(0x7D, &typeFloat32{})
+	Float64 = addType(0x7C, &typeFloat64{})
+	Void    = addType(0x40, &typeVoid{})
 )
 
 func ForCode(code byte) Type {
-	return types[code]
+	t := types[code]
+	if t.Code == 0 {
+		panic(fmt.Sprintf("invalid type code: 0x%x", code))
+	}
+	return t
 }
