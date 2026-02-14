@@ -3,6 +3,7 @@ package binary
 import (
 	"encoding/binary"
 	"fmt"
+	"unsafe"
 )
 
 type Iterator struct {
@@ -141,6 +142,26 @@ func (it *Iterator) Position() int {
 
 func (it *Iterator) HasNext() bool {
 	return it.pos < it.size
+}
+
+func (it *Iterator) Float32() float32 {
+	bits := it.Uint32()
+	return castPointer[float32](bits)
+}
+
+func (it *Iterator) Float64() float64 {
+	bits := it.Uint64()
+	return castPointer[float64](bits)
+}
+
+func (it *Iterator) Uint64() uint64 {
+	value := binary.LittleEndian.Uint64(it.data[it.pos:])
+	it.pos += 8
+	return value
+}
+
+func castPointer[T, S any](bits S) T {
+	return *(*T)(unsafe.Pointer(&bits))
 }
 
 func NewIterator(data []byte) *Iterator {

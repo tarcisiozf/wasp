@@ -2,38 +2,49 @@ package tests
 
 import (
 	"fmt"
-	"testing"
 	"wasp/wasp"
+	"wasp/wasp/internal/execution"
+	"wasp/wasp/internal/funcs"
 	"wasp/wasp/internal/module"
 )
 
 type ExecutionResults struct {
 	Module   *module.Module
 	Instance *wasp.Instance
-	Results  []any
 }
 
-func (env *Environment) RunWat(t *testing.T, wat string) (Build, ExecutionResults, error) {
-	build, err := BuildWat(t, wat)
+func (r *ExecutionResults) RunExport(name string) (*execution.Context, []any, error) {
+	fn, err := r.Module.GetExportedFunction(name)
 	if err != nil {
-		return Build{}, ExecutionResults{}, fmt.Errorf("failed to build wat: %w", err)
+		return nil, nil, fmt.Errorf("failed to get export function: %w", err)
 	}
-	execution, err := env.RunWasm(build.Wasm)
-	if err != nil {
-		return Build{}, ExecutionResults{}, fmt.Errorf("failed to run wasm: %w", err)
-	}
-	return build, execution, nil
+	return r.run(fn)
 }
 
-func (env *Environment) RunWasm(wasm []byte) (ExecutionResults, error) {
+func (r *ExecutionResults) RunStart() (*execution.Context, error) {
+	fn, err := r.Module.StartFunction()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get start function: %w", err)
+	}
+	ctx, _, err := r.run(fn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute start function: %w", err)
+	}
+	return ctx, nil
+}
+
+func (r *ExecutionResults) run(fn funcs.Function) (*execution.Context, []any, error) {
+	ctx, results, err := r.Instance.Call(fn)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to execute start function: %w", err)
+	}
+	return ctx, results, nil
+}
+
+func (env *Environment) CreateInstance(wasm []byte) (ExecutionResults, error) {
 	mod, err := wasp.NewModule(wasm)
 	if err != nil {
 		return ExecutionResults{}, fmt.Errorf("failed to load module: %w", err)
-	}
-
-	fn, err := mod.StartFunction()
-	if err != nil {
-		return ExecutionResults{}, fmt.Errorf("failed to get start function: %w", err)
 	}
 
 	instance, err := wasp.NewInstance(mod, env.instanceOptions...)
@@ -41,14 +52,14 @@ func (env *Environment) RunWasm(wasm []byte) (ExecutionResults, error) {
 		return ExecutionResults{}, fmt.Errorf("failed to create instance: %w", err)
 	}
 
-	results, err := instance.Call(fn)
-	if err != nil {
-		return ExecutionResults{}, fmt.Errorf("failed to execute start function: %w", err)
-	}
+	//fn, err := mod.StartFunction()
+	//if err != nil {
+	//	return ExecutionResults{}, fmt.Errorf("failed to get start function: %w", err)
+	//}
+	//
 
 	return ExecutionResults{
 		Module:   mod,
 		Instance: instance,
-		Results:  results,
 	}, nil
 }

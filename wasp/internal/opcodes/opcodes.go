@@ -16,9 +16,12 @@ const (
 	GlobalGet = 0x23
 	GlobalSet = 0x24
 
-	Const = 0x41
+	I32Const = 0x41
+	I64Const = 0x42
+	F32Const = 0x43
+	F64Const = 0x44
 
-	EqI32 = 0x46
+	I32Eq = 0x46
 
 	I32Add = 0x6a
 	I32Sub = 0x6b

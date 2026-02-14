@@ -63,7 +63,7 @@ func (module *Module) GetExportedFunction(name string) (funcs.Function, error) {
 
 func (module *Module) StartFunction() (funcs.Function, error) {
 	if module.startFuncIndex < 0 {
-		return funcs.Function{}, fmt.Errorf("invalid start function index: %d", module.startFuncIndex)
+		return funcs.Function{}, fmt.Errorf("module does not have a start function")
 	}
 
 	fn := module.FunctionAt(module.startFuncIndex)

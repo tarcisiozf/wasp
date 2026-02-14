@@ -64,9 +64,9 @@
 ### Numeric instructions
 - [ ] const 
   - [X] i32.const (0x41)
-  - [ ] i64.const (0x42)
-  - [ ] f32.const (0x43)
-  - [ ] f64.const (0x44)
+  - [X] i64.const (0x42)
+  - [X] f32.const (0x43)
+  - [X] f64.const (0x44)
 - [ ] eq
   - [ ] i32.eqz (0x45)
   - [X] i32.eq (0x46)

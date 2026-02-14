@@ -51,9 +51,9 @@ func NewInstance(module *module.Module, options ...InstanceOption) (*Instance, e
 	return instance, nil
 }
 
-func (instance *Instance) Call(fn funcs.Function, args ...any) ([]any, error) {
+func (instance *Instance) Call(fn funcs.Function, args ...any) (*execution.Context, []any, error) {
 	if len(args) != len(fn.Signature.Params) {
-		return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.Signature.Params), len(args))
+		return nil, nil, fmt.Errorf("expected %d arguments, got %d", len(fn.Signature.Params), len(args))
 	}
 
 	stack := memory.NewStack[any]()
@@ -73,12 +73,12 @@ func (instance *Instance) Call(fn funcs.Function, args ...any) ([]any, error) {
 		if instance.module.IsImport(ctx.FunctionCallRequest) {
 			extFunc, err := instance.getImportedFunc(ctx.FunctionCallRequest)
 			if err != nil {
-				return nil, fmt.Errorf("invalid function call request: %w", err)
+				return nil, nil, fmt.Errorf("invalid function call request: %w", err)
 			}
 			params := ctx.Stack.PopN(extFunc.NumInputs())
 			results, err := extFunc.Call(params)
 			if err != nil {
-				return nil, fmt.Errorf("failed to call external function %s.%s: %w", extFunc.ModuleName(), extFunc.FieldName(), err)
+				return nil, nil, fmt.Errorf("failed to call external function %s.%s: %w", extFunc.ModuleName(), extFunc.FieldName(), err)
 			}
 			for _, result := range results {
 				ctx.Stack.Push(result)
@@ -87,9 +87,9 @@ func (instance *Instance) Call(fn funcs.Function, args ...any) ([]any, error) {
 			ctx.FunctionCallRequest = -1
 		} else if instance.module.IsFunction(ctx.FunctionCallRequest) {
 			foo := instance.module.FunctionAt(ctx.FunctionCallRequest)
-			results, err := instance.Call(foo)
+			_, results, err := instance.Call(foo)
 			if err != nil {
-				return nil, fmt.Errorf("failed to call function at index %d: %w", ctx.FunctionCallRequest, err)
+				return nil, nil, fmt.Errorf("failed to call function at index %d: %w", ctx.FunctionCallRequest, err)
 			}
 			for _, result := range results {
 				ctx.Stack.Push(result)
@@ -102,18 +102,18 @@ func (instance *Instance) Call(fn funcs.Function, args ...any) ([]any, error) {
 		ix := instructions.Instruction(opcode)
 		fmt.Printf("Executing instruction %s\n", ix.String())
 		if ix.Handler == nil { // TODO: remove before flight
-			return nil, fmt.Errorf("unimplemented instruction: 0x%x", opcode)
+			return nil, nil, fmt.Errorf("unimplemented instruction: 0x%x", opcode)
 		}
 		if err := ix.Handler(ctx); err != nil {
-			return nil, fmt.Errorf("failed to execute instruction 0x%x: %w", opcode, err)
+			return nil, nil, fmt.Errorf("failed to execute instruction 0x%x: %w", opcode, err)
 		}
 	}
 
 	results := make([]any, len(fn.Signature.Results))
-	for i := range fn.Signature.Results {
+	for i := len(results) - 1; i >= 0; i-- {
 		results[i] = ctx.Stack.Pop()
 	}
-	return results, nil
+	return ctx, results, nil
 }
 
 func (instance *Instance) mapImportsToExternalFunctions() error {

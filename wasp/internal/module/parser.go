@@ -133,14 +133,14 @@ func parseDataSection(module *Module, iter *binary.Iterator) error {
 		switch segmentFlags {
 		case 0x00: // active segment with memory index 0
 			memoryIndex = 0
-			iter.Assert(opcodes.Const)
+			iter.Assert(opcodes.I32Const)
 			offset = iter.Varint()
 			iter.Assert(opcodes.End)
 		case 0x01: // passive segment
 			// Passive segments have no memory index or offset
 		case 0x02: // active segment with explicit memory index
 			memoryIndex = iter.Varint()
-			iter.Assert(opcodes.Const)
+			iter.Assert(opcodes.I32Const)
 			offset = iter.Varint()
 			iter.Assert(opcodes.End)
 		default:
@@ -173,7 +173,7 @@ func parseElementSection(module *Module, iter *binary.Iterator) error {
 			return fmt.Errorf("unsupported element segment flag: 0x%x", segmentFlags)
 		}
 
-		iter.Assert(opcodes.Const)
+		iter.Assert(opcodes.I32Const)
 		offset := iter.Varint()
 		iter.Assert(opcodes.End)
 
@@ -233,7 +233,7 @@ func parseGlobalSection(module *Module, iter *binary.Iterator) error {
 	for i := 0; i < numGlobals; i++ {
 		globalType := types.ForCode(iter.Byte())
 		isMutable := iter.BoolByte()
-		iter.Assert(opcodes.Const)
+		iter.Assert(opcodes.I32Const)
 		value := globalType.Read(iter)
 
 		module.globals.Push(value, isMutable)

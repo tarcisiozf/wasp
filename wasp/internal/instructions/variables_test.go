@@ -18,7 +18,7 @@ func TestLocals(t *testing.T) {
 			wasp.WithLinker(linker),
 		),
 	)
-	_, _, err := testEnv.RunWat(t, `
+	build, err := tests.BuildWat(t, `
 		(module
 		  (import "console" "log" (func $log (param i32)))
 		  (func $main
@@ -32,7 +32,18 @@ func TestLocals(t *testing.T) {
 		  (start $main)
 		)
 	`)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	if _, err := instance.RunStart(); err != nil {
+		t.Fatalf("failed to run start function: %v", err)
+	}
 
 	logSpy.CalledOnce(t)
 	logSpy.FirstCall().CalledWith(t, 10)
@@ -48,7 +59,7 @@ func TestGlobals(t *testing.T) {
 			wasp.WithLinker(linker),
 		),
 	)
-	_, _, err := testEnv.RunWat(t, `
+	build, err := tests.BuildWat(t, `
 		(module
 		  (import "console" "log" (func $log (param i32)))
 		  (global $var (mut i32) (i32.const 0))
@@ -62,7 +73,18 @@ func TestGlobals(t *testing.T) {
 		  (start $main)
 		)
 	`)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	if _, err := instance.RunStart(); err != nil {
+		t.Fatalf("failed to run start function: %v", err)
+	}
 
 	logSpy.CalledOnce(t)
 	logSpy.FirstCall().CalledWith(t, 10)

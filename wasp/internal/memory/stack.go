@@ -54,3 +54,11 @@ func (s *Stack[T]) At(index int) T {
 func (s *Stack[T]) Set(index int, item T) {
 	s.items[index] = item
 }
+
+func (s *Stack[T]) Size() int {
+	return len(s.items)
+}
+
+func (s *Stack[T]) Items() []T {
+	return s.items[:]
+}

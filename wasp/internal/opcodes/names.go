@@ -18,9 +18,9 @@ var names = map[byte]string{
 	GlobalGet: "global.get",
 	GlobalSet: "global.set",
 
-	Const: "const",
+	I32Const: "const",
 
-	EqI32:  "i32.eq",
+	I32Eq:  "i32.eq",
 	I32Add: "i32.add",
 	I32Mul: "i32.mul",
 	I32And: "i32.and",
