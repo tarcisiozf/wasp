@@ -25,194 +25,186 @@ var sections = map[byte]string{
 	0xd: "Tag",
 }
 
-func WasmToString(data []byte) (str string, err error) {
+func WasmToString(data []byte) (string, error) {
 	iter := binary.NewIterator(data)
-	str = f(iter.Position(), "WASM_BINARY_MAGIC", iter.Bytes(4))
-	str += f(iter.Position(), "WASM_BINARY_VERSION", iter.Bytes(4))
+
+	sb := &strings.Builder{}
+
+	f(sb, iter.Position(), "WASM_BINARY_MAGIC", iter.Bytes(4))
+	f(sb, iter.Position(), "WASM_BINARY_VERSION", iter.Bytes(4))
 
 	for iter.HasNext() {
 		pos := iter.Position()
 		sectionID := iter.Byte()
-		str += fmt.Sprintf("; section \"%s\" (%d)\n", sections[sectionID], sectionID)
-		str += f(pos, "section code", sectionID)
+		sb.WriteString(fmt.Sprintf("; section \"%s\" (%d)\n", sections[sectionID], sectionID))
+		f(sb, pos, "section code", sectionID)
 
 		pos = iter.Position()
 		sectionSize := iter.Varint()
-		str += f(pos, "section size", sectionSize)
+		f(sb, pos, "section size", sectionSize)
 
 		if sectionSize == 0 {
 			panic("section size is zero")
 		}
 
-		var section string
+		var err error
 		switch sectionID {
 		case 0x0: // Custom section
-			section = sectionCustomToString(iter, sectionSize)
+			sectionCustomToString(sb, iter, sectionSize)
 		case 0x1: // Type section
-			section = sectionTypeToString(iter)
+			sectionTypeToString(sb, iter)
 		case 0x3: // Function section
-			section = sectionFunctionToString(iter)
+			sectionFunctionToString(sb, iter)
 		case 0x7: // Export section
-			section = sectionExportToString(iter)
+			sectionExportToString(sb, iter)
 		case 0xa: // Code section
-			section, err = sectionCodeToString(iter)
+			err = sectionCodeToString(sb, iter)
 		default:
-			return str, fmt.Errorf("invalid section type: %d", sectionID)
+			err = fmt.Errorf("invalid section type: %d", sectionID)
 		}
 
 		if err != nil {
-			return str, fmt.Errorf("failed to parse section %s: %v", sections[sectionID], err)
+			return sb.String(), fmt.Errorf("failed to parse section %s: %v", sections[sectionID], err)
 		}
-
-		str += section
 	}
 
-	return str, nil
+	return sb.String(), nil
 }
 
-func sectionCustomToString(iter *binary.Iterator, sectionSize int) string {
+func sectionCustomToString(sb *strings.Builder, iter *binary.Iterator, sectionSize int) {
 	startPos := iter.Position()
 
 	nameLen := iter.Varint()
-	str := f(startPos, "custom section name length", nameLen)
+	f(sb, startPos, "custom section name length", nameLen)
 
 	pos := iter.Position()
 	name := iter.Bytes(nameLen)
-	str += f(pos, fmt.Sprintf("custom section name: %s", name), name)
+	f(sb, pos, fmt.Sprintf("custom section name: %s", name), name)
 
 	// Calculate remaining bytes in the section
 	bytesRead := iter.Position() - startPos
 	dataLen := sectionSize - bytesRead
 	data := iter.Bytes(dataLen)
-	str += f(iter.Position(), fmt.Sprintf("custom section data (%d bytes)", dataLen), data)
-
-	return str
+	f(sb, iter.Position(), fmt.Sprintf("custom section data (%d bytes)", dataLen), data)
 }
 
-func sectionCodeToString(iter *binary.Iterator) (string, error) {
+func sectionCodeToString(sb *strings.Builder, iter *binary.Iterator) error {
 	pos := iter.Position()
 	numFunctions := iter.Varint()
-	str := f(pos, "num functions", numFunctions)
+	f(sb, pos, "num functions", numFunctions)
 
 	for i := 0; i < numFunctions; i++ {
-		fn, err := funcToString(iter, i)
-		if err != nil {
-			return str, fmt.Errorf("failed to parse function %d: %v", i, err)
+		if err := funcToString(sb, iter, i); err != nil {
+			return fmt.Errorf("failed to parse function %d: %v", i, err)
 		}
-		str += fn
 	}
 
-	return str, nil
+	return nil
 }
 
-func sectionExportToString(iter *binary.Iterator) string {
+func sectionExportToString(sb *strings.Builder, iter *binary.Iterator) {
 	pos := iter.Position()
 	numExports := iter.Varint()
-	str := f(pos, "num exports", numExports)
+	f(sb, pos, "num exports", numExports)
 
 	for i := 0; i < numExports; i++ {
 		pos = iter.Position()
 		nameLen := iter.Varint()
-		str += f(pos, "string length", nameLen)
+		f(sb, pos, "string length", nameLen)
 
 		pos = iter.Position()
 		name := iter.Bytes(nameLen)
-		str += f(pos, fmt.Sprintf("export name %s", name), name)
+		f(sb, pos, fmt.Sprintf("export name %s", name), name)
 
 		pos = iter.Position()
 		kind := iter.Byte()
-		str += f(pos, "export kind", kind)
+		f(sb, pos, "export kind", kind)
 
 		pos = iter.Position()
 		index := iter.Varint()
-		str += f(pos, fmt.Sprintf("export %s index", kindToString(kind)), index)
+		f(sb, pos, fmt.Sprintf("export %s index", kindToString(kind)), index)
 	}
-
-	return str
 }
 
-func sectionFunctionToString(iter *binary.Iterator) string {
+func sectionFunctionToString(sb *strings.Builder, iter *binary.Iterator) {
 	pos := iter.Position()
 	numFunctions := iter.Varint()
-	str := f(pos, "num functions", numFunctions)
+	f(sb, pos, "num functions", numFunctions)
 	for i := 0; i < numFunctions; i++ {
 		pos = iter.Position()
 		typeIndex := iter.Varint()
-		str += f(pos, fmt.Sprintf("function %d signature index", i), typeIndex)
+		f(sb, pos, fmt.Sprintf("function %d signature index", i), typeIndex)
 	}
-	return str
 }
 
-func sectionTypeToString(iter *binary.Iterator) string {
+func sectionTypeToString(sb *strings.Builder, iter *binary.Iterator) {
 	numTypes := iter.Varint()
-	str := f(iter.Position(), "num types", numTypes)
+	f(sb, iter.Position(), "num types", numTypes)
 	for i := 0; i < numTypes; i++ {
 		pos := iter.Position()
 		form := iter.Byte()
 
-		str += fmt.Sprintf("; %s type %d\n", typeToString(form), i)
-		str += f(pos, typeToString(form), form)
+		sb.WriteString(fmt.Sprintf("; %s type %d\n", typeToString(form), i))
+		f(sb, pos, typeToString(form), form)
 
 		switch form {
 		case 0x60: // func type
 			pos = iter.Position()
 			numParams := iter.Varint()
 
-			str += f(pos, "num params", numParams)
+			f(sb, pos, "num params", numParams)
 			for j := 0; j < numParams; j++ {
 				pos = iter.Position()
 				paramType := iter.Byte()
-				str += f(pos, typeToString(paramType), paramType)
+				f(sb, pos, typeToString(paramType), paramType)
 			}
 
 			pos = iter.Position()
 			numResults := iter.Varint()
-			str += f(pos, "num results", numResults)
+			f(sb, pos, "num results", numResults)
 			for j := 0; j < numResults; j++ {
 				pos = iter.Position()
 				resultType := iter.Byte()
-				str += f(pos, typeToString(resultType), resultType)
+				f(sb, pos, typeToString(resultType), resultType)
 			}
 		default:
 			panic(fmt.Sprintf("unknown type form: %02x", form))
 		}
 	}
-	return str
 }
 
-func funcToString(iter *binary.Iterator, index int) (str string, err error) {
-	str = fmt.Sprintf("; function body %d\n", index)
+func funcToString(sb *strings.Builder, iter *binary.Iterator, index int) error {
+	sb.WriteString(fmt.Sprintf("; function body %d\n", index))
 
 	pos := iter.Position()
 	bodySize := iter.Varint()
-	str += f(pos, "func body size", bodySize)
+	f(sb, pos, "func body size", bodySize)
 
 	if bodySize == 0 {
-		return str, fmt.Errorf("invalid body size: %d", bodySize)
+		return fmt.Errorf("invalid body size: %d", bodySize)
 	}
 
 	pos = iter.Position()
 	localDeclCount := iter.Varint()
-	str += f(pos, "local decl count", localDeclCount)
+	f(sb, pos, "local decl count", localDeclCount)
 
 	for i := 0; i < localDeclCount; i++ {
-		str += f(iter.Position(), "local type count", iter.Varint())
+		f(sb, iter.Position(), "local type count", iter.Varint())
 
 		pos = iter.Position()
 		localType := iter.Byte()
-		str += f(pos, typeToString(localType), localType)
+		f(sb, pos, typeToString(localType), localType)
 	}
 
 	var depth int
 	for iter.HasNext() {
 		opcode := iter.Opcode()
-		str += f(iter.Position(), opcodeName(opcode), opcode)
+		f(sb, iter.Position(), opcodeName(opcode), opcode)
 
-		lines, err := k(iter, opcode)
+		err := k(sb, iter, opcode)
 		if err != nil {
-			return str, err
+			return err
 		}
-		str += lines
 
 		if isBranchingOpcode(opcode) {
 			depth++
@@ -223,7 +215,7 @@ func funcToString(iter *binary.Iterator, index int) (str string, err error) {
 			depth--
 		}
 	}
-	return str, nil
+	return nil
 }
 
 func isBranchingOpcode(opcode opcodes.Opcode) bool {
@@ -234,70 +226,70 @@ func opcodeName(opcode opcodes.Opcode) string {
 	return opcodes.Name(opcode)
 }
 
-func k(iter *binary.Iterator, opcode opcodes.Opcode) (str string, err error) {
+func k(sb *strings.Builder, iter *binary.Iterator, opcode opcodes.Opcode) (err error) {
 	switch opcode {
 	case opcodes.GlobalGet, opcodes.GlobalSet:
-		return f(iter.Position(), "global index", iter.Varint()), nil
+		f(sb, iter.Position(), "global index", iter.Varint())
 
 	case opcodes.I32Const:
-		return f(iter.Position(), "i32 literal", iter.Varint()), nil
+		f(sb, iter.Position(), "i32 literal", iter.Varint())
 
 	case opcodes.I64Const:
-		return f(iter.Position(), "i64 literal", iter.Varint()), nil
+		f(sb, iter.Position(), "i64 literal", iter.Varint())
 
 	case opcodes.F64Const:
-		return f(iter.Position(), "f64 literal", iter.Float64()), nil
+		f(sb, iter.Position(), "f64 literal", iter.Float64())
 
 	case opcodes.F32Const:
-		return f(iter.Position(), "f32 literal", iter.Float32()), nil
+		f(sb, iter.Position(), "f32 literal", iter.Float32())
 
 	case opcodes.LocalTee, opcodes.LocalGet, opcodes.LocalSet:
-		return f(iter.Position(), "local index", iter.Varint()), nil
+		f(sb, iter.Position(), "local index", iter.Varint())
 
 	case opcodes.Block, opcodes.Loop:
-		return f(iter.Position(), typeToString(iter.Peek()), iter.Byte()), nil
+		f(sb, iter.Position(), typeToString(iter.Peek()), iter.Byte())
 
 	case opcodes.Br, opcodes.BrIf:
-		return f(iter.Position(), "break depth", iter.Varint()), nil
+		f(sb, iter.Position(), "break depth", iter.Varint())
 
 	case opcodes.I32Load8U, opcodes.I32Load8S, opcodes.I32Load,
 		opcodes.I64Load, opcodes.I32Load16S, opcodes.I32Load16U,
 		opcodes.I64Load8S, opcodes.I64Load8U, opcodes.I64Load16S,
 		opcodes.I64Load16U, opcodes.I64Load32S, opcodes.I64Load32U,
 		opcodes.F64Load, opcodes.F32Load:
-		return f(iter.Position(), "alignment", iter.Byte()) +
-			f(iter.Position(), "load offset", iter.Varint()), nil
+		f(sb, iter.Position(), "alignment", iter.Byte())
+		f(sb, iter.Position(), "load offset", iter.Varint())
 
 	case opcodes.I32Store, opcodes.I64Store, opcodes.I32Store16,
 		opcodes.I32Store8, opcodes.I64Store16, opcodes.I64Store8,
 		opcodes.I64Store32, opcodes.F64Store, opcodes.F32Store:
-		return f(iter.Position(), "alignment", iter.Byte()) +
-			f(iter.Position(), "store offset", iter.Varint()), nil
+		f(sb, iter.Position(), "alignment", iter.Byte())
+		f(sb, iter.Position(), "store offset", iter.Varint())
 
 	case opcodes.Call, opcodes.ReturnCall:
-		return f(iter.Position(), "function index", iter.Varint()), nil
+		f(sb, iter.Position(), "function index", iter.Varint())
 
 	case opcodes.CallIndirect:
-		return f(iter.Position(), "signature index", iter.Varint()) +
-			f(iter.Position(), "table index", iter.Varint()), nil
+		f(sb, iter.Position(), "signature index", iter.Varint())
+		f(sb, iter.Position(), "table index", iter.Varint())
 
 	case opcodes.BrTable:
 		numTargets := iter.Varint()
-		str = f(iter.Position(), "num targets", numTargets)
+		f(sb, iter.Position(), "num targets", numTargets)
 		for i := 0; i < numTargets; i++ {
-			str += f(iter.Position(), "break depth", iter.Varint())
+			f(sb, iter.Position(), "break depth", iter.Varint())
 		}
-		return str + f(iter.Position(), "break depth for default", iter.Varint()), nil
+		f(sb, iter.Position(), "break depth for default", iter.Varint())
 
 	case opcodes.MemoryFill, opcodes.MemorySize, opcodes.MemoryGrow:
-		return f(iter.Position(), "memidx", iter.Varint()), nil
+		f(sb, iter.Position(), "memidx", iter.Varint())
 
 	case opcodes.MemoryCopy:
-		return f(iter.Position(), "dst memidx", iter.Varint()) +
-			f(iter.Position(), "src memidx", iter.Varint()), nil
+		f(sb, iter.Position(), "dst memidx", iter.Varint())
+		f(sb, iter.Position(), "src memidx", iter.Varint())
 
 	case opcodes.If:
-		return f(iter.Position(), typeToString(iter.Peek()), iter.Byte()), nil
+		f(sb, iter.Position(), typeToString(iter.Peek()), iter.Byte())
 
 	case opcodes.I32Sub, opcodes.I32Add, opcodes.I32Or, opcodes.I32Xor,
 		opcodes.I32GtS, opcodes.I32Eqz, opcodes.I32And, opcodes.I32Ne,
@@ -354,8 +346,9 @@ func k(iter *binary.Iterator, opcode opcodes.Opcode) (str string, err error) {
 		return
 
 	default:
-		return "", fmt.Errorf("unknown opcode: %02x\n", opcode)
+		return fmt.Errorf("unknown opcode: %02x\n", opcode)
 	}
+	return nil
 }
 
 func typeToString(b byte) string {
@@ -392,9 +385,9 @@ func kindToString(b byte) string {
 	}
 }
 
-func f(offset int, label string, x any) string {
+func f(sb *strings.Builder, offset int, label string, x any) {
 	str := fmt.Sprintf("%s: %s", p(offset), valueToHex(x))
-	return fmt.Sprintf("%s; %s\n", pad(str, 50), label)
+	sb.WriteString(fmt.Sprintf("%s; %s\n", pad(str, 50), label))
 }
 
 func pad(str string, n int) string {
