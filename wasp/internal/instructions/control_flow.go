@@ -111,6 +111,18 @@ var (
 		ctx.BlockStack.Pop()
 		return nil
 	})
+
+	Select = addInstruction(opcodes.Select, func(ctx *execution.Context) error {
+		condition := ctx.Stack.Pop()
+		val2 := ctx.Stack.Pop()
+		val1 := ctx.Stack.Pop()
+		if isNonZero(condition) {
+			ctx.Stack.Push(val1)
+		} else {
+			ctx.Stack.Push(val2)
+		}
+		return nil
+	})
 )
 
 // branchToLabel implements the branch operation using precomputed targets

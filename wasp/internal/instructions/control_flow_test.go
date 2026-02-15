@@ -441,3 +441,37 @@ func TestReturn(t *testing.T) {
 
 	assert.Equal(t, []any{int32(90)}, results)
 }
+
+func TestSelect(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func (export "subject") (result i32)
+			;; load two values onto the stack
+			i32.const 10
+			i32.const 20
+		
+			;; change to 1 (true) to get the first value (10)
+			i32.const 0
+			select
+		  )
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	fmt.Println(build.Asm)
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+
+	assert.Equal(t, []any{int32(20)}, results)
+}
