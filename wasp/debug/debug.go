@@ -107,11 +107,13 @@ func sectionDataToString(sb *strings.Builder, iter *binary.Iterator) {
 
 		pos = iter.Position()
 		dataSize := iter.Varint()
-		f(sb, pos, "data size", dataSize)
+		f(sb, pos, "data segment size", dataSize)
 
 		pos = iter.Position()
 		data := iter.Bytes(dataSize)
-		f(sb, pos, fmt.Sprintf("data bytes (%d bytes)", dataSize), data)
+		sb.WriteString(fmt.Sprintf("; data segment data %d\n", i))
+
+		multi(sb, pos, data)
 	}
 }
 
@@ -247,7 +249,7 @@ func sectionImportToString(sb *strings.Builder, iter *binary.Iterator) error {
 		f(sb, pos, "string length", moduleLen)
 
 		pos = iter.Position()
-		module := iter.Bytes(moduleLen)
+		module := iter.String(moduleLen)
 		f(sb, pos, fmt.Sprintf("import module name: %s", module), module)
 
 		pos = iter.Position()
@@ -255,7 +257,7 @@ func sectionImportToString(sb *strings.Builder, iter *binary.Iterator) error {
 		f(sb, pos, "field string length", fieldLen)
 
 		pos = iter.Position()
-		field := iter.Bytes(fieldLen)
+		field := iter.String(fieldLen)
 		f(sb, pos, fmt.Sprintf("import field: %s", field), field)
 
 		pos = iter.Position()
@@ -325,14 +327,18 @@ func sectionCustomToString(sb *strings.Builder, iter *binary.Iterator, sectionSi
 	f(sb, startPos, "custom section name length", nameLen)
 
 	pos := iter.Position()
-	name := iter.Bytes(nameLen)
+	name := iter.String(nameLen)
 	f(sb, pos, fmt.Sprintf("custom section name: %s", name), name)
 
 	// Calculate remaining bytes in the section
 	bytesRead := iter.Position() - startPos
 	dataLen := sectionSize - bytesRead
+
+	pos = iter.Position()
 	data := iter.Bytes(dataLen)
-	f(sb, iter.Position(), fmt.Sprintf("custom section data (%d bytes)", dataLen), data)
+	sb.WriteString(fmt.Sprintf("; custom section data (%d bytes)\n", dataLen))
+
+	multi(sb, pos, data)
 }
 
 func sectionCodeToString(sb *strings.Builder, iter *binary.Iterator) error {
@@ -360,7 +366,7 @@ func sectionExportToString(sb *strings.Builder, iter *binary.Iterator) {
 		f(sb, pos, "string length", nameLen)
 
 		pos = iter.Position()
-		name := iter.Bytes(nameLen)
+		name := iter.String(nameLen)
 		f(sb, pos, fmt.Sprintf("export name %s", name), name)
 
 		pos = iter.Position()
@@ -464,6 +470,23 @@ func funcToString(sb *strings.Builder, iter *binary.Iterator, index int) error {
 		}
 	}
 	return nil
+}
+
+func multi(sb *strings.Builder, offset int, data []byte) {
+	head := 0
+	for head < len(data) {
+		chunkSize := 16
+		if head+chunkSize > len(data) {
+			chunkSize = len(data) - head
+		}
+		chunk := data[head : head+chunkSize]
+		n := len(chunk)
+
+		sb.WriteString(o(offset+head, fmt.Sprintf("%x", chunk)))
+		sb.WriteByte('\n')
+
+		head += n
+	}
 }
 
 func g(sb *strings.Builder, offset int, opcode opcodes.Opcode) {
@@ -637,8 +660,12 @@ func kindToString(b byte) string {
 	}
 }
 
+func o(offset int, data string) string {
+	return fmt.Sprintf("%s: %s", p(offset), data)
+}
+
 func f(sb *strings.Builder, offset int, label string, x any) {
-	str := fmt.Sprintf("%s: %s", p(offset), valueToHex(x))
+	str := o(offset, valueToHex(x))
 	sb.WriteString(fmt.Sprintf("%s; %s\n", pad(str, 50), label))
 }
 
@@ -673,6 +700,8 @@ func valueToHex(x any) string {
 		return fmt.Sprintf("%x", x.([]byte))
 	case opcodes.Opcode:
 		return valueToHex(uint16(x.(opcodes.Opcode)))
+	case string:
+		return x.(string)
 	default:
 		panic(fmt.Sprintf("unknown type %T", x))
 	}
