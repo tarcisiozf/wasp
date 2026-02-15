@@ -494,133 +494,100 @@ func precomputeBlocks(body []byte) map[int]funcs.BlockTarget {
 // skipParseImmediates skips instruction immediates during block precomputation
 func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) {
 	switch opcode {
-	// Control flow with immediates
+	case opcodes.GlobalGet, opcodes.GlobalSet:
+		iter.Varint() // global index
+	case opcodes.I32Const:
+		iter.Varint() // i32 literal
+	case opcodes.I64Const:
+		iter.Varint() // i64 literal
+	case opcodes.F64Const:
+		iter.Float64() // f64 literal
+	case opcodes.F32Const:
+		iter.Float32() // f32 literal
+	case opcodes.LocalTee, opcodes.LocalGet, opcodes.LocalSet:
+		iter.Varint() // local index
+	case opcodes.Block, opcodes.Loop:
+		iter.Byte() // block type
 	case opcodes.Br, opcodes.BrIf:
-		iter.Varint() // label index
-	case opcodes.BrTable:
-		numLabels := iter.Varint() // vector length
-		for i := 0; i < numLabels; i++ {
-			iter.Varint() // label index
-		}
-		iter.Varint() // default label
+		iter.Varint() // break depth
+	case opcodes.I32Load8U, opcodes.I32Load8S, opcodes.I32Load,
+		opcodes.I64Load, opcodes.I32Load16S, opcodes.I32Load16U,
+		opcodes.I64Load8S, opcodes.I64Load8U, opcodes.I64Load16S,
+		opcodes.I64Load16U, opcodes.I64Load32S, opcodes.I64Load32U,
+		opcodes.F64Load, opcodes.F32Load:
+		iter.Byte()   // alignment
+		iter.Varint() // load offset
+	case opcodes.I32Store, opcodes.I64Store, opcodes.I32Store16,
+		opcodes.I32Store8, opcodes.I64Store16, opcodes.I64Store8,
+		opcodes.I64Store32, opcodes.F64Store, opcodes.F32Store:
+		iter.Byte()   // alignment
+		iter.Varint() // store offset
 	case opcodes.Call:
 		iter.Varint() // function index
 	case opcodes.CallIndirect:
-		iter.Varint() // type index
+		iter.Varint() // signature index
 		iter.Varint() // table index
-	case opcodes.ReturnCallIndirect:
-		iter.Varint() // type index
-		iter.Varint() // table index
-
-	// Variable instructions with immediates
-	case opcodes.LocalGet, opcodes.LocalSet, opcodes.LocalTee:
-		iter.Varint() // local index
-	case opcodes.GlobalGet, opcodes.GlobalSet:
-		iter.Varint() // global index
-
-	// Const instructions with immediates
-	case opcodes.I32Const:
-		iter.Varint() // i32 value
-	case opcodes.I64Const:
-		iter.Varint() // i64 value
-	case opcodes.F32Const:
-		iter.Bytes(4) // f32 value
-	case opcodes.F64Const:
-		iter.Bytes(8) // f64 value
-
-	// Memory instructions with immediates
-	case opcodes.I32Load, opcodes.I32Store,
-		opcodes.I64Load, opcodes.F32Load, opcodes.F64Load,
-		opcodes.I32Load8S, opcodes.I32Load8U, opcodes.I32Load16S, opcodes.I32Load16U,
-		opcodes.I64Load8S, opcodes.I64Load8U, opcodes.I64Load16S, opcodes.I64Load16U,
-		opcodes.I64Load32S, opcodes.I64Load32U,
-		opcodes.I64Store, opcodes.F32Store, opcodes.F64Store,
-		opcodes.I32Store8, opcodes.I32Store16,
-		opcodes.I64Store8, opcodes.I64Store16, opcodes.I64Store32:
-		iter.Varint() // align
-		iter.Varint() // offset
-	case opcodes.MemorySize, opcodes.MemoryGrow:
-		iter.Byte() // memory index
-
-	// FC extensions (0xFC prefix)
-	case 0xfc:
-		subOpcode := iter.Varint()
-		switch subOpcode {
-		case 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07:
-			// i32.trunc_sat_f32_s/u, i32.trunc_sat_f64_s/u,
-			// i64.trunc_sat_f32_s/u, i64.trunc_sat_f64_s/u
-			// no additional immediates
-		case 0x08: // memory.init
-			iter.Varint() // data index
-			iter.Byte()   // memory index (always 0)
-		case 0x09: // data.drop
-			iter.Varint() // data index
-		case 0x0a: // memory.copy
-			iter.Byte() // dest memory index
-			iter.Byte() // src memory index
-		case 0x0b: // memory.fill
-			iter.Byte() // memory index
-		case 0x0c: // table.init
-			iter.Varint() // elem index
-			iter.Varint() // table index
-		case 0x0d: // elem.drop
-			iter.Varint() // elem index
-		case 0x0e: // table.copy
-			iter.Varint() // dest table index
-			iter.Varint() // src table index
-		case 0x0f: // table.grow
-			iter.Varint() // table index
-		case 0x10: // table.size
-			iter.Varint() // table index
-		case 0x11: // table.fill
-			iter.Varint() // table index
+	case opcodes.BrTable:
+		numTargets := iter.Varint()
+		for i := 0; i < numTargets; i++ {
+			iter.Varint() // break depth
 		}
-
-	// Instructions with NO immediates (stack-only operations)
-	case opcodes.Unreachable, opcodes.Nop, opcodes.Return, opcodes.Drop, opcodes.Select:
-		// no immediates
-	case opcodes.I32Eqz, opcodes.I32Eq, opcodes.I32Ne,
-		opcodes.I32LtS, opcodes.I32LtU, opcodes.I32GtS, opcodes.I32GtU,
-		opcodes.I32LeS, opcodes.I32LeU, opcodes.I32GeS, opcodes.I32GeU:
-		// i32 comparison - no immediates
-	case opcodes.I64Eqz, opcodes.I64Eq, opcodes.I64Ne,
-		opcodes.I64LtS, opcodes.I64LtU, opcodes.I64GtS, opcodes.I64GtU,
-		opcodes.I64LeS, opcodes.I64LeU, opcodes.I64GeS, opcodes.I64GeU:
-		// i64 comparison - no immediates
-	case opcodes.F32Eq, opcodes.F32Ne, opcodes.F32Lt, opcodes.F32Gt, opcodes.F32Le, opcodes.F32Ge:
-		// f32 comparison - no immediates
-	case opcodes.F64Eq, opcodes.F64Ne, opcodes.F64Lt, opcodes.F64Gt, opcodes.F64Le, opcodes.F64Ge:
-		// f64 comparison - no immediates
-	case opcodes.I32Clz, opcodes.I32Ctz, opcodes.I32Popcnt,
-		opcodes.I32Add, opcodes.I32Sub, opcodes.I32Mul, opcodes.I32DivS, opcodes.I32DivU,
-		opcodes.I32RemS, opcodes.I32RemU, opcodes.I32And, opcodes.I32Or, opcodes.I32Xor,
-		opcodes.I32Shl, opcodes.I32ShrS, opcodes.I32ShrU, opcodes.I32Rotl, opcodes.I32Rotr:
-		// i32 arithmetic - no immediates
-	case opcodes.I64Clz, opcodes.I64Ctz, opcodes.I64Popcnt,
-		opcodes.I64Add, opcodes.I64Sub, opcodes.I64Mul, opcodes.I64DivS, opcodes.I64DivU,
-		opcodes.I64RemS, opcodes.I64RemU, opcodes.I64And, opcodes.I64Or, opcodes.I64Xor,
-		opcodes.I64Shl, opcodes.I64ShrS, opcodes.I64ShrU, opcodes.I64Rotl, opcodes.I64Rotr:
-		// i64 arithmetic - no immediates
-	case opcodes.F32Abs, opcodes.F32Neg, opcodes.F32Ceil, opcodes.F32Floor, opcodes.F32Trunc,
-		opcodes.F32Nearest, opcodes.F32Sqrt, opcodes.F32Add, opcodes.F32Sub, opcodes.F32Mul,
-		opcodes.F32Div, opcodes.F32Min, opcodes.F32Max, opcodes.F32Copysign:
-		// f32 arithmetic - no immediates
-	case opcodes.F64Abs, opcodes.F64Neg, opcodes.F64Ceil, opcodes.F64Floor, opcodes.F64Trunc,
-		opcodes.F64Nearest, opcodes.F64Sqrt, opcodes.F64Add, opcodes.F64Sub, opcodes.F64Mul,
-		opcodes.F64Div, opcodes.F64Min, opcodes.F64Max, opcodes.F64Copysign:
-		// f64 arithmetic - no immediates
-	case opcodes.I32WrapI64, opcodes.I32TruncF32S, opcodes.I32TruncF32U,
-		opcodes.I32TruncF64S, opcodes.I32TruncF64U, opcodes.I64ExtendI32S, opcodes.I64ExtendI32U,
-		opcodes.I64TruncF32S, opcodes.I64TruncF32U, opcodes.I64TruncF64S, opcodes.I64TruncF64U,
-		opcodes.F32ConvertI32S, opcodes.F32ConvertI32U, opcodes.F32ConvertI64S, opcodes.F32ConvertI64U,
-		opcodes.F32DemoteF64, opcodes.F64ConvertI32S, opcodes.F64ConvertI32U, opcodes.F64ConvertI64S,
-		opcodes.F64ConvertI64U, opcodes.F64PromoteF32:
-		// conversion - no immediates
-	case opcodes.I32ReinterpretF32, opcodes.I64ReinterpretF64,
-		opcodes.F32ReinterpretI32, opcodes.F64ReinterpretI64:
-		// reinterpret - no immediates
-
+		iter.Varint() // break depth for default
+	case opcodes.MemoryFill, opcodes.MemorySize, opcodes.MemoryGrow:
+		iter.Varint() // memidx
+	case opcodes.MemoryCopy:
+		iter.Varint() // dst memidx
+		iter.Varint() // src memidx
+	case opcodes.I32Sub, opcodes.I32Add, opcodes.I32Or, opcodes.I32Xor,
+		opcodes.I32GtS, opcodes.I32Eqz, opcodes.I32And, opcodes.I32Ne,
+		opcodes.I32Eq, opcodes.I32GtU, opcodes.I32LeU, opcodes.I32Shl,
+		opcodes.I32GeU, opcodes.I32Mul, opcodes.I32LtU, opcodes.I32LtS,
+		opcodes.I32Extend8S, opcodes.I32WrapI64, opcodes.I32ShrU,
+		opcodes.I32DivS, opcodes.I32DivU, opcodes.I32ShrS, opcodes.I32RemS,
+		opcodes.I32RemU, opcodes.I32Clz, opcodes.I32LeS, opcodes.I32GeS,
+		opcodes.I32Extend16S, opcodes.I32ReinterpretF32,
+		opcodes.I32TruncSatF32S, opcodes.I32Rotr, opcodes.I32Rotl:
+		// no immediate arguments
+		return
+	case opcodes.I64ExtendI32S, opcodes.I64Eqz, opcodes.I64GtU,
+		opcodes.I64ShrU, opcodes.I64GtS, opcodes.I64Sub, opcodes.I64Add,
+		opcodes.I64And, opcodes.I64Ne, opcodes.I64Eq, opcodes.I64LeU,
+		opcodes.I64Shl, opcodes.I64GeU, opcodes.I64Mul, opcodes.I64LtU,
+		opcodes.I64LtS, opcodes.I64ExtendI32U, opcodes.I64ShrS,
+		opcodes.I64DivU, opcodes.I64DivS, opcodes.I64Xor, opcodes.I64Or,
+		opcodes.I64Ctz, opcodes.I64Clz, opcodes.I64RemS, opcodes.I64RemU,
+		opcodes.I64Rotl, opcodes.I64Rotr, opcodes.I64GeS, opcodes.I64LeS,
+		opcodes.I64ReinterpretF64, opcodes.I64Extend8S,
+		opcodes.I64Extend16S, opcodes.I64Extend32S:
+		// no immediate arguments
+		return
+	case opcodes.F64Mul, opcodes.F64Add, opcodes.F64Sub,
+		opcodes.F64Div, opcodes.F64Min, opcodes.F64Max,
+		opcodes.F64Copysign, opcodes.F64Sqrt, opcodes.F64Ceil,
+		opcodes.F64Floor, opcodes.F64Trunc, opcodes.F64Nearest,
+		opcodes.F64ReinterpretI64, opcodes.F64PromoteF32,
+		opcodes.F64ConvertI32S, opcodes.F64ConvertI32U,
+		opcodes.F64ConvertI64S, opcodes.F64ConvertI64U,
+		opcodes.F64Abs, opcodes.F64Lt, opcodes.F64Gt,
+		opcodes.F64Le, opcodes.F64Ge, opcodes.F64Eq,
+		opcodes.F64Ne:
+		// no immediate arguments
+		return
+	case opcodes.F32ConvertI32S, opcodes.F32ConvertI32U, opcodes.F32ConvertI64S,
+		opcodes.F32ConvertI64U, opcodes.F32DemoteF64, opcodes.F32Mul,
+		opcodes.F32Add, opcodes.F32Sub, opcodes.F32Div, opcodes.F32Min,
+		opcodes.F32Max, opcodes.F32Copysign, opcodes.F32Sqrt,
+		opcodes.F32Ceil, opcodes.F32Floor, opcodes.F32Trunc,
+		opcodes.F32Nearest, opcodes.F32ReinterpretI32,
+		opcodes.F32Abs, opcodes.F32Lt, opcodes.F32Gt, opcodes.F32Le,
+		opcodes.F32Ge, opcodes.F32Eq, opcodes.F32Ne:
+		// no immediate arguments
+		return
+	case opcodes.End, opcodes.Drop, opcodes.Select,
+		opcodes.Unreachable, opcodes.Return:
+		// no immediate arguments
+		return
 	default:
-		unhandled[opcode]++
+		panic(fmt.Sprintf("unknown opcode: %02x\n", opcode))
 	}
 }
