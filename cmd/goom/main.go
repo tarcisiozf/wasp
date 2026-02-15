@@ -32,7 +32,9 @@ func main() {
 		fmt.Println("WASM loaded in ", time.Since(start))
 
 		linker := wasp.NewLinker()
-		sp := &wasi_snapshot_preview1.WasiSnapshotPreview1{}
+		sp := wasi_snapshot_preview1.NewWasiSnapshotPreview1()
+		sp.SetArgs(os.Args[1:]) // Pass remaining args to WASI
+		sp.AddPreopen(3, ".")   // Preopen current directory as fd 3
 		var linkerErrors = []error{
 			linker.Define("wasi_snapshot_preview1", "args_get", sp.ArgsGet),
 			linker.Define("wasi_snapshot_preview1", "args_sizes_get", sp.ArgsSizeGet),
