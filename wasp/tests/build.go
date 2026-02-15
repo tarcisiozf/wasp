@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"wasp/wasp/debug"
 
 	"github.com/bytecodealliance/wasmtime-go"
 )
@@ -53,9 +54,14 @@ func (b *WasmtimeWatBuilder) Build(_, wat string) (Build, error) {
 	if err != nil {
 		return Build{}, fmt.Errorf("failed to convert wat to wasm: %v", err)
 	}
+	asm, err := debug.WasmToString(wasm)
+	if err != nil {
+		fmt.Println(asm)
+		return Build{}, fmt.Errorf("failed to disassemble wasm: %v", err)
+	}
 	return Build{
 		Wat:  wat,
-		Asm:  "no assembly available", // Wasmtime doesn't provide disassembly output
+		Asm:  asm,
 		Wasm: wasm,
 	}, nil
 }

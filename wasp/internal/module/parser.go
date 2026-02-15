@@ -395,11 +395,6 @@ func parseFunction(module *Module, iter *binary.Iterator, index int) (err error)
 	// Precompute block targets
 	blocks, err := precomputeBlocks(body)
 	if err != nil {
-		Foo(
-			iter.Range(funcOffset, iter.Position()),
-			index,
-			funcOffset,
-		)
 		return fmt.Errorf("failed to read function blocks: %w", err)
 	}
 
