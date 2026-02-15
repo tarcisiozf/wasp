@@ -391,13 +391,6 @@ func parseFunction(module *Module, iter *binary.Iterator, index int) (err error)
 		}
 	}
 
-	fmt.Printf("function %d body size: %d bytes\n", index, bodySize)
-	Foo(
-		iter.Range(funcOffset, funcOffset+bodySize),
-		index,
-		funcOffset,
-	)
-
 	bodySize -= iter.Position() - funcOffset // adjust body size after reading local decls
 
 	bodyOffset := iter.Position() // update offset to point to start of function body
