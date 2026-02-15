@@ -22,7 +22,7 @@ func (cf *CallFrame) Call() error {
 
 func (cf *CallFrame) Results() ([]any, error) {
 	if cf.Context.Done {
-		return nil, nil
+		return cf.Context.Stack.PopN(cf.Context.NumResults), nil
 	}
 	return nil, fmt.Errorf("function call not completed yet")
 }

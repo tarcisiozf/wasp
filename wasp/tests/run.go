@@ -58,12 +58,6 @@ func (env *Environment) CreateInstance(wasm []byte) (ExecutionResults, error) {
 		return ExecutionResults{}, fmt.Errorf("failed to create instance: %w", err)
 	}
 
-	//fn, err := mod.StartFunction()
-	//if err != nil {
-	//	return ExecutionResults{}, fmt.Errorf("failed to get start function: %w", err)
-	//}
-	//
-
 	return ExecutionResults{
 		Module:   mod,
 		Instance: instance,

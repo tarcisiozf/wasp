@@ -72,3 +72,16 @@ func (s *Stack[T]) Top() T {
 func (s *Stack[T]) IsEmpty() bool {
 	return len(s.items) == 0
 }
+
+func (s *Stack[T]) PopN(n int) []T {
+	size := len(s.items)
+	if n > size {
+		panic("stack underflow")
+	}
+	items := make([]T, n)
+	for i := range items {
+		items[i] = s.items[size-n+i]
+	}
+	s.items = s.items[:size-n]
+	return items
+}
