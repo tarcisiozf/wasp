@@ -94,7 +94,8 @@ func (instance *Instance) Call(fn funcs.Function, args ...any) (*execution.Conte
 			ctx.FunctionCallRequest = -1
 		} else if instance.module.IsFunction(ctx.FunctionCallRequest) {
 			foo := instance.module.FunctionAt(ctx.FunctionCallRequest)
-			_, results, err := instance.Call(foo)
+			params := ctx.Stack.PopN(len(foo.Signature.Params))
+			_, results, err := instance.Call(foo, params...)
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to call function at index %d: %w", ctx.FunctionCallRequest, err)
 			}
