@@ -23,7 +23,7 @@ func castInt64(item any) int64 {
 var (
 	MemorySize = addInstruction(opcodes.MemorySize, func(ctx *execution.Context) error {
 		index := ctx.Body.Varint()
-		ctx.Stack.Push(ctx.Memories[index].Size())
+		ctx.Stack.Push(ctx.Memories[index].NumPages())
 		return nil
 	})
 
