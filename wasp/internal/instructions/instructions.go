@@ -14,18 +14,17 @@ type instruction struct {
 }
 
 func (i instruction) String() any {
-	return fmt.Sprintf("%s(0x%x)", i.Opcode.String(), i.Opcode)
+	return fmt.Sprintf("%s(0x%x)", opcodes.Name(i.Opcode), i.Opcode)
 }
 
 var instructions = make([]instruction, 256)
 var extensions = make([]instruction, 20)
 
 func addInstruction(opcode opcodes.Opcode, handler handler) instruction {
-	op := uint16(opcode)
-	if op > 0xFF {
-		return addInstructionToList(extensions, op&0xFF, opcode, handler)
+	if opcode > 0xFF {
+		return addInstructionToList(extensions, opcode&0xFF, opcode, handler)
 	}
-	return addInstructionToList(instructions, op, opcode, handler)
+	return addInstructionToList(instructions, opcode, opcode, handler)
 }
 
 func addInstructionToList(list []instruction, index uint16, opcode opcodes.Opcode, handler handler) instruction {
@@ -38,9 +37,8 @@ func addInstructionToList(list []instruction, index uint16, opcode opcodes.Opcod
 }
 
 func Instruction(opcode opcodes.Opcode) instruction {
-	op := uint16(opcode)
-	if op > 0xFF {
-		return extensions[op&0xFF]
+	if opcode > 0xFF {
+		return extensions[opcode&0xFF]
 	}
 	return instructions[opcode]
 }

@@ -214,7 +214,7 @@ var names = map[Opcode]string{
 	F64ReinterpretI64: "f64.reinterpret_i64",
 }
 
-func (opcode Opcode) String() string {
+func Name(opcode uint16) string {
 	name, ok := names[opcode]
 	if !ok {
 		return fmt.Sprintf("unknow(0x%x)", opcode)

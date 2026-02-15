@@ -26,7 +26,7 @@ func (f *Function) Call(ctx *execution.Context) error {
 		ix := instructions.Instruction(opcode)
 		//fmt.Printf("Executing instruction %s\n", ix.String())
 		if ix.Handler == nil { // TODO: remove before flight
-			return fmt.Errorf("unimplemented instruction: %s", opcodes.Name(opcode))
+			return fmt.Errorf("unimplemented instruction: %s (0x%x)", opcodes.Name(opcode), opcode)
 		}
 		if err := ix.Handler(ctx); err != nil {
 			return fmt.Errorf("error executing instruction %s: %w", ix.String(), err)
