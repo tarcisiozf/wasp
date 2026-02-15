@@ -40,10 +40,14 @@ func WasmToString(data []byte) (str string, err error) {
 		sectionSize := iter.Varint()
 		str += f(pos, "section size", sectionSize)
 
-		start := iter.Position()
+		if sectionSize == 0 {
+			panic("section size is zero")
+		}
 
 		var section string
 		switch sectionID {
+		case 0x0: // Custom section
+			section = sectionCustomToString(iter, sectionSize)
 		case 0x1: // Type section
 			section = sectionTypeToString(iter)
 		case 0x3: // Function section
@@ -61,16 +65,28 @@ func WasmToString(data []byte) (str string, err error) {
 		}
 
 		str += section
-
-		if sectionSize == 0 {
-			sectionSize = iter.Varint()
-			if sectionSize != (iter.Position() - start) {
-				panic("section size mismatch")
-			}
-		}
 	}
 
 	return str, nil
+}
+
+func sectionCustomToString(iter *binary.Iterator, sectionSize int) string {
+	startPos := iter.Position()
+
+	nameLen := iter.Varint()
+	str := f(startPos, "custom section name length", nameLen)
+
+	pos := iter.Position()
+	name := iter.Bytes(nameLen)
+	str += f(pos, fmt.Sprintf("custom section name: %s", name), name)
+
+	// Calculate remaining bytes in the section
+	bytesRead := iter.Position() - startPos
+	dataLen := sectionSize - bytesRead
+	data := iter.Bytes(dataLen)
+	str += f(iter.Position(), fmt.Sprintf("custom section data (%d bytes)", dataLen), data)
+
+	return str
 }
 
 func sectionCodeToString(iter *binary.Iterator) (string, error) {
@@ -187,19 +203,31 @@ func funcToString(iter *binary.Iterator, index int) (str string, err error) {
 		str += f(pos, typeToString(localType), localType)
 	}
 
+	var depth int
 	for iter.HasNext() {
 		opcode := iter.Opcode()
 		str += f(iter.Position(), opcodeName(opcode), opcode)
+
 		lines, err := k(iter, opcode)
 		if err != nil {
 			return str, err
 		}
 		str += lines
-		if opcode == opcodes.End {
-			break
+
+		if isBranchingOpcode(opcode) {
+			depth++
+		} else if opcode == opcodes.End {
+			if depth == 0 {
+				break
+			}
+			depth--
 		}
 	}
 	return str, nil
+}
+
+func isBranchingOpcode(opcode opcodes.Opcode) bool {
+	return opcode == opcodes.If || opcode == opcodes.Block || opcode == opcodes.Loop || opcode == opcodes.Br || opcode == opcodes.BrIf || opcode == opcodes.BrTable
 }
 
 func opcodeName(opcode opcodes.Opcode) string {
