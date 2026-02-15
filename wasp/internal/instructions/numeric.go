@@ -57,6 +57,16 @@ func eq[T number](ctx *execution.Context) error {
 	return nil
 }
 
+func eqz[T ints](ctx *execution.Context) error {
+	a := castTypedInt[T](ctx.Stack.Pop())
+	if a == 0 {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
 func castTypedInt[T number](item any) T {
 	if value, ok := item.(T); ok {
 		return value
@@ -92,8 +102,13 @@ var (
 	I32Sub   = addInstruction(opcodes.I32Sub, sub[int32])
 	I32Mul   = addInstruction(opcodes.I32Mul, mul[int32])
 	I32And   = addInstruction(opcodes.I32And, and[int32])
+	I32Eqz   = addInstruction(opcodes.I32Eqz, eqz[int32])
 
 	I64Const = addInstruction(opcodes.I64Const, intConst[int64])
+	I64Add   = addInstruction(opcodes.I64Add, add[int64])
+	I64Sub   = addInstruction(opcodes.I64Sub, sub[int64])
+	I64Mul   = addInstruction(opcodes.I64Mul, mul[int64])
+	I64Eqz   = addInstruction(opcodes.I64Eqz, eqz[int64])
 
 	F32Const = addInstruction(opcodes.F32Const, func(ctx *execution.Context) error {
 		value := ctx.Body.Float32()
