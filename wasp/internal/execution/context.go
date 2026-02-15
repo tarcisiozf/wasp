@@ -25,6 +25,7 @@ type Context struct {
 	Body                *binary.Iterator
 	FunctionCallRequest int
 	Done                bool
+	TailCall            bool
 
 	Condition bool
 	// BlockStack tracks nested fnblock for branching (just the start positions)

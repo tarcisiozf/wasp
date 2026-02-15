@@ -152,6 +152,10 @@ func (instance *Instance) Tick() error {
 		if err := callFrame.Call(); err != nil {
 			return fmt.Errorf("error executing call frame: %w", err)
 		}
+
+		if callFrame.Context.TailCall {
+
+		}
 	}
 	return nil
 }

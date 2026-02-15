@@ -21,7 +21,7 @@ type Function struct {
 }
 
 func (f *Function) Call(ctx *execution.Context) error {
-	for !ctx.Done && ctx.FunctionCallRequest < 0 {
+	for !ctx.Done {
 		opcode := ctx.Body.Opcode()
 		ix := instructions.Instruction(opcode)
 		//fmt.Printf("Executing instruction %s\n", ix.String())
@@ -30,6 +30,12 @@ func (f *Function) Call(ctx *execution.Context) error {
 		}
 		if err := ix.Handler(ctx); err != nil {
 			return fmt.Errorf("error executing instruction %s: %w", ix.String(), err)
+		}
+		if ctx.FunctionCallRequest >= 0 {
+			return nil // pause execution to handle function call
+		}
+		if ctx.TailCall {
+			return nil // pause execution to handle tail call optimization
 		}
 	}
 	if ctx.Done {
