@@ -219,5 +219,5 @@ func Name(opcode uint16) string {
 	if !ok {
 		return fmt.Sprintf("unknow(0x%x)", opcode)
 	}
-	return name
+	return fmt.Sprintf("%s (0x%x)", name, opcode)
 }

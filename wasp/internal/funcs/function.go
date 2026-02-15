@@ -5,6 +5,7 @@ import (
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/funcs/fnblock"
 	"wasp/wasp/internal/instructions"
+	"wasp/wasp/internal/opcodes"
 )
 
 type Function struct {
@@ -21,11 +22,11 @@ type Function struct {
 
 func (f *Function) Call(ctx *execution.Context) error {
 	for !ctx.Done && ctx.FunctionCallRequest < 0 {
-		opcode := ctx.Body.Byte()
+		opcode := ctx.Body.Opcode()
 		ix := instructions.Instruction(opcode)
 		//fmt.Printf("Executing instruction %s\n", ix.String())
 		if ix.Handler == nil { // TODO: remove before flight
-			return fmt.Errorf("unimplemented instruction: 0x%x", opcode)
+			return fmt.Errorf("unimplemented instruction: %s", opcodes.Name(opcode))
 		}
 		if err := ix.Handler(ctx); err != nil {
 			return fmt.Errorf("error executing instruction %s: %w", ix.String(), err)

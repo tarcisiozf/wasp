@@ -9,7 +9,7 @@ import (
 
 func TestConst(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (func $subject (result i32 i64 f32 f64)
 			i32.const 10

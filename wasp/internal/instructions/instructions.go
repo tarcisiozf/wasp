@@ -28,6 +28,6 @@ func addInstruction(opcode opcodes.Opcode, handler handler) instruction {
 	return instructions[opcode]
 }
 
-func Instruction(opcode byte) instruction {
+func Instruction(opcode opcodes.Opcode) instruction {
 	return instructions[opcode]
 }

@@ -18,7 +18,7 @@ func TestLocals(t *testing.T) {
 			wasp.WithLinker(linker),
 		),
 	)
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (import "console" "log" (func $log (param i32)))
 		  (func $main
@@ -59,7 +59,7 @@ func TestGlobals(t *testing.T) {
 			wasp.WithLinker(linker),
 		),
 	)
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (import "console" "log" (func $log (param i32)))
 		  (global $var (mut i32) (i32.const 0))

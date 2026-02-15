@@ -65,7 +65,7 @@ func k(iter *binary.Iterator, offset int, opcode opcodes.Opcode) {
 		opcodes.I64Store32, opcodes.F64Store, opcodes.F32Store:
 		f(offset+iter.Position(), "alignment", iter.Byte())
 		f(offset+iter.Position(), "store offset", iter.Varint())
-	case opcodes.Call:
+	case opcodes.Call, opcodes.ReturnCall:
 		f(offset+iter.Position(), "function index", iter.Varint())
 	case opcodes.CallIndirect:
 		f(offset+iter.Position(), "signature index", iter.Varint())

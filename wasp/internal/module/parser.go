@@ -2,7 +2,6 @@ package module
 
 import (
 	"fmt"
-	"os"
 	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/funcs"
 	"wasp/wasp/internal/funcs/fnblock"
@@ -365,19 +364,6 @@ func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 func parseFunction(module *Module, iter *binary.Iterator, index int) (err error) {
 	var funcOffset int
 
-	defer func() {
-		if r := recover(); r != nil {
-			for opcode := range unhandled {
-				fmt.Printf("did not skip immediate for opcode: %x\n", opcode)
-			}
-			fmt.Printf("Panic: %v\n", r)
-			fmt.Printf("Function index: %d\n", index)
-			fmt.Printf("Function offset: %x\n", funcOffset)
-			fmt.Printf("Iter offset: %x\n", iter.Position())
-			os.Exit(1)
-		}
-	}()
-
 	bodySize := iter.Varint()
 
 	funcOffset = iter.Position()
@@ -407,7 +393,15 @@ func parseFunction(module *Module, iter *binary.Iterator, index int) (err error)
 	}
 
 	// Precompute block targets
-	blocks := precomputeBlocks(body)
+	blocks, err := precomputeBlocks(body)
+	if err != nil {
+		Foo(
+			iter.Range(funcOffset, iter.Position()),
+			index,
+			funcOffset,
+		)
+		return fmt.Errorf("failed to read function blocks: %w", err)
+	}
 
 	module.functions[index].Locals = locals
 	module.functions[index].Body = body
@@ -417,7 +411,7 @@ func parseFunction(module *Module, iter *binary.Iterator, index int) (err error)
 }
 
 // precomputeBlocks scans the function body and computes block target positions
-func precomputeBlocks(body []byte) map[int]fnblock.Target {
+func precomputeBlocks(body []byte) (map[int]fnblock.Target, error) {
 	blocks := make(map[int]fnblock.Target)
 	bodyIter := binary.NewIterator(body)
 
@@ -478,15 +472,17 @@ func precomputeBlocks(body []byte) map[int]fnblock.Target {
 
 		default:
 			// Skip immediates for other instructions
-			skipParseImmediates(bodyIter, b)
+			if err := skipParseImmediates(bodyIter, b); err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	return blocks
+	return blocks, nil
 }
 
 // skipParseImmediates skips instruction immediates during block precomputation
-func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) {
+func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) error {
 	switch opcode {
 	case opcodes.GlobalGet, opcodes.GlobalSet:
 		iter.Varint() // global index
@@ -516,7 +512,7 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) {
 		opcodes.I64Store32, opcodes.F64Store, opcodes.F32Store:
 		iter.Byte()   // alignment
 		iter.Varint() // store offset
-	case opcodes.Call:
+	case opcodes.Call, opcodes.ReturnCall:
 		iter.Varint() // function index
 	case opcodes.CallIndirect:
 		iter.Varint() // signature index
@@ -542,7 +538,7 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) {
 		opcodes.I32Extend16S, opcodes.I32ReinterpretF32,
 		opcodes.I32TruncSatF32S, opcodes.I32Rotr, opcodes.I32Rotl:
 		// no immediate arguments
-		return
+		return nil
 	case opcodes.I64ExtendI32S, opcodes.I64Eqz, opcodes.I64GtU,
 		opcodes.I64ShrU, opcodes.I64GtS, opcodes.I64Sub, opcodes.I64Add,
 		opcodes.I64And, opcodes.I64Ne, opcodes.I64Eq, opcodes.I64LeU,
@@ -554,7 +550,7 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) {
 		opcodes.I64ReinterpretF64, opcodes.I64Extend8S,
 		opcodes.I64Extend16S, opcodes.I64Extend32S:
 		// no immediate arguments
-		return
+		return nil
 	case opcodes.F64Mul, opcodes.F64Add, opcodes.F64Sub,
 		opcodes.F64Div, opcodes.F64Min, opcodes.F64Max,
 		opcodes.F64Copysign, opcodes.F64Sqrt, opcodes.F64Ceil,
@@ -566,7 +562,7 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) {
 		opcodes.F64Le, opcodes.F64Ge, opcodes.F64Eq,
 		opcodes.F64Ne:
 		// no immediate arguments
-		return
+		return nil
 	case opcodes.F32ConvertI32S, opcodes.F32ConvertI32U, opcodes.F32ConvertI64S,
 		opcodes.F32ConvertI64U, opcodes.F32DemoteF64, opcodes.F32Mul,
 		opcodes.F32Add, opcodes.F32Sub, opcodes.F32Div, opcodes.F32Min,
@@ -576,12 +572,13 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) {
 		opcodes.F32Abs, opcodes.F32Lt, opcodes.F32Gt, opcodes.F32Le,
 		opcodes.F32Ge, opcodes.F32Eq, opcodes.F32Ne:
 		// no immediate arguments
-		return
+		return nil
 	case opcodes.End, opcodes.Drop, opcodes.Select,
 		opcodes.Unreachable, opcodes.Return:
 		// no immediate arguments
-		return
+		return nil
 	default:
-		panic(fmt.Sprintf("unknown opcode: %02x\n", opcode))
+		return fmt.Errorf("unknown opcode: %02x\n", opcode)
 	}
+	return nil
 }

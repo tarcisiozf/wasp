@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"testing"
+
+	"github.com/bytecodealliance/wasmtime-go"
 )
 
 type Build struct {
@@ -14,10 +15,11 @@ type Build struct {
 	Wasm []byte
 }
 
-func BuildWat(t *testing.T, wat string) (Build, error) {
-	tmpDir := t.TempDir()
-	watPath := tmpDir + "/tmp.wat"
-	outputPath := tmpDir + "/tmp.wasm"
+type Wat2WasmBuilder struct{}
+
+func (b *Wat2WasmBuilder) Build(dir, wat string) (Build, error) {
+	watPath := dir + "/tmp.wat"
+	outputPath := dir + "/tmp.wasm"
 
 	if err := os.WriteFile(watPath, []byte(wat), 0644); err != nil {
 		return Build{}, fmt.Errorf("failed to write wat: %v", err)
@@ -40,6 +42,20 @@ func BuildWat(t *testing.T, wat string) (Build, error) {
 	return Build{
 		Wat:  wat,
 		Asm:  asm,
+		Wasm: wasm,
+	}, nil
+}
+
+type WasmtimeWatBuilder struct{}
+
+func (b *WasmtimeWatBuilder) Build(_, wat string) (Build, error) {
+	wasm, err := wasmtime.Wat2Wasm(wat)
+	if err != nil {
+		return Build{}, fmt.Errorf("failed to convert wat to wasm: %v", err)
+	}
+	return Build{
+		Wat:  wat,
+		Asm:  "no assembly available", // Wasmtime doesn't provide disassembly output
 		Wasm: wasm,
 	}, nil
 }

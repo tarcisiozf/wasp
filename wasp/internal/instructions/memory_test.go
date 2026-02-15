@@ -20,7 +20,7 @@ func TestMemory(t *testing.T) {
 			wasp.WithLinker(linker),
 		),
 	)
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (import "console" "log" (func $log (param i32)))
 		  (memory 1 2) ;; default memory with one page and max of 2 pages
@@ -63,7 +63,7 @@ func TestMemory(t *testing.T) {
 
 func TestMemoryLoad(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -98,7 +98,7 @@ func TestMemoryLoad(t *testing.T) {
 
 func TestI64Load(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -140,7 +140,7 @@ func TestI64Load(t *testing.T) {
 
 func TestF32Load(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -174,7 +174,7 @@ func TestF32Load(t *testing.T) {
 
 func TestF64Load(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -208,7 +208,7 @@ func TestF64Load(t *testing.T) {
 
 func TestI32Load8S(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -242,7 +242,7 @@ func TestI32Load8S(t *testing.T) {
 
 func TestI32Load8U(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -276,7 +276,7 @@ func TestI32Load8U(t *testing.T) {
 
 func TestI32Load16S(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -310,7 +310,7 @@ func TestI32Load16S(t *testing.T) {
 
 func TestI32Load16U(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -344,7 +344,7 @@ func TestI32Load16U(t *testing.T) {
 
 func TestI64Load8S(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -378,7 +378,7 @@ func TestI64Load8S(t *testing.T) {
 
 func TestI64Load8U(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -412,7 +412,7 @@ func TestI64Load8U(t *testing.T) {
 
 func TestI64Load16S(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -446,7 +446,7 @@ func TestI64Load16S(t *testing.T) {
 
 func TestI64Load16U(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -480,7 +480,7 @@ func TestI64Load16U(t *testing.T) {
 
 func TestI64Load32S(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -514,7 +514,7 @@ func TestI64Load32S(t *testing.T) {
 
 func TestI64Load32U(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))
@@ -548,7 +548,7 @@ func TestI64Load32U(t *testing.T) {
 
 func TestMemoryLoadWithOffset(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (memory $memory 1)
 		  (export "memory" (memory $memory))

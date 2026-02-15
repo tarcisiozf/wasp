@@ -10,7 +10,7 @@ import (
 
 func TestBranchBlock(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (func $subject
 			(block $my_block
@@ -46,7 +46,7 @@ func TestBranchBlock(t *testing.T) {
 
 func TestBranchNestedBlocks(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (func $subject (result i32)
 			(block $outer (result i32)
@@ -83,7 +83,7 @@ func TestBranchNestedBlocks(t *testing.T) {
 
 func TestBranchLoop(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (func $subject (result i32)
 			(local $counter i32)
@@ -141,7 +141,7 @@ func TestBranchLoop(t *testing.T) {
 
 func TestBrIf(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (func $subject (result i32)
 			(block $exit (result i32)
@@ -179,7 +179,7 @@ func TestBrIf(t *testing.T) {
 
 func TestBrIfFalse(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (func $subject (result i32)
 			(block $exit (result i32)
@@ -217,7 +217,7 @@ func TestBrIfFalse(t *testing.T) {
 
 func TestBranchIf(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (func $subject (result i32)
 			(block $outer (result i32)
@@ -258,7 +258,7 @@ func TestBranchIf(t *testing.T) {
 
 func TestBranchLoopContinue(t *testing.T) {
 	testEnv := tests.NewEnvironment()
-	build, err := tests.BuildWat(t, `
+	build, err := testEnv.BuildWat(t, `
 		(module
 		  (func $subject (result i32)
 			(local $i i32)
@@ -312,6 +312,53 @@ func TestBranchLoopContinue(t *testing.T) {
 	}
 
 	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+
+	assert.Equal(t, []any{int32(15)}, results)
+}
+
+func TestCall(t *testing.T) {
+	testEnv := tests.NewEnvironment(
+		tests.WithWasmtimeBuild(),
+	)
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  ;; Calculate the factorial of a number
+		  (func $fac (export "fac") (param $x i64) (result i64)
+			;; Call the fac-aux function with $x and 1 parameters
+			(return_call $fac-aux (local.get $x) (i64.const 1))
+		  )
+		
+		  ;; Perform the factorial calculation
+		  (func $fac-aux (param $x i64) (param $r i64) (result i64)
+			;; If $x is zero, return the accumulated result $r
+			(if (result i64) (i64.eqz (local.get $x))
+			  (then (return (local.get $r)))
+			  (else
+				;; Otherwise, recursively call fac-aux with $x-1 and $x*$r
+				(return_call $fac-aux
+				  (i64.sub (local.get $x) (i64.const 1))
+				  (i64.mul (local.get $x) (local.get $r))
+				)
+			  )
+			)
+		  )
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	fmt.Println(build.Asm)
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	_, results, err := instance.RunExport("fac", int64(5))
 	if err != nil {
 		t.Fatalf("failed to run function: %v", err)
 	}
