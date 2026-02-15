@@ -65,6 +65,8 @@ func WasmToString(data []byte) (string, error) {
 			err = sectionGlobalToString(sb, iter)
 		case 0x7: // Export section
 			sectionExportToString(sb, iter)
+		case 0x9: // Element section
+			sectionElementToString(sb, iter)
 		case 0xa: // Code section
 			err = sectionCodeToString(sb, iter)
 		default:
@@ -77,6 +79,40 @@ func WasmToString(data []byte) (string, error) {
 	}
 
 	return sb.String(), nil
+}
+
+func sectionElementToString(sb *strings.Builder, iter *binary.Iterator) error {
+	pos := iter.Position()
+	numElemSegments := iter.Varint()
+	f(sb, pos, "num element segments", numElemSegments)
+
+	for i := 0; i < numElemSegments; i++ {
+		sb.WriteString(fmt.Sprintf("; element segment header %d\n", i))
+
+		pos = iter.Position()
+		segmentFlags := iter.Byte()
+		f(sb, pos, "segment flags", segmentFlags)
+
+		pos = iter.Position()
+		opcode := iter.Opcode()
+		g(sb, pos, opcode)
+
+		if err := k(sb, iter, opcode); err != nil {
+			return err
+		}
+
+		f(sb, iter.Position(), "end", iter.Opcode())
+
+		pos = iter.Position()
+		numElements := iter.Varint()
+		f(sb, pos, "num elements", numElements)
+
+		for i := 0; i < numElements; i++ {
+			f(sb, iter.Position(), "element function index", iter.Varint())
+		}
+	}
+
+	return nil
 }
 
 func sectionGlobalToString(sb *strings.Builder, iter *binary.Iterator) (err error) {
@@ -375,8 +411,9 @@ func funcToString(sb *strings.Builder, iter *binary.Iterator, index int) error {
 
 	var depth int
 	for iter.HasNext() {
+		pos = iter.Position()
 		opcode := iter.Opcode()
-		f(sb, iter.Position(), opcodeName(opcode), opcode)
+		g(sb, pos, opcode)
 
 		err := k(sb, iter, opcode)
 		if err != nil {
@@ -395,12 +432,12 @@ func funcToString(sb *strings.Builder, iter *binary.Iterator, index int) error {
 	return nil
 }
 
-func isBranchingOpcode(opcode opcodes.Opcode) bool {
-	return opcode == opcodes.If || opcode == opcodes.Block || opcode == opcodes.Loop || opcode == opcodes.Br || opcode == opcodes.BrIf || opcode == opcodes.BrTable
+func g(sb *strings.Builder, offset int, opcode opcodes.Opcode) {
+	f(sb, offset, opcodes.Name(opcode), opcode)
 }
 
-func opcodeName(opcode opcodes.Opcode) string {
-	return opcodes.Name(opcode)
+func isBranchingOpcode(opcode opcodes.Opcode) bool {
+	return opcode == opcodes.If || opcode == opcodes.Block || opcode == opcodes.Loop || opcode == opcodes.Br || opcode == opcodes.BrIf || opcode == opcodes.BrTable
 }
 
 func k(sb *strings.Builder, iter *binary.Iterator, opcode opcodes.Opcode) (err error) {
