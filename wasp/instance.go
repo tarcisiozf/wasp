@@ -84,7 +84,7 @@ func (instance *Instance) call(fnIndex int, params []any) (*execution.CallFrame,
 		return nil, fmt.Errorf("call stack overflow")
 	}
 
-	callFrame, err := instance.foo(fnIndex, params)
+	callFrame, err := instance.createCallFrame(fnIndex, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create call frame: %w", err)
 	}
@@ -196,16 +196,17 @@ func (instance *Instance) numParamsForFunc(index int) (int, error) {
 	return -1, fmt.Errorf("invalid function index: %d", index)
 }
 
-func (instance *Instance) foo(index int, params []any) (*execution.CallFrame, error) {
+func (instance *Instance) createCallFrame(index int, params []any) (*execution.CallFrame, error) {
+	if instance.module.IsFunction(index) {
+		return instance.createLocalCallFrame(index, params)
+	}
 	if instance.module.IsImport(index) {
-		return instance.bar(index, params)
-	} else if instance.module.IsFunction(index) {
-		return instance.baz(index, params)
+		return instance.createImportCallFrame(index, params)
 	}
 	return nil, fmt.Errorf("invalid function index: %d", index)
 }
 
-func (instance *Instance) bar(index int, params []any) (*execution.CallFrame, error) {
+func (instance *Instance) createImportCallFrame(index int, params []any) (*execution.CallFrame, error) {
 	extFunc, err := instance.getImportedFunc(index)
 	if err != nil {
 		return nil, fmt.Errorf("invalid function call request: %w", err)
@@ -222,7 +223,7 @@ func (instance *Instance) bar(index int, params []any) (*execution.CallFrame, er
 	}, nil
 }
 
-func (instance *Instance) baz(index int, params []any) (*execution.CallFrame, error) {
+func (instance *Instance) createLocalCallFrame(index int, params []any) (*execution.CallFrame, error) {
 	fn := instance.module.FunctionAt(index)
 
 	stack := memory.NewStack[any]()
