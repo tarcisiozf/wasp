@@ -66,9 +66,11 @@ func WasmToString(data []byte) (string, error) {
 		case 0x7: // Export section
 			sectionExportToString(sb, iter)
 		case 0x9: // Element section
-			sectionElementToString(sb, iter)
+			err = sectionElementToString(sb, iter)
 		case 0xa: // Code section
 			err = sectionCodeToString(sb, iter)
+		case 0xb: // Data section
+			sectionDataToString(sb, iter)
 		default:
 			return sb.String(), fmt.Errorf("invalid section type: %x", sectionID)
 		}
@@ -79,6 +81,38 @@ func WasmToString(data []byte) (string, error) {
 	}
 
 	return sb.String(), nil
+}
+
+func sectionDataToString(sb *strings.Builder, iter *binary.Iterator) {
+	pos := iter.Position()
+	numDataSegments := iter.Varint()
+	f(sb, pos, "num data segments", numDataSegments)
+
+	for i := 0; i < numDataSegments; i++ {
+		sb.WriteString(fmt.Sprintf("; data segment header %d\n", i))
+
+		pos = iter.Position()
+		flags := iter.Byte()
+		f(sb, pos, "segment flags", flags)
+
+		pos = iter.Position()
+		opcode := iter.Opcode()
+		g(sb, pos, opcode)
+
+		if err := k(sb, iter, opcode); err != nil {
+			panic(fmt.Sprintf("failed to parse data segment offset expression: %v", err))
+		}
+
+		f(sb, iter.Position(), "end", iter.Opcode())
+
+		pos = iter.Position()
+		dataSize := iter.Varint()
+		f(sb, pos, "data size", dataSize)
+
+		pos = iter.Position()
+		data := iter.Bytes(dataSize)
+		f(sb, pos, fmt.Sprintf("data bytes (%d bytes)", dataSize), data)
+	}
 }
 
 func sectionElementToString(sb *strings.Builder, iter *binary.Iterator) error {
