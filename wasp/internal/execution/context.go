@@ -32,3 +32,7 @@ type Context struct {
 	// Blocks is the precomputed block target map from the function
 	Blocks map[int]fnblock.Target
 }
+
+func (c *Context) Results() []any {
+	return c.Stack.Last(c.NumResults)
+}

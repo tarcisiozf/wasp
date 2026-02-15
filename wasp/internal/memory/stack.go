@@ -66,6 +66,10 @@ func (s *Stack[T]) Items() []T {
 }
 
 func (s *Stack[T]) Top() T {
+	if len(s.items) == 0 {
+		var zero T
+		return zero
+	}
 	return s.items[len(s.items)-1]
 }
 

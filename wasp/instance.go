@@ -98,54 +98,16 @@ func (instance *Instance) Tick() error {
 	for !instance.callStack.IsEmpty() {
 		callFrame := instance.callStack.Top()
 
-		//for !ctx.Done {
-		//	if ctx.FunctionCallRequest >= 0 {
-		//		numParams, err := instance.numParamsForFunc(ctx.FunctionCallRequest)
-		//		if err != nil {
-		//			return fmt.Errorf("invalid function call request: %w", err)
-		//		}
-		//		params := ctx.Stack.PopN(numParams)
-		//		_, err = instance.call(ctx.FunctionCallRequest, params)
-		//		if err != nil {
-		//			return fmt.Errorf("failed to call function at index %d: %w", ctx.FunctionCallRequest, err)
-		//		}
-		//		break fnloop
-		//	}
-
-		//if instance.module.IsImport(ctx.FunctionCallRequest) {
-		//	extFunc, err := instance.getImportedFunc(ctx.FunctionCallRequest)
-		//	if err != nil {
-		//		return fmt.Errorf("invalid function call request: %w", err)
-		//	}
-		//	params := ctx.Stack.PopN(extFunc.NumInputs())
-		//	results, err := extFunc.Call(params)
-		//	if err != nil {
-		//		return fmt.Errorf("failed to call external function %s.%s: %w", extFunc.ModuleName(), extFunc.FieldName(), err)
-		//	}
-		//	for _, result := range results {
-		//		ctx.Stack.Push(result)
-		//	}
-		//
-		//	ctx.FunctionCallRequest = -1
-		//} else if instance.module.IsFunction(ctx.FunctionCallRequest) {
-		//	foo := instance.module.FunctionAt(ctx.FunctionCallRequest)
-		//	params := ctx.Stack.PopN(len(foo.Signature.Params))
-		//	_, err := instance.Call(foo, params...)
-		//	if err != nil {
-		//		return fmt.Errorf("failed to call function at index %d: %w", ctx.FunctionCallRequest, err)
-		//	}
-		//	for _, result := range results {
-		//		ctx.Stack.Push(result)
-		//	}
-		//
-		//	ctx.FunctionCallRequest = -1
-		//}
-
-		//
-		//}
-
 		if callFrame.Done() {
 			instance.callStack.Pop()
+
+			// forward call results to previous frame if it exists
+			prev := instance.callStack.Top()
+			if prev != nil {
+				results := callFrame.Context.Results()
+				prev.Context.Stack.Push(results...)
+			}
+
 			continue
 		}
 
