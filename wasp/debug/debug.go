@@ -53,14 +53,22 @@ func WasmToString(data []byte) (string, error) {
 			sectionCustomToString(sb, iter, sectionSize)
 		case 0x1: // Type section
 			sectionTypeToString(sb, iter)
+		case 0x2: // Import section
+			err = sectionImportToString(sb, iter)
 		case 0x3: // Function section
 			sectionFunctionToString(sb, iter)
+		case 0x4: // Table section
+			sectionTableToString(sb, iter)
+		case 0x5: // Memory section
+			sectionMemoryToString(sb, iter)
+		case 0x6: // Global section
+			err = sectionGlobalToString(sb, iter)
 		case 0x7: // Export section
 			sectionExportToString(sb, iter)
 		case 0xa: // Code section
 			err = sectionCodeToString(sb, iter)
 		default:
-			err = fmt.Errorf("invalid section type: %d", sectionID)
+			return sb.String(), fmt.Errorf("invalid section type: %x", sectionID)
 		}
 
 		if err != nil {
@@ -69,6 +77,175 @@ func WasmToString(data []byte) (string, error) {
 	}
 
 	return sb.String(), nil
+}
+
+func sectionGlobalToString(sb *strings.Builder, iter *binary.Iterator) (err error) {
+	pos := iter.Position()
+	numGlobals := iter.Varint()
+	f(sb, pos, "num globals", numGlobals)
+
+	for i := 0; i < numGlobals; i++ {
+		sb.WriteString(fmt.Sprintf("; global %d\n", i))
+
+		pos = iter.Position()
+		contentType := iter.Byte()
+		f(sb, pos, typeToString(contentType), contentType)
+
+		pos = iter.Position()
+		mutability := iter.Byte()
+		f(sb, pos, "global mutability", mutability)
+
+		switch contentType {
+		case 0x7F: // i32
+			err = k(sb, iter, iter.Opcode())
+		default:
+			return fmt.Errorf("unsupported global content type: %02x", contentType)
+		}
+
+		if err != nil {
+			return fmt.Errorf("failed to parse global initializer: %v", err)
+		}
+	}
+
+	f(sb, iter.Position(), "global section end opcode", iter.Opcode())
+
+	return nil
+}
+
+func sectionMemoryToString(sb *strings.Builder, iter *binary.Iterator) {
+	pos := iter.Position()
+	numMemories := iter.Varint()
+	f(sb, pos, "num memories", numMemories)
+
+	for i := 0; i < numMemories; i++ {
+		sb.WriteString(fmt.Sprintf("; memory %d\n", i))
+
+		pos = iter.Position()
+		limitsFlags := iter.Byte()
+		f(sb, pos, "memory limits flags", limitsFlags)
+
+		pos = iter.Position()
+		initial := iter.Varint()
+		f(sb, pos, "memory initial size (pages)", initial)
+
+		if limitsFlags&0x01 != 0 {
+			pos = iter.Position()
+			maximum := iter.Varint()
+			f(sb, pos, "memory maximum size (pages)", maximum)
+		}
+	}
+}
+
+func sectionTableToString(sb *strings.Builder, iter *binary.Iterator) {
+	pos := iter.Position()
+	numTables := iter.Varint()
+	f(sb, pos, "num tables", numTables)
+
+	for i := 0; i < numTables; i++ {
+		sb.WriteString(fmt.Sprintf("; table %d", i))
+
+		pos = iter.Position()
+		elementType := iter.Byte()
+		f(sb, pos, kindToString(elementType), elementType)
+
+		pos = iter.Position()
+		limitsFlags := iter.Byte()
+		f(sb, pos, "table limits flags", limitsFlags)
+
+		pos = iter.Position()
+		initial := iter.Varint()
+		f(sb, pos, "table initial size", initial)
+
+		if limitsFlags&0x01 != 0 {
+			pos = iter.Position()
+			maximum := iter.Varint()
+			f(sb, pos, "table maximum size", maximum)
+		}
+	}
+}
+
+func sectionImportToString(sb *strings.Builder, iter *binary.Iterator) error {
+	pos := iter.Position()
+	numImports := iter.Varint()
+	f(sb, pos, "num imports", numImports)
+
+	for i := 0; i < numImports; i++ {
+		sb.WriteString(fmt.Sprintf("; import header %d\n", i))
+
+		pos = iter.Position()
+		moduleLen := iter.Varint()
+		f(sb, pos, "string length", moduleLen)
+
+		pos = iter.Position()
+		module := iter.Bytes(moduleLen)
+		f(sb, pos, fmt.Sprintf("import module name: %s", module), module)
+
+		pos = iter.Position()
+		fieldLen := iter.Varint()
+		f(sb, pos, "field string length", fieldLen)
+
+		pos = iter.Position()
+		field := iter.Bytes(fieldLen)
+		f(sb, pos, fmt.Sprintf("import field: %s", field), field)
+
+		pos = iter.Position()
+		kind := iter.Byte()
+		f(sb, pos, "import kind", kind)
+
+		switch kind {
+		case 0x00: // function
+			pos = iter.Position()
+			typeIndex := iter.Varint()
+			f(sb, pos, "import signature index", typeIndex)
+
+		//case 0x01: // table
+		//	pos = iter.Position()
+		//	elementType := iter.Byte()
+		//	f(sb, pos, "import table element type", elementType)
+		//
+		//	pos = iter.Position()
+		//	limitsFlags := iter.Byte()
+		//	f(sb, pos, "import table limits flags", limitsFlags)
+		//
+		//	pos = iter.Position()
+		//	initial := iter.Varint()
+		//	f(sb, pos, "import table initial size", initial)
+		//
+		//	if limitsFlags&0x01 != 0 {
+		//		pos = iter.Position()
+		//		maximum := iter.Varint()
+		//		f(sb, pos, "import table maximum size", maximum)
+		//	}
+		//
+		//case 0x02: // memory
+		//	pos = iter.Position()
+		//	limitsFlags := iter.Byte()
+		//	f(sb, pos, "import memory limits flags", limitsFlags)
+		//
+		//	pos = iter.Position()
+		//	initial := iter.Varint()
+		//	f(sb, pos, "import memory initial size (pages)", initial)
+		//
+		//	if limitsFlags&0x01 != 0 {
+		//		pos = iter.Position()
+		//		maximum := iter.Varint()
+		//		f(sb, pos, "import memory maximum size (pages)", maximum)
+		//	}
+		//
+		//case 0x03: // global
+		//	pos = iter.Position()
+		//	contentType := iter.Byte()
+		//	f(sb, pos, "import global content type", contentType)
+		//
+		//	pos = iter.Position()
+		//	mutability := iter.Byte()
+		//	f(sb, pos, "import global mutability", mutability)
+
+		default:
+			return fmt.Errorf("unknown import kind: %02x", kind)
+		}
+	}
+	return nil
 }
 
 func sectionCustomToString(sb *strings.Builder, iter *binary.Iterator, sectionSize int) {
@@ -380,6 +557,8 @@ func kindToString(b byte) string {
 		return "memory"
 	case 0x03:
 		return "global"
+	case 0x70:
+		return "funcref"
 	default:
 		panic(fmt.Sprintf("unknown export kind: %02x", b))
 	}
