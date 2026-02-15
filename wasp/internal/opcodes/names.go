@@ -2,7 +2,7 @@ package opcodes
 
 import "fmt"
 
-var names = map[byte]string{
+var names = map[Opcode]string{
 	// Control flow instructions
 	Unreachable:        "unreachable",
 	Nop:                "nop",
@@ -207,7 +207,7 @@ var names = map[byte]string{
 	F64ReinterpretI64: "f64.reinterpret_i64",
 }
 
-func Name(opcode byte) string {
+func Name(opcode uint16) string {
 	name, ok := names[opcode]
 	if !ok {
 		return fmt.Sprintf("unknow(0x%x)", opcode)

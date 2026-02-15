@@ -9,7 +9,7 @@ import (
 type handler func(ctx *execution.Context) error
 
 type instruction struct {
-	Opcode  byte
+	Opcode  opcodes.Opcode
 	Handler handler
 }
 
@@ -19,7 +19,7 @@ func (i instruction) String() any {
 
 var instructions = make([]instruction, 256)
 
-func addInstruction(opcode byte, handler handler) instruction {
+func addInstruction(opcode opcodes.Opcode, handler handler) instruction {
 	if instructions[opcode].Opcode != 0 {
 		panic(fmt.Sprintf("instruction already defined: %v", opcode))
 	}

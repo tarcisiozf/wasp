@@ -10,7 +10,7 @@ import (
 	"wasp/wasp/internal/types"
 )
 
-var unhandled = make(map[byte]int) // TODO: remove before flight
+var unhandled = make(map[uint16]int) // TODO: remove before flight
 
 const (
 	wasmBinaryMagic   = 0x6d736100
@@ -137,16 +137,16 @@ func parseDataSection(module *Module, iter *binary.Iterator) error {
 		switch segmentFlags {
 		case 0x00: // active segment with memory index 0
 			memoryIndex = 0
-			iter.Assert(opcodes.I32Const)
+			assertOpcode(iter, opcodes.I32Const)
 			offset = iter.Varint()
-			iter.Assert(opcodes.End)
+			assertOpcode(iter, opcodes.End)
 		case 0x01: // passive segment
 			// Passive segments have no memory index or offset
 		case 0x02: // active segment with explicit memory index
 			memoryIndex = iter.Varint()
-			iter.Assert(opcodes.I32Const)
+			assertOpcode(iter, opcodes.I32Const)
 			offset = iter.Varint()
-			iter.Assert(opcodes.End)
+			assertOpcode(iter, opcodes.End)
 		default:
 			return fmt.Errorf("unsupported data segment flag: 0x%x", segmentFlags)
 		}
@@ -177,9 +177,9 @@ func parseElementSection(module *Module, iter *binary.Iterator) error {
 			return fmt.Errorf("unsupported element segment flag: 0x%x", segmentFlags)
 		}
 
-		iter.Assert(opcodes.I32Const)
+		assertOpcode(iter, opcodes.I32Const)
 		offset := iter.Varint()
-		iter.Assert(opcodes.End)
+		assertOpcode(iter, opcodes.End)
 
 		_ = offset // TODO: store offset info in module struct instead of ignoring
 
@@ -236,14 +236,21 @@ func parseGlobalSection(module *Module, iter *binary.Iterator) error {
 	for i := 0; i < numGlobals; i++ {
 		globalType := types.ForCode(iter.Byte())
 		isMutable := iter.BoolByte()
-		iter.Assert(opcodes.I32Const)
+		assertOpcode(iter, opcodes.I32Const)
 		value := globalType.Read(iter)
 
 		module.globals.Push(value, isMutable)
-		iter.Assert(opcodes.End)
+		assertOpcode(iter, opcodes.End)
 	}
 
 	return nil
+}
+
+func assertOpcode(iter *binary.Iterator, expected opcodes.Opcode) {
+	opcode := iter.Opcode()
+	if opcode != expected {
+		panic(fmt.Sprintf("assertion failed: expected bytes %v, got %v", expected, opcode))
+	}
 }
 
 func parseStartSection(module *Module, iter *binary.Iterator) error {
@@ -399,7 +406,7 @@ func parseFunction(module *Module, iter *binary.Iterator, index int) (err error)
 
 	var body []byte
 	if bodySize == guessSize {
-		body, err = iter.ReadUntil(opcodes.End) // read until end opcode
+		body, err = iter.ReadUntil(byte(opcodes.End)) // read until end opcode
 		if err != nil {
 			return fmt.Errorf("failed to read function body: %w", err)
 		}
@@ -432,7 +439,7 @@ func precomputeBlocks(body []byte) map[int]funcs.BlockTarget {
 	var stack []blockEntry
 
 	for bodyIter.HasNext() {
-		b := bodyIter.Byte()
+		b := bodyIter.Opcode()
 
 		switch b {
 		case opcodes.Block:
@@ -487,7 +494,7 @@ func precomputeBlocks(body []byte) map[int]funcs.BlockTarget {
 }
 
 // skipParseImmediates skips instruction immediates during block precomputation
-func skipParseImmediates(iter *binary.Iterator, opcode byte) {
+func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) {
 	switch opcode {
 	// Control flow with immediates
 	case opcodes.Br, opcodes.BrIf:

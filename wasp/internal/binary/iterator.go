@@ -116,7 +116,7 @@ func (it *Iterator) Varint() int {
 		it.pos += 10
 		return int(x)
 	}
-	
+
 	panic("invalid varint")
 }
 
@@ -139,15 +139,6 @@ func (it *Iterator) Next() {
 func (it *Iterator) BoolByte() bool {
 	value := it.Byte()
 	return value != 0
-}
-
-func (it *Iterator) Assert(expected ...byte) {
-	bytes := it.Bytes(len(expected))
-	for i, b := range expected {
-		if bytes[i] != b {
-			panic(fmt.Sprintf("assertion failed: expected bytes %v, got %v", expected, bytes))
-		}
-	}
 }
 
 func (it *Iterator) Position() int {
@@ -180,6 +171,15 @@ func (it *Iterator) Uint64() uint64 {
 
 func (it *Iterator) Range(start, end int) []byte {
 	return it.data[start:end]
+}
+
+func (it *Iterator) Opcode() uint16 {
+	b := uint16(it.Byte())
+	if b == 0xFC || b == 0xFD {
+		b2 := uint16(it.Byte())
+		return b<<8 | b2
+	}
+	return b
 }
 
 func castPointer[T, S any](bits S) T {

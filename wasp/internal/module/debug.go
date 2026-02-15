@@ -24,17 +24,17 @@ func Foo(data []byte, index, offset int) {
 	}
 
 	for iter.HasNext() {
-		opcode := iter.Byte()
+		opcode := iter.Opcode()
 		f(offset+iter.Position(), opcodeName(opcode), opcode)
 		k(iter, offset, opcode)
 	}
 }
 
-func opcodeName(opcode byte) string {
+func opcodeName(opcode opcodes.Opcode) string {
 	return opcodes.Name(opcode)
 }
 
-func k(iter *binary.Iterator, offset int, opcode byte) {
+func k(iter *binary.Iterator, offset int, opcode opcodes.Opcode) {
 	switch opcode {
 	case opcodes.GlobalGet, opcodes.GlobalSet:
 		f(offset+iter.Position(), "global index", iter.Varint())
