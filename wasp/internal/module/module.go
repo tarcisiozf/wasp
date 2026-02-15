@@ -47,38 +47,34 @@ func NewModule() *Module {
 	}
 }
 
-func (module *Module) GetExportedFunction(name string) (funcs.Function, error) {
+func (module *Module) GetExportedFunction(name string) (int, error) {
 	export, ok := module.exports[name]
 	if !ok {
-		return funcs.Function{}, fmt.Errorf("export not found: %s", name)
+		return -1, fmt.Errorf("export not found: %s", name)
 	}
 
 	if export.kind != exportKindFunc {
-		return funcs.Function{}, fmt.Errorf("export is not a function: %s", name)
+		return -1, fmt.Errorf("export is not a function: %s", name)
 	}
 
-	fn := module.FunctionAt(export.index)
-
-	return fn, nil
+	return export.index, nil
 }
 
-func (module *Module) StartFunction() (funcs.Function, error) {
+func (module *Module) StartFunction() (int, error) {
 	if module.startFuncIndex < 0 {
-		return funcs.Function{}, fmt.Errorf("module does not have a start function")
+		return -1, fmt.Errorf("module does not have a start function")
 	}
 
-	fn := module.FunctionAt(module.startFuncIndex)
-
-	return fn, nil
+	return module.startFuncIndex, nil
 }
 
-func (module *Module) FunctionAt(index int) funcs.Function {
+func (module *Module) FunctionAt(index int) *funcs.Function {
 	// function index is offset by number of imports
-	return module.functions[index-len(module.imports)]
+	return &module.functions[index-len(module.imports)]
 }
 
 func (module *Module) Globals() *memory.Global {
-	return module.globals.Clone()
+	return &module.globals
 }
 
 func (module *Module) Imports() []Import {

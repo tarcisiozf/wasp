@@ -105,9 +105,18 @@ func main() {
 
 		var results []any
 		elapsed(func() {
-			_, results, err = instance.Call(fn)
+			cf, err := instance.Call(fn)
 			if err != nil {
 				println("Error calling function:", err.Error())
+				os.Exit(1)
+			}
+			if err := instance.Tick(); err != nil {
+				println("Error during execution:", err.Error())
+				os.Exit(1)
+			}
+			results, err = cf.Results()
+			if err != nil {
+				println("Error getting results:", err.Error())
 				os.Exit(1)
 			}
 		})

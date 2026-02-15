@@ -2,7 +2,7 @@ package execution
 
 import (
 	"wasp/wasp/internal/binary"
-	"wasp/wasp/internal/funcs"
+	"wasp/wasp/internal/funcs/fnblock"
 	"wasp/wasp/internal/memory"
 )
 
@@ -17,14 +17,18 @@ type Context struct {
 	Globals  *memory.Global
 	Memories []*memory.Memory
 
-	Body *binary.Iterator
+	NumParams  int
+	NumResults int
+	Params     []any
+	Results    []any
 
+	Body                *binary.Iterator
 	FunctionCallRequest int
 	Done                bool
-	Condition           bool
 
-	// BlockStack tracks nested blocks for branching (just the start positions)
+	Condition bool
+	// BlockStack tracks nested fnblock for branching (just the start positions)
 	BlockStack *memory.Stack[BlockFrame]
 	// Blocks is the precomputed block target map from the function
-	Blocks map[int]funcs.BlockTarget
+	Blocks map[int]fnblock.Target
 }

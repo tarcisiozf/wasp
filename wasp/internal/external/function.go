@@ -3,6 +3,7 @@ package external
 import (
 	"fmt"
 	"reflect"
+	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/funcs"
 	"wasp/wasp/internal/types"
 )
@@ -18,7 +19,15 @@ type Function struct {
 	typeOf  reflect.Type
 }
 
-func (f *Function) Call(params []any) ([]any, error) {
+func (f *Function) Call(ctx *execution.Context) (err error) {
+	ctx.Results, err = f.call(ctx.Params)
+	if err != nil {
+		return fmt.Errorf("error calling function %s.%s: %w", f.moduleName, f.fieldName, err)
+	}
+	return nil
+}
+
+func (f *Function) call(params []any) ([]any, error) {
 	paramValues := make([]reflect.Value, len(params))
 	for i, param := range params {
 		paramValues[i] = reflect.ValueOf(param)
@@ -91,6 +100,10 @@ func isTypeCompatible(a reflect.Type, b types.Type) bool {
 
 func (f *Function) NumInputs() int {
 	return f.numInputs
+}
+
+func (f *Function) NumOutputs() int {
+	return f.numOutputs
 }
 
 func (f *Function) ModuleName() string {

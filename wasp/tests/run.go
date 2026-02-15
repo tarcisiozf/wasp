@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"wasp/wasp"
 	"wasp/wasp/internal/execution"
-	"wasp/wasp/internal/funcs"
 	"wasp/wasp/internal/module"
 )
 
@@ -13,7 +12,7 @@ type ExecutionResults struct {
 	Instance *wasp.Instance
 }
 
-func (r *ExecutionResults) RunExport(name string, args ...any) (*execution.Context, []any, error) {
+func (r *ExecutionResults) RunExport(name string, args ...any) (*execution.CallFrame, []any, error) {
 	fn, err := r.Module.GetExportedFunction(name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get export function: %w", err)
@@ -21,7 +20,7 @@ func (r *ExecutionResults) RunExport(name string, args ...any) (*execution.Conte
 	return r.run(fn, args...)
 }
 
-func (r *ExecutionResults) RunStart() (*execution.Context, error) {
+func (r *ExecutionResults) RunStart() (*execution.CallFrame, error) {
 	fn, err := r.Module.StartFunction()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get start function: %w", err)
@@ -33,12 +32,19 @@ func (r *ExecutionResults) RunStart() (*execution.Context, error) {
 	return ctx, nil
 }
 
-func (r *ExecutionResults) run(fn funcs.Function, args ...any) (*execution.Context, []any, error) {
-	ctx, results, err := r.Instance.Call(fn, args...)
+func (r *ExecutionResults) run(index int, args ...any) (*execution.CallFrame, []any, error) {
+	callFrame, err := r.Instance.Call(index, args...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to execute start function: %w", err)
 	}
-	return ctx, results, nil
+	if err := r.Instance.Tick(); err != nil {
+		return nil, nil, fmt.Errorf("failed to tick instance: %w", err)
+	}
+	results, err := callFrame.Results()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get results: %w", err)
+	}
+	return callFrame, results, nil
 }
 
 func (env *Environment) CreateInstance(wasm []byte) (ExecutionResults, error) {

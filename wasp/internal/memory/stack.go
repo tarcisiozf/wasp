@@ -62,3 +62,11 @@ func (s *Stack[T]) Size() int {
 func (s *Stack[T]) Items() []T {
 	return s.items[:]
 }
+
+func (s *Stack[T]) Top() T {
+	return s.items[len(s.items)-1]
+}
+
+func (s *Stack[T]) IsEmpty() bool {
+	return len(s.items) == 0
+}

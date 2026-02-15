@@ -2,7 +2,7 @@ package instructions
 
 import (
 	"wasp/wasp/internal/execution"
-	"wasp/wasp/internal/funcs"
+	"wasp/wasp/internal/funcs/fnblock"
 	"wasp/wasp/internal/opcodes"
 )
 
@@ -98,7 +98,7 @@ var (
 )
 
 // branchToLabel implements the branch operation using precomputed targets
-// For blocks and if: branch to end of block
+// For fnblock and if: branch to end of block
 // For loops: branch to start of loop (re-execute)
 func branchToLabel(ctx *execution.Context, labelIdx int) error {
 	// Get the target block (labelIdx is relative depth, 0 = innermost)
@@ -107,19 +107,19 @@ func branchToLabel(ctx *execution.Context, labelIdx int) error {
 	targetFrame := ctx.BlockStack.At(targetIdx)
 	target := ctx.Blocks[targetFrame.StartPos]
 
-	// Pop all blocks up to and including the target
+	// Pop all fnblock up to and including the target
 	for i := 0; i <= labelIdx; i++ {
 		ctx.BlockStack.Pop()
 	}
 
-	if target.Kind == funcs.BlockKindLoop {
+	if target.Kind == fnblock.KindLoop {
 		// For loops, jump back to the start and re-push the frame
 		ctx.Body.Seek(target.StartPos)
 		ctx.BlockStack.Push(targetFrame)
 		return nil
 	}
 
-	// For blocks and if, jump directly to the end using precomputed position
+	// For fnblock and if, jump directly to the end using precomputed position
 	ctx.Body.Seek(target.EndPos)
 	return nil
 }

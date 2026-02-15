@@ -5,6 +5,7 @@ import (
 	"os"
 	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/funcs"
+	"wasp/wasp/internal/funcs/fnblock"
 	"wasp/wasp/internal/memory"
 	"wasp/wasp/internal/opcodes"
 	"wasp/wasp/internal/types"
@@ -416,13 +417,13 @@ func parseFunction(module *Module, iter *binary.Iterator, index int) (err error)
 }
 
 // precomputeBlocks scans the function body and computes block target positions
-func precomputeBlocks(body []byte) map[int]funcs.BlockTarget {
-	blocks := make(map[int]funcs.BlockTarget)
+func precomputeBlocks(body []byte) map[int]fnblock.Target {
+	blocks := make(map[int]fnblock.Target)
 	bodyIter := binary.NewIterator(body)
 
-	// Stack to track nested blocks during scanning
+	// Stack to track nested fnblock during scanning
 	type blockEntry struct {
-		kind      funcs.BlockKind
+		kind      fnblock.Kind
 		startPos  int
 		blockType byte
 		elsePos   int
@@ -436,7 +437,7 @@ func precomputeBlocks(body []byte) map[int]funcs.BlockTarget {
 		case opcodes.Block:
 			blockType := bodyIter.Byte()
 			stack = append(stack, blockEntry{
-				kind:      funcs.BlockKindBlock,
+				kind:      fnblock.KindBlock,
 				startPos:  bodyIter.Position(),
 				blockType: blockType,
 			})
@@ -444,7 +445,7 @@ func precomputeBlocks(body []byte) map[int]funcs.BlockTarget {
 		case opcodes.Loop:
 			blockType := bodyIter.Byte()
 			stack = append(stack, blockEntry{
-				kind:      funcs.BlockKindLoop,
+				kind:      fnblock.KindLoop,
 				startPos:  bodyIter.Position(),
 				blockType: blockType,
 			})
@@ -452,7 +453,7 @@ func precomputeBlocks(body []byte) map[int]funcs.BlockTarget {
 		case opcodes.If:
 			blockType := bodyIter.Byte()
 			stack = append(stack, blockEntry{
-				kind:      funcs.BlockKindIf,
+				kind:      fnblock.KindIf,
 				startPos:  bodyIter.Position(),
 				blockType: blockType,
 			})
@@ -466,7 +467,7 @@ func precomputeBlocks(body []byte) map[int]funcs.BlockTarget {
 			if len(stack) > 0 {
 				entry := stack[len(stack)-1]
 				stack = stack[:len(stack)-1]
-				blocks[entry.startPos] = funcs.BlockTarget{
+				blocks[entry.startPos] = fnblock.Target{
 					Kind:      entry.kind,
 					StartPos:  entry.startPos,
 					ElsePos:   entry.elsePos,
