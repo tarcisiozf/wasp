@@ -111,13 +111,13 @@ func (it *Iterator) Varint() int {
 	}
 
 	b = it.data[it.pos+9]
-	// 10th byte can only contribute 1 bit (bit 0), and must not have continuation
-	if b > 1 {
-		panic("varint overflow")
+	x |= uint64(b&0x7F) << 63
+	if b < 0x80 {
+		it.pos += 10
+		return int(x)
 	}
-	x |= uint64(b) << 63
-	it.pos += 10
-	return int(x)
+	
+	panic("invalid varint")
 }
 
 func (it *Iterator) String(len int) string {
@@ -176,6 +176,10 @@ func (it *Iterator) Uint64() uint64 {
 	value := binary.LittleEndian.Uint64(it.data[it.pos:])
 	it.pos += 8
 	return value
+}
+
+func (it *Iterator) Range(start, end int) []byte {
+	return it.data[start:end]
 }
 
 func castPointer[T, S any](bits S) T {
