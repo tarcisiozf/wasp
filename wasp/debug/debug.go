@@ -437,7 +437,9 @@ func g(sb *strings.Builder, offset int, opcode opcodes.Opcode) {
 }
 
 func isBranchingOpcode(opcode opcodes.Opcode) bool {
-	return opcode == opcodes.If || opcode == opcodes.Block || opcode == opcodes.Loop || opcode == opcodes.Br || opcode == opcodes.BrIf || opcode == opcodes.BrTable
+	return opcode == opcodes.If ||
+		opcode == opcodes.Block ||
+		opcode == opcodes.Loop
 }
 
 func k(sb *strings.Builder, iter *binary.Iterator, opcode opcodes.Opcode) (err error) {
