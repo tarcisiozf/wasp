@@ -38,12 +38,5 @@ func (f *Function) Call(ctx *execution.Context) error {
 			return nil // pause execution to handle tail call optimization
 		}
 	}
-	if ctx.Done {
-		results := make([]any, ctx.NumResults)
-		for i := ctx.NumResults - 1; i >= 0; i-- {
-			results[i] = ctx.Stack.Pop()
-		}
-		ctx.Results = results
-	}
 	return nil
 }

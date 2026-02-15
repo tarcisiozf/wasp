@@ -4,8 +4,10 @@ type Stack[T any] struct {
 	items []T
 }
 
-func NewStack[T any]() *Stack[T] {
-	return &Stack[T]{}
+func NewStack[T any](items ...T) *Stack[T] {
+	return &Stack[T]{
+		items: items,
+	}
 }
 
 func NewStackWithCapacity[T any](capacity int) *Stack[T] {
@@ -29,7 +31,7 @@ func (s *Stack[T]) Pop() T {
 	return value
 }
 
-func (s *Stack[T]) PopN(n int) []T {
+func (s *Stack[T]) Last(n int) []T {
 	size := len(s.items)
 	if n > size {
 		panic("stack underflow")

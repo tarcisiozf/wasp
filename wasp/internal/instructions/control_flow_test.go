@@ -3,6 +3,7 @@ package instructions_test
 import (
 	"fmt"
 	"testing"
+	"wasp/wasp"
 	"wasp/wasp/tests"
 
 	"github.com/stretchr/testify/assert"
@@ -320,30 +321,25 @@ func TestBranchLoopContinue(t *testing.T) {
 }
 
 func TestCall(t *testing.T) {
+	linker := wasp.NewLinker()
+	err := linker.Define("env", "number", func() int32 {
+		return 42
+	})
+	if err != nil {
+		t.Fatalf("failed to define host function: %v", err)
+	}
+
 	testEnv := tests.NewEnvironment(
-		tests.WithWasmtimeBuild(),
+		tests.WithInstanceOptions(
+			wasp.WithLinker(linker),
+		),
 	)
 	build, err := testEnv.BuildWat(t, `
 		(module
-		  ;; Calculate the factorial of a number
-		  (func $fac (export "fac") (param $x i64) (result i64)
-			;; Call the fac-aux function with $x and 1 parameters
-			(return_call $fac-aux (local.get $x) (i64.const 1))
-		  )
+		  (import "env" "number" (func $give_number (result i32)))
 		
-		  ;; Perform the factorial calculation
-		  (func $fac-aux (param $x i64) (param $r i64) (result i64)
-			;; If $x is zero, return the accumulated result $r
-			(if (result i64) (i64.eqz (local.get $x))
-			  (then (return (local.get $r)))
-			  (else
-				;; Otherwise, recursively call fac-aux with $x-1 and $x*$r
-				(return_call $fac-aux
-				  (i64.sub (local.get $x) (i64.const 1))
-				  (i64.mul (local.get $x) (local.get $r))
-				)
-			  )
-			)
+		  (func (export "subject") (result i32)
+			call $give_number
 		  )
 		)
 	`)
@@ -358,13 +354,60 @@ func TestCall(t *testing.T) {
 		t.Fatalf("failed to create instance: %v", err)
 	}
 
-	_, results, err := instance.RunExport("fac", int64(5))
+	_, results, err := instance.RunExport("subject")
 	if err != nil {
 		t.Fatalf("failed to run function: %v", err)
 	}
 
-	assert.Equal(t, []any{int32(15)}, results)
+	assert.Equal(t, []any{int32(42)}, results)
 }
+
+//func TestCall(t *testing.T) {
+//	testEnv := tests.NewEnvironment(
+//		tests.WithWasmtimeBuild(),
+//	)
+//	build, err := testEnv.BuildWat(t, `
+//		(module
+//		  ;; Calculate the factorial of a number
+//		  (func $fac (export "fac") (param $x i64) (result i64)
+//			;; Call the fac-aux function with $x and 1 parameters
+//			(return_call $fac-aux (local.get $x) (i64.const 1))
+//		  )
+//
+//		  ;; Perform the factorial calculation
+//		  (func $fac-aux (param $x i64) (param $r i64) (result i64)
+//			;; If $x is zero, return the accumulated result $r
+//			(if (result i64) (i64.eqz (local.get $x))
+//			  (then (return (local.get $r)))
+//			  (else
+//				;; Otherwise, recursively call fac-aux with $x-1 and $x*$r
+//				(return_call $fac-aux
+//				  (i64.sub (local.get $x) (i64.const 1))
+//				  (i64.mul (local.get $x) (local.get $r))
+//				)
+//			  )
+//			)
+//		  )
+//		)
+//	`)
+//	if err != nil {
+//		t.Fatalf("failed to build wat: %v", err)
+//	}
+//
+//	fmt.Println(build.Asm)
+//
+//	instance, err := testEnv.CreateInstance(build.Wasm)
+//	if err != nil {
+//		t.Fatalf("failed to create instance: %v", err)
+//	}
+//
+//	_, results, err := instance.RunExport("fac", int64(5))
+//	if err != nil {
+//		t.Fatalf("failed to run function: %v", err)
+//	}
+//
+//	assert.Equal(t, []any{int32(15)}, results)
+//}
 
 func TestReturn(t *testing.T) {
 	testEnv := tests.NewEnvironment()

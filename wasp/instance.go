@@ -76,17 +76,17 @@ func (instance *Instance) Call(fnIndex int, params ...any) (*execution.CallFrame
 	if len(params) != len(fn.Signature.Params) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.Signature.Params), len(params))
 	}
-	return instance.call(fnIndex, params)
+	return instance.enqueueCall(fnIndex, memory.NewStack(params...))
 }
 
-func (instance *Instance) call(fnIndex int, params []any) (*execution.CallFrame, error) {
+func (instance *Instance) enqueueCall(fnIndex int, stack *memory.Stack[any]) (*execution.CallFrame, error) {
 	if instance.callStack.Size()+1 > maxCallStackDepth {
-		return nil, fmt.Errorf("call stack overflow")
+		return nil, fmt.Errorf("call stack stack overflow")
 	}
 
-	callFrame, err := instance.createCallFrame(fnIndex, params)
+	callFrame, err := instance.createCallFrame(fnIndex, stack)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create call frame: %w", err)
+		return nil, fmt.Errorf("failed to create enqueue call frame: %w", err)
 	}
 
 	instance.callStack.Push(callFrame)
@@ -150,7 +150,18 @@ func (instance *Instance) Tick() error {
 		}
 
 		if err := callFrame.Call(); err != nil {
-			return fmt.Errorf("error executing call frame: %w", err)
+			return fmt.Errorf("error executing enqueueCall frame: %w", err)
+		}
+
+		if callFrame.Context.FunctionCallRequest >= 0 {
+			_, err := instance.enqueueCall(
+				callFrame.Context.FunctionCallRequest,
+				callFrame.Context.Stack,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to enqueue call function at index %d: %w", callFrame.Context.FunctionCallRequest, err)
+			}
+			callFrame.Context.FunctionCallRequest = -1
 		}
 
 		if callFrame.Context.TailCall {
@@ -200,39 +211,58 @@ func (instance *Instance) numParamsForFunc(index int) (int, error) {
 	return -1, fmt.Errorf("invalid function index: %d", index)
 }
 
-func (instance *Instance) createCallFrame(index int, params []any) (*execution.CallFrame, error) {
+func (instance *Instance) createCallFrame(index int, stack *memory.Stack[any]) (*execution.CallFrame, error) {
 	if instance.module.IsFunction(index) {
-		return instance.createLocalCallFrame(index, params)
+		return instance.createLocalCallFrame(index, stack)
 	}
 	if instance.module.IsImport(index) {
-		return instance.createImportCallFrame(index, params)
+		return instance.createImportCallFrame(index, stack)
 	}
 	return nil, fmt.Errorf("invalid function index: %d", index)
 }
 
-func (instance *Instance) createImportCallFrame(index int, params []any) (*execution.CallFrame, error) {
+func (instance *Instance) createImportCallFrame(index int, stack *memory.Stack[any]) (*execution.CallFrame, error) {
 	extFunc, err := instance.getImportedFunc(index)
 	if err != nil {
-		return nil, fmt.Errorf("invalid function call request: %w", err)
+		return nil, fmt.Errorf("invalid function enqueueCall request: %w", err)
 	}
+
+	numParams := extFunc.NumInputs()
+	numResults := extFunc.NumOutputs()
+
+	if stack.Size() < numParams {
+		return nil, fmt.Errorf("not enough parameters on stack for function at index %d: expected %d, got %d", index, numParams, stack.Size())
+	}
+	params := stack.Last(numParams)
 
 	return &execution.CallFrame{
 		FunctionIndex: index,
 		Function:      extFunc,
+
 		Context: execution.Context{
-			NumParams:  extFunc.NumInputs(),
-			NumResults: extFunc.NumOutputs(),
+			NumParams:  numParams,
+			NumResults: numResults,
 			Params:     params,
+
+			Stack: memory.NewStack[any](),
+
+			FunctionCallRequest: -1,
 		},
 	}, nil
 }
 
-func (instance *Instance) createLocalCallFrame(index int, params []any) (*execution.CallFrame, error) {
+func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[any]) (*execution.CallFrame, error) {
 	fn := instance.module.FunctionAt(index)
 
-	stack := memory.NewStack[any]()
+	numParams := len(fn.Signature.Params)
+	numResults := len(fn.Signature.Results)
 
-	locals := memory.NewStackWithCapacity[any](len(params) + len(fn.Locals))
+	if stack.Size() < numParams {
+		return nil, fmt.Errorf("not enough parameters on stack for function at index %d: expected %d, got %d", index, numParams, stack.Size())
+	}
+	params := stack.Last(numParams)
+
+	locals := memory.NewStackWithCapacity[any](numParams + len(fn.Locals))
 	locals.Push(params...)
 	locals.Push(fn.Locals...)
 
@@ -241,11 +271,11 @@ func (instance *Instance) createLocalCallFrame(index int, params []any) (*execut
 		Function:      fn,
 
 		Context: execution.Context{
-			NumParams:  len(fn.Signature.Params),
-			NumResults: len(fn.Signature.Results),
+			NumParams:  numParams,
+			NumResults: numResults,
 			Params:     params,
 
-			Stack:    stack,
+			Stack:    memory.NewStack[any](),
 			Locals:   locals,
 			Globals:  instance.globals,
 			Memories: instance.memories,

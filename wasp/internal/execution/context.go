@@ -20,7 +20,6 @@ type Context struct {
 	NumParams  int
 	NumResults int
 	Params     []any
-	Results    []any
 
 	Body                *binary.Iterator
 	FunctionCallRequest int

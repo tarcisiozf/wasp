@@ -20,10 +20,15 @@ type Function struct {
 }
 
 func (f *Function) Call(ctx *execution.Context) (err error) {
-	ctx.Results, err = f.call(ctx.Params)
+	results, err := f.call(ctx.Params)
 	if err != nil {
 		return fmt.Errorf("error calling function %s.%s: %w", f.moduleName, f.fieldName, err)
 	}
+	if len(results) != f.numOutputs {
+		return fmt.Errorf("function %s.%s expected to return %d values, but got %d", f.moduleName, f.fieldName, f.numOutputs, len(results))
+	}
+	ctx.Stack.Push(results...)
+	ctx.Done = true
 	return nil
 }
 
