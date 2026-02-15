@@ -365,3 +365,36 @@ func TestCall(t *testing.T) {
 
 	assert.Equal(t, []any{int32(15)}, results)
 }
+
+func TestReturn(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func (export "subject") (result i32)
+			;; load 10 onto the stack
+			i32.const 10
+			;; load 90 onto the stack
+			i32.const 90
+			;; return the second value (90); the first is discarded
+			return
+		  )
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	fmt.Println(build.Asm)
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+
+	assert.Equal(t, []any{int32(90)}, results)
+}

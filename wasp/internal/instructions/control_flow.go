@@ -81,6 +81,11 @@ var (
 		return nil
 	})
 
+	Return = addInstruction(opcodes.Return, func(ctx *execution.Context) error {
+		ctx.Done = true
+		return nil
+	})
+
 	Call = addInstruction(opcodes.Call, func(ctx *execution.Context) error {
 		functionIndex := ctx.Body.Varint()
 		ctx.FunctionCallRequest = functionIndex

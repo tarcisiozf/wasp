@@ -35,7 +35,7 @@ func (r *ExecutionResults) RunStart() (*execution.CallFrame, error) {
 func (r *ExecutionResults) run(index int, args ...any) (*execution.CallFrame, []any, error) {
 	callFrame, err := r.Instance.Call(index, args...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to execute start function: %w", err)
+		return nil, nil, fmt.Errorf("failed to execute function: %w", err)
 	}
 	if err := r.Instance.Tick(); err != nil {
 		return nil, nil, fmt.Errorf("failed to tick instance: %w", err)
