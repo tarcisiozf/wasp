@@ -1,9 +1,14 @@
+if (process.argv.length < 3) {
+    console.error('Usage: node fn.js <index>')
+    process.exit(1)
+}
+
+const index = parseInt(process.argv[2], 10);
+
 const fs = require('fs');
 
 const file = fs.readFileSync('./doom.s', 'utf-8');
 const lines = file.trim().split('\n');
-
-const index = 81
 
 let f = []
 const pre = '; function body '

@@ -205,5 +205,14 @@ const (
 	F32ReinterpretI32 Opcode = 0xbe
 	F64ReinterpretI64 Opcode = 0xbf
 
-	I32Extend8S Opcode = 0xc0
+	I32Extend8S  Opcode = 0xc0
+	I32Extend16S Opcode = 0xc1
+	I64Extend8S  Opcode = 0xc2
+	I64Extend16S Opcode = 0xc3
+	I64Extend32S Opcode = 0xc4
+
+	MemoryCopy Opcode = 0xfc0a
+	MemoryFill Opcode = 0xfc0b
+
+	I32TruncSatF32S Opcode = 0xfc00
 )

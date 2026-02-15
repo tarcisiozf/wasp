@@ -391,14 +391,12 @@ func parseFunction(module *Module, iter *binary.Iterator, index int) (err error)
 		}
 	}
 
-	if index == 81 {
-		Foo(
-			iter.Range(funcOffset, funcOffset+bodySize),
-			index,
-			funcOffset,
-		)
-		os.Exit(0)
-	}
+	fmt.Printf("function %d body size: %d bytes\n", index, bodySize)
+	Foo(
+		iter.Range(funcOffset, funcOffset+bodySize),
+		index,
+		funcOffset,
+	)
 
 	bodySize -= iter.Position() - funcOffset // adjust body size after reading local decls
 
