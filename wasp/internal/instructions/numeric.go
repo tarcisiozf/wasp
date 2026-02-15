@@ -67,6 +67,31 @@ func eqz[T ints](ctx *execution.Context) error {
 	return nil
 }
 
+func ne[T number](ctx *execution.Context) error {
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
+	if a != b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func xor[T ints](ctx *execution.Context) error {
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
+	ctx.Stack.Push(a ^ b)
+	return nil
+}
+
+func or[T ints](ctx *execution.Context) error {
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
+	ctx.Stack.Push(a | b)
+	return nil
+}
+
 func castTypedInt[T number](item any) T {
 	if value, ok := item.(T); ok {
 		return value
@@ -103,12 +128,32 @@ var (
 	I32Mul   = addInstruction(opcodes.I32Mul, mul[int32])
 	I32And   = addInstruction(opcodes.I32And, and[int32])
 	I32Eqz   = addInstruction(opcodes.I32Eqz, eqz[int32])
+	I32Ne    = addInstruction(opcodes.I32Ne, ne[int32])
+	I32Xor   = addInstruction(opcodes.I32Xor, xor[int32])
+	I32Or    = addInstruction(opcodes.I32Or, or[int32])
 
 	I64Const = addInstruction(opcodes.I64Const, intConst[int64])
 	I64Add   = addInstruction(opcodes.I64Add, add[int64])
 	I64Sub   = addInstruction(opcodes.I64Sub, sub[int64])
 	I64Mul   = addInstruction(opcodes.I64Mul, mul[int64])
 	I64Eqz   = addInstruction(opcodes.I64Eqz, eqz[int64])
+	I64Eq    = addInstruction(opcodes.I64Eq, eq[int64])
+	I64Ne    = addInstruction(opcodes.I64Ne, ne[int64])
+	I64And   = addInstruction(opcodes.I64And, and[int64])
+	I64Xor   = addInstruction(opcodes.I64Xor, xor[int64])
+	I64Or    = addInstruction(opcodes.I64Or, or[int64])
+
+	F32Add = addInstruction(opcodes.F32Add, add[float32])
+	F32Sub = addInstruction(opcodes.F32Sub, sub[float32])
+	F32Mul = addInstruction(opcodes.F32Mul, mul[float32])
+	F32Eq  = addInstruction(opcodes.F32Eq, eq[float32])
+	F32Ne  = addInstruction(opcodes.F32Ne, ne[float32])
+
+	F64Add = addInstruction(opcodes.F64Add, add[float64])
+	F64Sub = addInstruction(opcodes.F64Sub, sub[float64])
+	F64Mul = addInstruction(opcodes.F64Mul, mul[float64])
+	F64Eq  = addInstruction(opcodes.F64Eq, eq[float64])
+	F64Ne  = addInstruction(opcodes.F64Ne, ne[float64])
 
 	F32Const = addInstruction(opcodes.F32Const, func(ctx *execution.Context) error {
 		value := ctx.Body.Float32()

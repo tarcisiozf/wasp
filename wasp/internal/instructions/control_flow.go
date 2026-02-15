@@ -7,6 +7,10 @@ import (
 )
 
 var (
+	Unreachable = addInstruction(opcodes.Unreachable, func(ctx *execution.Context) error {
+		return execution.ErrUnreachable
+	})
+
 	Nop = addInstruction(opcodes.Nop, func(ctx *execution.Context) error {
 		return nil
 	})
