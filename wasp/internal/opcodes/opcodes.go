@@ -202,4 +202,6 @@ const (
 	I64ReinterpretF64 = 0xbd
 	F32ReinterpretI32 = 0xbe
 	F64ReinterpretI64 = 0xbf
+
+	I32Extend8S = 0xc0
 )

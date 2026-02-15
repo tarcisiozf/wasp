@@ -355,7 +355,7 @@ func parseCodeSection(module *Module, iter *binary.Iterator) (err error) {
 }
 
 func parseFunction(module *Module, iter *binary.Iterator, index int) (err error) {
-	var offset int
+	var funcOffset int
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -364,7 +364,7 @@ func parseFunction(module *Module, iter *binary.Iterator, index int) (err error)
 			}
 			fmt.Printf("Panic: %v\n", r)
 			fmt.Printf("Function index: %d\n", index)
-			fmt.Printf("Function offset: %x\n", offset)
+			fmt.Printf("Function offset: %x\n", funcOffset)
 			fmt.Printf("Iter offset: %x\n", iter.Position())
 			os.Exit(1)
 		}
@@ -372,7 +372,7 @@ func parseFunction(module *Module, iter *binary.Iterator, index int) (err error)
 
 	bodySize := iter.Varint()
 
-	offset = iter.Position()
+	funcOffset = iter.Position()
 	localDeclCount := iter.Varint()
 	locals := make([]any, 0, localDeclCount)
 	for j := 0; j < localDeclCount; j++ {
@@ -383,9 +383,19 @@ func parseFunction(module *Module, iter *binary.Iterator, index int) (err error)
 			locals = append(locals, localType.Zero())
 		}
 	}
-	bodySize -= iter.Position() - offset // adjust body size after reading local decls
 
-	offset = iter.Position() // update offset to point to start of function body
+	if index == 81 {
+		Foo(
+			iter.Range(funcOffset, funcOffset+bodySize),
+			index,
+			funcOffset,
+		)
+		os.Exit(0)
+	}
+
+	bodySize -= iter.Position() - funcOffset // adjust body size after reading local decls
+
+	bodyOffset := iter.Position() // update offset to point to start of function body
 
 	var body []byte
 	if bodySize == guessSize {
@@ -402,7 +412,7 @@ func parseFunction(module *Module, iter *binary.Iterator, index int) (err error)
 
 	module.functions[index].Locals = locals
 	module.functions[index].Body = body
-	module.functions[index].Offset = offset
+	module.functions[index].Offset = bodyOffset
 	module.functions[index].Blocks = blocks
 	return nil
 }
