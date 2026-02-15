@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"unsafe"
+	"wasp/wasp/internal/opcodes"
 )
 
 type Iterator struct {
@@ -173,13 +174,13 @@ func (it *Iterator) Range(start, end int) []byte {
 	return it.data[start:end]
 }
 
-func (it *Iterator) Opcode() uint16 {
+func (it *Iterator) Opcode() opcodes.Opcode {
 	b := uint16(it.Byte())
 	if b == 0xFC || b == 0xFD {
 		b2 := uint16(it.Byte())
-		return b<<8 | b2
+		return opcodes.Opcode(b<<8 | b2)
 	}
-	return b
+	return opcodes.Opcode(b)
 }
 
 func castPointer[T, S any](bits S) T {

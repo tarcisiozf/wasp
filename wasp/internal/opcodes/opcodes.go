@@ -1,6 +1,6 @@
 package opcodes
 
-type Opcode = uint16
+type Opcode uint16
 
 const (
 	// Control flow instructions

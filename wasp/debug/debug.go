@@ -433,7 +433,7 @@ func funcToString(sb *strings.Builder, iter *binary.Iterator, index int) error {
 }
 
 func g(sb *strings.Builder, offset int, opcode opcodes.Opcode) {
-	f(sb, offset, opcodes.Name(opcode), opcode)
+	f(sb, offset, opcode.String(), opcode)
 }
 
 func isBranchingOpcode(opcode opcodes.Opcode) bool {
@@ -635,6 +635,8 @@ func valueToHex(x any) string {
 		return fmt.Sprintf("%016x", math.Float64bits(x.(float64)))
 	case []byte:
 		return fmt.Sprintf("%x", x.([]byte))
+	case opcodes.Opcode:
+		return valueToHex(uint16(x.(opcodes.Opcode)))
 	default:
 		panic(fmt.Sprintf("unknown type %T", x))
 	}
