@@ -20,6 +20,7 @@ const (
 	verboseShowImportsFlag       = 1 << 1
 	verboseShowExportsFlag       = 1 << 2
 	verboseShowAssemblyFlag      = 1 << 3
+	verboseShowInstructions      = 1 << 4
 )
 
 type InstanceOption func(*Instance) error
@@ -311,6 +312,8 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 		fmt.Printf("Calling function at index %d (0x%x) with params: %v\n", index, index, params)
 	}
 
+	debugEnabled := instance.verbose&verboseShowInstructions != 0 // TODO: precompute
+
 	locals := memory.NewStackWithCapacity[any](numParams + len(fn.Locals))
 	locals.Push(params...)
 	locals.Push(fn.Locals...)
@@ -335,6 +338,8 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 			FunctionCallRequest: -1,
 			BlockStack:          memory.NewStack[execution.BlockFrame](),
 			Blocks:              fn.Blocks,
+
+			Debug: debugEnabled,
 		},
 	}, nil
 }

@@ -34,6 +34,8 @@ type Context struct {
 	BlockStack *memory.Stack[BlockFrame]
 	// Blocks is the precomputed block target map from the function
 	Blocks map[int]fnblock.Target
+
+	Debug bool
 }
 
 func (c *Context) Results() []any {
