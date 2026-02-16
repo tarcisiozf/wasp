@@ -215,4 +215,12 @@ const (
 	MemoryFill Opcode = 0xfc0b
 
 	I32TruncSatF32S Opcode = 0xfc00
+	I32TruncSatF32U Opcode = 0xfc01
+	I32TruncSatF64S Opcode = 0xfc02
+	I32TruncSatF64U Opcode = 0xfc03
+
+	I64TruncSatF32S Opcode = 0xfc04
+	I64TruncSatF32U Opcode = 0xfc05
+	I64TruncSatF64S Opcode = 0xfc06
+	I64TruncSatF64U Opcode = 0xfc07
 )

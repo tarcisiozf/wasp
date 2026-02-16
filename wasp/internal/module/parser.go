@@ -482,7 +482,7 @@ func precomputeBlocks(body []byte) (map[int]fnblock.Target, error) {
 		default:
 			// Skip immediates for other instructions
 			if err := skipParseImmediates(bodyIter, b); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to skip immediates for opcode 0x%x: %w", b, err)
 			}
 		}
 	}
@@ -545,7 +545,9 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) error {
 		opcodes.I32DivS, opcodes.I32DivU, opcodes.I32ShrS, opcodes.I32RemS,
 		opcodes.I32RemU, opcodes.I32Clz, opcodes.I32Ctz, opcodes.I32LeS,
 		opcodes.I32GeS, opcodes.I32Extend16S, opcodes.I32ReinterpretF32,
-		opcodes.I32TruncSatF32S, opcodes.I32Rotr, opcodes.I32Rotl:
+		opcodes.I32TruncSatF32S, opcodes.I32Rotr, opcodes.I32Rotl,
+		opcodes.I32TruncSatF32U, opcodes.I32TruncSatF64S,
+		opcodes.I32TruncSatF64U:
 		// no immediate arguments
 		return nil
 	case opcodes.I64ExtendI32S, opcodes.I64Eqz, opcodes.I64GtU,
@@ -569,7 +571,7 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) error {
 		opcodes.F64ConvertI64S, opcodes.F64ConvertI64U,
 		opcodes.F64Abs, opcodes.F64Lt, opcodes.F64Gt,
 		opcodes.F64Le, opcodes.F64Ge, opcodes.F64Eq,
-		opcodes.F64Ne:
+		opcodes.F64Ne, opcodes.F64Neg:
 		// no immediate arguments
 		return nil
 	case opcodes.F32ConvertI32S, opcodes.F32ConvertI32U, opcodes.F32ConvertI64S,
