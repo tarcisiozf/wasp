@@ -3,6 +3,7 @@ package instructions
 import (
 	"fmt"
 	"math"
+	"math/bits"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/opcodes"
 )
@@ -122,6 +123,28 @@ func lt[T number](ctx *execution.Context) error {
 	return nil
 }
 
+func le[T number](ctx *execution.Context) error {
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
+	if a <= b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func ge[T number](ctx *execution.Context) error {
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
+	if a >= b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
 func abs[T floats](ctx *execution.Context) error {
 	a := castTypedInt[T](ctx.Stack.Pop())
 	if a < 0 {
@@ -129,6 +152,224 @@ func abs[T floats](ctx *execution.Context) error {
 	} else {
 		ctx.Stack.Push(a)
 	}
+	return nil
+}
+
+// Unsigned type mappings
+type unsigned interface {
+	~uint32 | ~uint64
+}
+
+func toUnsigned32(v int32) uint32 { return uint32(v) }
+func toUnsigned64(v int64) uint64 { return uint64(v) }
+
+func divU32(ctx *execution.Context) error {
+	b := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	ctx.Stack.Push(int32(a / b))
+	return nil
+}
+
+func divU64(ctx *execution.Context) error {
+	b := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	a := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	ctx.Stack.Push(int64(a / b))
+	return nil
+}
+
+func remS32(ctx *execution.Context) error {
+	b := castTypedInt[int32](ctx.Stack.Pop())
+	a := castTypedInt[int32](ctx.Stack.Pop())
+	ctx.Stack.Push(a % b)
+	return nil
+}
+
+func remS64(ctx *execution.Context) error {
+	b := castTypedInt[int64](ctx.Stack.Pop())
+	a := castTypedInt[int64](ctx.Stack.Pop())
+	ctx.Stack.Push(a % b)
+	return nil
+}
+
+func remU32(ctx *execution.Context) error {
+	b := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	ctx.Stack.Push(int32(a % b))
+	return nil
+}
+
+func remU64(ctx *execution.Context) error {
+	b := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	a := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	ctx.Stack.Push(int64(a % b))
+	return nil
+}
+
+func ltU32(ctx *execution.Context) error {
+	b := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	if a < b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func ltU64(ctx *execution.Context) error {
+	b := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	a := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	if a < b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func gtU32(ctx *execution.Context) error {
+	b := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	if a > b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func gtU64(ctx *execution.Context) error {
+	b := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	a := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	if a > b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func leU32(ctx *execution.Context) error {
+	b := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	if a <= b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func leU64(ctx *execution.Context) error {
+	b := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	a := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	if a <= b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func geU32(ctx *execution.Context) error {
+	b := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	if a >= b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func geU64(ctx *execution.Context) error {
+	b := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	a := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	if a >= b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func clz32(ctx *execution.Context) error {
+	a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	ctx.Stack.Push(int32(bits.LeadingZeros32(a)))
+	return nil
+}
+
+func clz64(ctx *execution.Context) error {
+	a := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	ctx.Stack.Push(int64(bits.LeadingZeros64(a)))
+	return nil
+}
+
+func ctz32(ctx *execution.Context) error {
+	a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	ctx.Stack.Push(int32(bits.TrailingZeros32(a)))
+	return nil
+}
+
+func ctz64(ctx *execution.Context) error {
+	a := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	ctx.Stack.Push(int64(bits.TrailingZeros64(a)))
+	return nil
+}
+
+func shl32(ctx *execution.Context) error {
+	b := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	ctx.Stack.Push(int32(a << (b % 32)))
+	return nil
+}
+
+func shl64(ctx *execution.Context) error {
+	b := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	a := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	ctx.Stack.Push(int64(a << (b % 64)))
+	return nil
+}
+
+func shrS32(ctx *execution.Context) error {
+	b := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	a := castTypedInt[int32](ctx.Stack.Pop())
+	ctx.Stack.Push(a >> (b % 32))
+	return nil
+}
+
+func shrS64(ctx *execution.Context) error {
+	b := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	a := castTypedInt[int64](ctx.Stack.Pop())
+	ctx.Stack.Push(a >> (b % 64))
+	return nil
+}
+
+func shrU32(ctx *execution.Context) error {
+	b := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	ctx.Stack.Push(int32(a >> (b % 32)))
+	return nil
+}
+
+func shrU64(ctx *execution.Context) error {
+	b := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	a := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	ctx.Stack.Push(int64(a >> (b % 64)))
+	return nil
+}
+
+func rotl32(ctx *execution.Context) error {
+	b := int(castTypedInt[int32](ctx.Stack.Pop()))
+	a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+	ctx.Stack.Push(int32(bits.RotateLeft32(a, b)))
+	return nil
+}
+
+func rotl64(ctx *execution.Context) error {
+	b := int(castTypedInt[int64](ctx.Stack.Pop()))
+	a := toUnsigned64(castTypedInt[int64](ctx.Stack.Pop()))
+	ctx.Stack.Push(int64(bits.RotateLeft64(a, b)))
 	return nil
 }
 
@@ -172,6 +413,23 @@ var (
 	I32Xor   = addInstruction(opcodes.I32Xor, xor[int32])
 	I32Or    = addInstruction(opcodes.I32Or, or[int32])
 	I32Div   = addInstruction(opcodes.I32DivS, div[int32])
+	I32DivU  = addInstruction(opcodes.I32DivU, divU32)
+	I32RemS  = addInstruction(opcodes.I32RemS, remS32)
+	I32RemU  = addInstruction(opcodes.I32RemU, remU32)
+	I32LtS   = addInstruction(opcodes.I32LtS, lt[int32])
+	I32LtU   = addInstruction(opcodes.I32LtU, ltU32)
+	I32GtS   = addInstruction(opcodes.I32GtS, gt[int32])
+	I32GtU   = addInstruction(opcodes.I32GtU, gtU32)
+	I32LeS   = addInstruction(opcodes.I32LeS, le[int32])
+	I32LeU   = addInstruction(opcodes.I32LeU, leU32)
+	I32GeS   = addInstruction(opcodes.I32GeS, ge[int32])
+	I32GeU   = addInstruction(opcodes.I32GeU, geU32)
+	I32Clz   = addInstruction(opcodes.I32Clz, clz32)
+	I32Ctz   = addInstruction(opcodes.I32Ctz, ctz32)
+	I32Shl   = addInstruction(opcodes.I32Shl, shl32)
+	I32ShrS  = addInstruction(opcodes.I32ShrS, shrS32)
+	I32ShrU  = addInstruction(opcodes.I32ShrU, shrU32)
+	I32Rotl  = addInstruction(opcodes.I32Rotl, rotl32)
 
 	I64Const = addInstruction(opcodes.I64Const, intConst[int64])
 	I64Add   = addInstruction(opcodes.I64Add, add[int64])
@@ -184,6 +442,23 @@ var (
 	I64Xor   = addInstruction(opcodes.I64Xor, xor[int64])
 	I64Or    = addInstruction(opcodes.I64Or, or[int64])
 	I64Div   = addInstruction(opcodes.I64DivS, div[int64])
+	I64DivU  = addInstruction(opcodes.I64DivU, divU64)
+	I64RemS  = addInstruction(opcodes.I64RemS, remS64)
+	I64RemU  = addInstruction(opcodes.I64RemU, remU64)
+	I64LtS   = addInstruction(opcodes.I64LtS, lt[int64])
+	I64LtU   = addInstruction(opcodes.I64LtU, ltU64)
+	I64GtS   = addInstruction(opcodes.I64GtS, gt[int64])
+	I64GtU   = addInstruction(opcodes.I64GtU, gtU64)
+	I64LeS   = addInstruction(opcodes.I64LeS, le[int64])
+	I64LeU   = addInstruction(opcodes.I64LeU, leU64)
+	I64GeS   = addInstruction(opcodes.I64GeS, ge[int64])
+	I64GeU   = addInstruction(opcodes.I64GeU, geU64)
+	I64Clz   = addInstruction(opcodes.I64Clz, clz64)
+	I64Ctz   = addInstruction(opcodes.I64Ctz, ctz64)
+	I64Shl   = addInstruction(opcodes.I64Shl, shl64)
+	I64ShrS  = addInstruction(opcodes.I64ShrS, shrS64)
+	I64ShrU  = addInstruction(opcodes.I64ShrU, shrU64)
+	I64Rotl  = addInstruction(opcodes.I64Rotl, rotl64)
 
 	F32Add = addInstruction(opcodes.F32Add, add[float32])
 	F32Sub = addInstruction(opcodes.F32Sub, sub[float32])

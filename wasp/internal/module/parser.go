@@ -529,8 +529,8 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) error {
 		opcodes.I32GeU, opcodes.I32Mul, opcodes.I32LtU, opcodes.I32LtS,
 		opcodes.I32Extend8S, opcodes.I32WrapI64, opcodes.I32ShrU,
 		opcodes.I32DivS, opcodes.I32DivU, opcodes.I32ShrS, opcodes.I32RemS,
-		opcodes.I32RemU, opcodes.I32Clz, opcodes.I32LeS, opcodes.I32GeS,
-		opcodes.I32Extend16S, opcodes.I32ReinterpretF32,
+		opcodes.I32RemU, opcodes.I32Clz, opcodes.I32Ctz, opcodes.I32LeS,
+		opcodes.I32GeS, opcodes.I32Extend16S, opcodes.I32ReinterpretF32,
 		opcodes.I32TruncSatF32S, opcodes.I32Rotr, opcodes.I32Rotl:
 		// no immediate arguments
 		return nil
