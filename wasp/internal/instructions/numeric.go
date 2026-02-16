@@ -2,6 +2,7 @@ package instructions
 
 import (
 	"fmt"
+	"math"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/opcodes"
 )
@@ -213,6 +214,43 @@ var (
 	F64Const = addInstruction(opcodes.F64Const, func(ctx *execution.Context) error {
 		value := ctx.Body.Float64()
 		ctx.Stack.Push(value)
+		return nil
+	})
+
+	F32ConvertI32S = addInstruction(opcodes.F32ConvertI32S, func(ctx *execution.Context) error {
+		a := castTypedInt[int32](ctx.Stack.Pop())
+		ctx.Stack.Push(float32(a))
+		return nil
+	})
+
+	F32ReinterpretI32 = addInstruction(opcodes.F32ReinterpretI32, func(ctx *execution.Context) error {
+		a := castTypedInt[int32](ctx.Stack.Pop())
+		ctx.Stack.Push(math.Float32frombits(uint32(a)))
+		return nil
+	})
+
+	F64ConvertI32S = addInstruction(opcodes.F64ConvertI32S, func(ctx *execution.Context) error {
+		a := castTypedInt[int32](ctx.Stack.Pop())
+		ctx.Stack.Push(float64(a))
+		return nil
+	})
+
+	F64Copysign = addInstruction(opcodes.F64Copysign, func(ctx *execution.Context) error {
+		sign := castTypedInt[float64](ctx.Stack.Pop())
+		mag := castTypedInt[float64](ctx.Stack.Pop())
+		ctx.Stack.Push(math.Copysign(mag, sign))
+		return nil
+	})
+
+	F64PromoteF32 = addInstruction(opcodes.F64PromoteF32, func(ctx *execution.Context) error {
+		a := castTypedInt[float32](ctx.Stack.Pop())
+		ctx.Stack.Push(float64(a))
+		return nil
+	})
+
+	F64ReinterpretI64 = addInstruction(opcodes.F64ReinterpretI64, func(ctx *execution.Context) error {
+		a := castTypedInt[int64](ctx.Stack.Pop())
+		ctx.Stack.Push(math.Float64frombits(uint64(a)))
 		return nil
 	})
 )
