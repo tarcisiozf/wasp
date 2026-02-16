@@ -35,9 +35,6 @@ func (f *Function) Call(ctx *execution.Context) error {
 		if ctx.FunctionCallRequest >= 0 {
 			return nil // pause execution to handle function call
 		}
-		if ctx.TailCall {
-			return nil // pause execution to handle tail call optimization
-		}
 	}
 	return nil
 }

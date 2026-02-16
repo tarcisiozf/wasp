@@ -157,6 +157,9 @@ func (instance *Instance) enqueueCall(fnIndex int, stack *memory.Stack[any]) (*e
 }
 
 func (instance *Instance) Tick() error {
+	// Keep track of the original/root frame for tail calls
+	var rootFrame *execution.CallFrame
+
 	for !instance.callStack.IsEmpty() {
 		callFrame := instance.callStack.Top()
 
@@ -165,6 +168,13 @@ func (instance *Instance) Tick() error {
 
 			// forward call results to previous frame if it exists
 			prev := instance.callStack.Top()
+			if prev == nil && rootFrame != nil {
+				// No previous frame but we have a root frame from a tail call chain
+				// Copy results to the root frame
+				rootFrame.Context.Done = true
+				prev = rootFrame
+			}
+
 			if prev != nil {
 				results := callFrame.Context.Results()
 				prev.Context.Stack.Push(results...)
@@ -178,18 +188,23 @@ func (instance *Instance) Tick() error {
 		}
 
 		if callFrame.Context.FunctionCallRequest >= 0 {
-			_, err := instance.enqueueCall(
-				callFrame.Context.FunctionCallRequest,
-				callFrame.Context.Stack,
-			)
-			if err != nil {
-				return fmt.Errorf("failed to enqueue call function at index %d: %w", callFrame.Context.FunctionCallRequest, err)
-			}
+			fnIndex := callFrame.Context.FunctionCallRequest
 			callFrame.Context.FunctionCallRequest = -1
-		}
 
-		if callFrame.Context.TailCall {
+			if callFrame.Context.TailCall {
+				// For tail calls, remember the root frame if this is the first in the chain
+				if rootFrame == nil {
+					rootFrame = callFrame
+				}
+				instance.callStack.Pop()
+				callFrame.Context.TailCall = false
+			}
 
+			stack := callFrame.Context.Stack
+
+			if _, err := instance.enqueueCall(fnIndex, stack); err != nil {
+				return fmt.Errorf("failed to enqueue call function at index %d: %w", fnIndex, err)
+			}
 		}
 	}
 	return nil
