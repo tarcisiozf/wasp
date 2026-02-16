@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"iter"
 	"os"
 	"wasp/cmd/manjola/ast"
 	"wasp/cmd/manjola/lex"
@@ -21,10 +22,39 @@ func main() {
 	}
 
 	lexer := lex.NewLexer(file)
-	rootNodes := ast.Parse(lexer)
+	program := ast.Parse(lexer)
+	module, ok := FindByType[*ast.Module](program)
+	if !ok {
+		println("Error: no module found in the program")
+	}
+	funcs := FilterChildrenByType[*ast.Func](module)
 
-	for listNode := range ast.WalkType[*ast.Func](rootNodes) {
-		funcStr := ast.Stringify(listNode)
+	for fn := range funcs {
+		funcStr := ast.Stringify(fn)
 		fmt.Println(funcStr)
+	}
+}
+
+func FindByType[T ast.Node](nodes iter.Seq[ast.Node]) (T, bool) {
+	for node := range nodes {
+		switch node.(type) {
+		case T:
+			return node.(T), true
+		}
+	}
+	var zero T
+	return zero, false
+}
+
+func FilterChildrenByType[T ast.Node](parent ast.Node) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for _, child := range parent.Children() {
+			switch child.(type) {
+			case T:
+				if !yield(child.(T)) {
+					return
+				}
+			}
+		}
 	}
 }
