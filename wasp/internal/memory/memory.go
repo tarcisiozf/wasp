@@ -32,7 +32,7 @@ func (memory *Memory) Clone() *Memory {
 }
 
 func (memory *Memory) Grow(delta int) bool {
-	if delta < 0 || memory.numPages+delta > memory.maxPages {
+	if delta < 0 || (memory.maxPages > 0 && memory.numPages+delta > memory.maxPages) {
 		return false
 	}
 	if delta == 0 {
@@ -64,4 +64,8 @@ func (memory *Memory) Store(offset int, bytes []byte) {
 
 func (memory *Memory) NumPages() int {
 	return memory.numPages
+}
+
+func (memory *Memory) PageSize() int {
+	return pageSize
 }
