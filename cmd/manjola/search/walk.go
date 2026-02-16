@@ -1,15 +1,16 @@
-package ast
+package search
 
 import (
 	"iter"
+	"wasp/cmd/manjola/ast"
 )
 
-func Walk(seq iter.Seq[Node]) iter.Seq[Node] {
-	var queue []Node
+func Walk(seq iter.Seq[ast.Node]) iter.Seq[ast.Node] {
+	var queue []ast.Node
 	for n := range seq {
 		queue = append(queue, n)
 	}
-	return func(yield func(Node) bool) {
+	return func(yield func(ast.Node) bool) {
 		for len(queue) > 0 {
 			node := queue[0]
 			queue = queue[1:]
@@ -26,7 +27,7 @@ func Walk(seq iter.Seq[Node]) iter.Seq[Node] {
 	}
 }
 
-func WalkType[T any](seq iter.Seq[Node]) iter.Seq[T] {
+func WalkType[T ast.Node](seq iter.Seq[ast.Node]) iter.Seq[T] {
 	return func(yield func(T) bool) {
 		for node := range Walk(seq) {
 			switch node.(type) {
