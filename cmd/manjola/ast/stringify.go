@@ -19,7 +19,7 @@ func s(sb *strings.Builder, depth int, node Node) {
 		sb.WriteByte('(')
 		if list.ElemType != "" {
 			sb.WriteString(list.ElemType)
-			sb.WriteByte('\n')
+			sb.WriteByte(' ')
 		}
 		for _, child := range list.Children {
 			s(sb, depth+1, child)

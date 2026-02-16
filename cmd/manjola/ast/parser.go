@@ -2,19 +2,23 @@ package ast
 
 import (
 	"fmt"
+	"iter"
 	"wasp/cmd/manjola/lex"
 )
 
-func Parse(lexer *lex.Lexer) []Node {
-	var nodes []Node
-	for lexer.HasNext() {
-		node := parse(lexer)
-		if node != nil {
-			nodes = append(nodes, node)
+func Parse(lexer *lex.Lexer) iter.Seq[Node] {
+	return func(yield func(Node) bool) {
+		for lexer.HasNext() {
+			node := parse(lexer)
+			if node == nil {
+				return
+			}
+
+			if !yield(node) {
+				return
+			}
 		}
 	}
-
-	return nodes
 }
 
 func parse(lexer *lex.Lexer) Node {
