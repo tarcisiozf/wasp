@@ -7,16 +7,23 @@ import (
 
 func Stringify(node Node) string {
 	var sb strings.Builder
-	s(&sb, node)
+	s(&sb, 0, node)
 	return sb.String()
 }
 
-func s(sb *strings.Builder, node Node) {
+func s(sb *strings.Builder, depth int, node Node) {
 	switch node.(type) {
 	case *List:
+		list := node.(*List)
+		elemType := list.ElemType()
+
 		sb.WriteByte('(')
-		for _, child := range node.Children() {
-			s(sb, child)
+		if elemType != "" {
+			sb.WriteString(elemType)
+			sb.WriteByte('\n')
+		}
+		for _, child := range list.Children() {
+			s(sb, depth+1, child)
 			sb.WriteByte(' ')
 		}
 		sb.WriteByte(')')
@@ -30,6 +37,10 @@ func s(sb *strings.Builder, node Node) {
 		sb.WriteString(";; ")
 		sb.WriteString(node.Elem())
 		sb.WriteByte('\n')
+	case *StringLiteral:
+		sb.WriteByte('"')
+		sb.WriteString(node.Elem())
+		sb.WriteByte('"')
 	default:
 		panic(fmt.Sprintf("not implemented: %T", node))
 	}

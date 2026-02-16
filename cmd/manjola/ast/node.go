@@ -1,5 +1,7 @@
 package ast
 
+import "fmt"
+
 type Node interface {
 	Position() int
 	Elem() string
@@ -27,7 +29,7 @@ func (node *BaseNode) Children() []Node {
 }
 
 func (node *BaseNode) ElemType() string {
-	panic("children not supported")
+	panic("elem type not supported")
 }
 
 func (node *BaseNode) String() string {
@@ -65,6 +67,14 @@ func (list *List) Children() []Node {
 	return list.children
 }
 
+func (list *List) String() string {
+	return fmt.Sprintf("List<%s>(%d)", list.elemType, len(list.children))
+}
+
+func (list *List) ElemType() string {
+	return list.elemType
+}
+
 type Keyword struct {
 	BaseNode
 	Keyword string
@@ -73,6 +83,10 @@ type Keyword struct {
 var _ Node = (*Keyword)(nil)
 
 func (k *Keyword) Elem() string {
+	return k.Keyword
+}
+
+func (k *Keyword) String() string {
 	return k.Keyword
 }
 

@@ -103,12 +103,15 @@ func parseList(lexer *lex.Lexer) Node {
 		}
 
 		child := parse(lexer)
-		if child != nil {
-			children = append(children, parse(lexer))
+		if child == nil {
+			break
 		}
+		children = append(children, child)
 	}
 
-	lexer.Assert(')')
+	if lexer.HasNext() {
+		lexer.Assert(')')
+	}
 
 	numChildren := len(children)
 	var elemType string

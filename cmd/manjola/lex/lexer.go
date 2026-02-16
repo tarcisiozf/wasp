@@ -64,6 +64,19 @@ func (lexer *Lexer) Pos() int {
 
 func (lexer *Lexer) Assert(expected ...byte) {
 	offset := lexer.Pos()
+	numBytes := len(expected)
+
+	if offset+numBytes > lexer.size {
+		fmt.Printf(
+			"unexpected end of input at position %d, expected '%s' got '%s'\n",
+			offset,
+			string(expected),
+			string(lexer.Range(offset, offset+numBytes)),
+		)
+		fmt.Println(lexer.String())
+		panic("assertion failed")
+	}
+
 	for i, b := range expected {
 		got := lexer.Byte()
 		if got == b {
@@ -73,9 +86,10 @@ func (lexer *Lexer) Assert(expected ...byte) {
 			"unexpected byte '%c' at position %d, expected '%s' got '%s' at offset %d\n",
 			got, i,
 			string(expected),
-			string(lexer.Range(offset, offset+len(expected)+10)),
+			string(lexer.Range(offset, offset+numBytes+10)),
 			offset,
 		)
+		fmt.Println(lexer.String())
 		panic("assertion failed")
 	}
 }
