@@ -21,6 +21,7 @@ const (
 	verboseShowExportsFlag       = 1 << 2
 	verboseShowAssemblyFlag      = 1 << 3
 	verboseShowInstructions      = 1 << 4
+	verboseShowCustomSection     = 1 << 5
 )
 
 type InstanceOption func(*Instance) error
@@ -34,37 +35,43 @@ func WithLinker(linker *Linker) InstanceOption {
 
 func VerboseShowFunctionCalls() InstanceOption {
 	return func(e *Instance) error {
-		e.verbose |= verboseShowFunctionCallsFlag
+		e.debug.flags |= verboseShowFunctionCallsFlag
 		return nil
 	}
 }
 
 func VerboseShowImports() InstanceOption {
 	return func(e *Instance) error {
-		e.verbose |= verboseShowImportsFlag
+		e.debug.flags |= verboseShowImportsFlag
 		return nil
 	}
 }
 
 func VerboseShowExports() InstanceOption {
 	return func(e *Instance) error {
-		e.verbose |= verboseShowExportsFlag
+		e.debug.flags |= verboseShowExportsFlag
 		return nil
 	}
 }
 
 func VerboseShowAssembly() InstanceOption {
 	return func(e *Instance) error {
-		e.verbose |= verboseShowAssemblyFlag
+		e.debug.flags |= verboseShowAssemblyFlag
 		return nil
 	}
 }
 
 func Verbose() InstanceOption {
 	return func(e *Instance) error {
-		e.verbose = math.MaxUint64
+		e.debug.flags = math.MaxUint64
 		return nil
 	}
+}
+
+type DebugData struct {
+	flags     uint64
+	modules   []string
+	functions []string
 }
 
 type Instance struct {
@@ -75,7 +82,7 @@ type Instance struct {
 	store  *Store
 
 	indexedImportedFunctions []*external.Function
-	verbose                  uint64
+	debug                    DebugData
 
 	callStack *memory.Stack[*execution.CallFrame]
 }
@@ -103,13 +110,13 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 		instance.linker = NewLinker()
 	}
 
-	if instance.verbose&verboseShowAssemblyFlag != 0 {
+	if instance.debug.flags&verboseShowAssemblyFlag != 0 {
 		if err := debug.WasmToString(os.Stdout, module.Wasm()); err != nil {
 			return nil, fmt.Errorf("failed to disassemble module: %w", err)
 		}
 	}
 
-	if instance.verbose&verboseShowImportsFlag != 0 {
+	if instance.debug.flags&verboseShowImportsFlag != 0 {
 		imports := module.Imports()
 		fmt.Printf("Imports (count %d):\n", len(imports))
 		for _, imp := range imports {
@@ -117,11 +124,58 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 		}
 	}
 
-	if instance.verbose&verboseShowExportsFlag != 0 {
+	if instance.debug.flags&verboseShowExportsFlag != 0 {
 		exports := module.Exports()
 		fmt.Printf("Exports (count %d):\n", len(exports))
 		for _, exp := range exports {
 			fmt.Printf("\t%s\n", exp.String())
+		}
+	}
+
+	if instance.debug.flags&verboseShowCustomSection != 0 {
+		sections := module.CustomSections()
+		fmt.Printf("Custom Sections (count %d):\n", len(sections))
+		for name, data := range sections {
+			fmt.Printf("\t%s (size %d bytes)\n", name, len(data))
+		}
+	}
+
+	if instance.debug.flags&verboseShowFunctionCallsFlag != 0 {
+		sections := module.CustomSections()
+		section, ok := sections["name"]
+		if ok {
+			iter := binary.NewIterator(section)
+			for iter.HasNext() {
+				subID := iter.Byte()
+				subSize := iter.Varint()
+
+				switch subID {
+				case 0x00: // module name
+					name := iter.String(iter.Varint())
+					instance.debug.modules = append(instance.debug.modules, name)
+				case 0x01: // function names
+					count := iter.Varint()
+					instance.debug.functions = make([]string, count)
+					for i := 0; i < count; i++ {
+						index := iter.Varint()
+						name := iter.String(iter.Varint())
+						instance.debug.functions[index] = name
+					}
+				//case 0x02: // local names
+				//	funcIndex := iter.Varint()
+				//	count := iter.Varint()
+				//	bar.locals = make([]string, count)
+				//	for i := 0; i < count; i++ {
+				//		index := iter.Varint()
+				//		name := iter.String(iter.Varint())
+				//		bar.locals[index] = name
+				//	}
+				default:
+					// Skip unknown subsection
+					fmt.Printf("\tUnknown Subsection ID: 0x%x (skipping %d bytes)\n", subID, subSize)
+					iter.Bytes(subSize)
+				}
+			}
 		}
 	}
 
@@ -276,7 +330,7 @@ func (instance *Instance) createImportCallFrame(index int, stack *memory.Stack[a
 	}
 	params := stack.Last(numParams)
 
-	if instance.verbose&verboseShowFunctionCallsFlag != 0 {
+	if instance.debug.flags&verboseShowFunctionCallsFlag != 0 {
 		fmt.Printf("Calling imported function at index %d (0x%x) %s with params: %v\n", index, index, extFunc.String(), params)
 	}
 
@@ -307,12 +361,16 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 	}
 	params := stack.Last(numParams)
 
-	if instance.verbose&verboseShowFunctionCallsFlag != 0 {
-		index := index - len(instance.indexedImportedFunctions)
-		fmt.Printf("Calling function at index %d (0x%x) with params: %v\n", index, index, params)
+	if instance.debug.flags&verboseShowFunctionCallsFlag != 0 {
+		localIndex := index - len(instance.indexedImportedFunctions)
+		name := "<unk>"
+		if index < len(instance.debug.functions) {
+			name = instance.debug.functions[index]
+		}
+		fmt.Printf("Calling function at index %d (0x%x) $%s with params: %v\n", localIndex, localIndex, name, params)
 	}
 
-	debugEnabled := instance.verbose&verboseShowInstructions != 0 // TODO: precompute
+	debugEnabled := instance.debug.flags&verboseShowInstructions != 0 // TODO: precompute
 
 	locals := memory.NewStackWithCapacity[any](numParams + len(fn.Locals))
 	locals.Push(params...)
