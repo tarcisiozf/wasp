@@ -276,7 +276,7 @@ func (instance *Instance) createImportCallFrame(index int, stack *memory.Stack[a
 	params := stack.Last(numParams)
 
 	if instance.verbose&verboseShowFunctionCallsFlag != 0 {
-		fmt.Printf("Calling imported function %s with params: %v\n", extFunc.String(), params)
+		fmt.Printf("Calling imported function at index %d (0x%x) %s with params: %v\n", index, index, extFunc.String(), params)
 	}
 
 	return &execution.CallFrame{
@@ -307,7 +307,8 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 	params := stack.Last(numParams)
 
 	if instance.verbose&verboseShowFunctionCallsFlag != 0 {
-		fmt.Printf("Calling function at index %d with params: %v\n", index, params)
+		index := index - len(instance.indexedImportedFunctions)
+		fmt.Printf("Calling function at index %d (0x%x) with params: %v\n", index, index, params)
 	}
 
 	locals := memory.NewStackWithCapacity[any](numParams + len(fn.Locals))
