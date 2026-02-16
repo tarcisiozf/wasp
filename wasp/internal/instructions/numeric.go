@@ -528,4 +528,72 @@ var (
 		ctx.Stack.Push(math.Float64frombits(uint64(a)))
 		return nil
 	})
+
+	// i32 sign extension instructions
+	I32Extend8S = addInstruction(opcodes.I32Extend8S, func(ctx *execution.Context) error {
+		a := castTypedInt[int32](ctx.Stack.Pop())
+		ctx.Stack.Push(int32(int8(a)))
+		return nil
+	})
+
+	I32Extend16S = addInstruction(opcodes.I32Extend16S, func(ctx *execution.Context) error {
+		a := castTypedInt[int32](ctx.Stack.Pop())
+		ctx.Stack.Push(int32(int16(a)))
+		return nil
+	})
+
+	// i32 reinterpret instruction
+	I32ReinterpretF32 = addInstruction(opcodes.I32ReinterpretF32, func(ctx *execution.Context) error {
+		a := castTypedInt[float32](ctx.Stack.Pop())
+		ctx.Stack.Push(int32(math.Float32bits(a)))
+		return nil
+	})
+
+	// i32 truncation instruction
+	I32TruncSatF32S = addInstruction(opcodes.I32TruncSatF32S, func(ctx *execution.Context) error {
+		a := castTypedInt[float32](ctx.Stack.Pop())
+		if math.IsNaN(float64(a)) {
+			ctx.Stack.Push(int32(0))
+		} else if a >= float32(math.MaxInt32) {
+			ctx.Stack.Push(int32(math.MaxInt32))
+		} else if a <= float32(math.MinInt32) {
+			ctx.Stack.Push(int32(math.MinInt32))
+		} else {
+			ctx.Stack.Push(int32(a))
+		}
+		return nil
+	})
+
+	// i32 wrap instruction
+	I32WrapI64 = addInstruction(opcodes.I32WrapI64, func(ctx *execution.Context) error {
+		a := castTypedInt[int64](ctx.Stack.Pop())
+		ctx.Stack.Push(int32(a))
+		return nil
+	})
+
+	// i64 sign extension instructions
+	I64Extend32S = addInstruction(opcodes.I64Extend32S, func(ctx *execution.Context) error {
+		a := castTypedInt[int64](ctx.Stack.Pop())
+		ctx.Stack.Push(int64(int32(a)))
+		return nil
+	})
+
+	I64ExtendI32S = addInstruction(opcodes.I64ExtendI32S, func(ctx *execution.Context) error {
+		a := castTypedInt[int32](ctx.Stack.Pop())
+		ctx.Stack.Push(int64(a))
+		return nil
+	})
+
+	I64ExtendI32U = addInstruction(opcodes.I64ExtendI32U, func(ctx *execution.Context) error {
+		a := castTypedInt[int32](ctx.Stack.Pop())
+		ctx.Stack.Push(int64(uint32(a)))
+		return nil
+	})
+
+	// i64 reinterpret instruction
+	I64ReinterpretF64 = addInstruction(opcodes.I64ReinterpretF64, func(ctx *execution.Context) error {
+		a := castTypedInt[float64](ctx.Stack.Pop())
+		ctx.Stack.Push(int64(math.Float64bits(a)))
+		return nil
+	})
 )

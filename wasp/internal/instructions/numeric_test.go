@@ -752,3 +752,291 @@ func TestI64ShiftRotate(t *testing.T) {
 	assert.Equal(t, int64(12), results[3])
 	assert.Equal(t, int64(2), results[4])
 }
+
+func TestI32Extend8S(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i32 i32 i32)
+			i32.const 127
+			i32.extend8_s
+			i32.const 128
+			i32.extend8_s
+			i32.const 255
+			i32.extend8_s
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// 127 stays 127, 128 becomes -128, 255 becomes -1
+	assert.Len(t, results, 3)
+	assert.Equal(t, int32(127), results[0])
+	assert.Equal(t, int32(-128), results[1])
+	assert.Equal(t, int32(-1), results[2])
+}
+
+func TestI32Extend16S(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i32 i32 i32)
+			i32.const 32767
+			i32.extend16_s
+			i32.const 32768
+			i32.extend16_s
+			i32.const 65535
+			i32.extend16_s
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// 32767 stays 32767, 32768 becomes -32768, 65535 becomes -1
+	assert.Len(t, results, 3)
+	assert.Equal(t, int32(32767), results[0])
+	assert.Equal(t, int32(-32768), results[1])
+	assert.Equal(t, int32(-1), results[2])
+}
+
+func TestI32ReinterpretF32(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i32 i32)
+			f32.const 0.0
+			i32.reinterpret_f32
+			f32.const 1.0
+			i32.reinterpret_f32
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// 0.0 -> 0, 1.0 -> 1065353216
+	assert.Len(t, results, 2)
+	assert.Equal(t, int32(0), results[0])
+	assert.Equal(t, int32(1065353216), results[1])
+}
+
+func TestI32TruncSatF32S(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i32 i32 i32)
+			f32.const 3.7
+			i32.trunc_sat_f32_s
+			f32.const 0.0
+			i32.trunc_sat_f32_s
+			f32.const 1000000000000.0
+			i32.trunc_sat_f32_s
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// 3.7 -> 3, 0.0 -> 0, overflow saturates to max
+	assert.Len(t, results, 3)
+	assert.Equal(t, int32(3), results[0])
+	assert.Equal(t, int32(0), results[1])
+	assert.Equal(t, int32(2147483647), results[2]) // MaxInt32
+}
+
+func TestI32WrapI64(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i32 i32 i32)
+			i64.const 0
+			i32.wrap_i64
+			i64.const 100
+			i32.wrap_i64
+			i64.const 4294967296
+			i32.wrap_i64
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// 0 -> 0, 100 -> 100, 4294967296 wraps to 0
+	assert.Len(t, results, 3)
+	assert.Equal(t, int32(0), results[0])
+	assert.Equal(t, int32(100), results[1])
+	assert.Equal(t, int32(0), results[2])
+}
+
+func TestI64Extend32S(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i64 i64)
+			i64.const 2147483647
+			i64.extend32_s
+			i64.const 2147483648
+			i64.extend32_s
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// 2147483647 stays positive, 2147483648 becomes negative
+	assert.Len(t, results, 2)
+	assert.Equal(t, int64(2147483647), results[0])
+	assert.Equal(t, int64(-2147483648), results[1])
+}
+
+func TestI64ExtendI32S(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i64 i64 i64)
+			i32.const 100
+			i64.extend_i32_s
+			i32.const 0
+			i64.extend_i32_s
+			i32.const 2147483647
+			i64.extend_i32_s
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// Sign extends i32 to i64
+	assert.Len(t, results, 3)
+	assert.Equal(t, int64(100), results[0])
+	assert.Equal(t, int64(0), results[1])
+	assert.Equal(t, int64(2147483647), results[2])
+}
+
+func TestI64ExtendI32U(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i64 i64 i64)
+			i32.const 100
+			i64.extend_i32_u
+			i32.const 0
+			i64.extend_i32_u
+			i32.const 2147483647
+			i64.extend_i32_u
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// Zero extends i32 to i64
+	assert.Len(t, results, 3)
+	assert.Equal(t, int64(100), results[0])
+	assert.Equal(t, int64(0), results[1])
+	assert.Equal(t, int64(2147483647), results[2])
+}
+
+func TestI64ReinterpretF64(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i64 i64)
+			f64.const 0.0
+			i64.reinterpret_f64
+			f64.const 1.0
+			i64.reinterpret_f64
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// 0.0 -> 0, 1.0 -> 4607182418800017408
+	assert.Len(t, results, 2)
+	assert.Equal(t, int64(0), results[0])
+	assert.Equal(t, int64(4607182418800017408), results[1])
+}
