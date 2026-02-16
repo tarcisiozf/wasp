@@ -25,37 +25,26 @@ func WithLinker(linker *Linker) InstanceOption {
 
 type Instance struct {
 	module         *module.Module
-	globals        *memory.Global
-	memories       []*memory.Memory
-	tables         []memory.Table
 	funcSignatures []fnsig.Signature
 
 	linker *Linker
+	store  *Store
 
 	indexedImportedFunctions []*external.Function
 
 	callStack *memory.Stack[*execution.CallFrame]
 }
 
-func NewInstance(module *module.Module, options ...InstanceOption) (*Instance, error) {
-	globals := module.Globals().Clone()
-
-	memories := module.Memories()
-	for i, mem := range memories {
-		memories[i] = mem.Clone()
-	}
-
-	tables := module.Tables()
+func NewInstance(module *module.Module, store *Store, options ...InstanceOption) (*Instance, error) {
 	funcSignatures := module.FunctionSignatures()
 
 	callStack := memory.NewStack[*execution.CallFrame]()
 
 	instance := &Instance{
 		module:         module,
-		globals:        globals,
-		memories:       memories,
-		tables:         tables,
 		funcSignatures: funcSignatures,
+
+		store: store,
 
 		callStack: callStack,
 	}
@@ -247,9 +236,9 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 
 			Stack:          memory.NewStack[any](),
 			Locals:         locals,
-			Globals:        instance.globals,
-			Memories:       instance.memories,
-			Tables:         instance.tables,
+			Globals:        instance.store.Globals,
+			Memories:       instance.store.Memories,
+			Tables:         instance.store.Tables,
 			FuncSignatures: instance.funcSignatures,
 
 			Body:                binary.NewIterator(fn.Body),

@@ -43,6 +43,8 @@ func main() {
 		println(imp.String())
 	}
 
+	store := wasp.NewStore(module)
+
 	linker := wasp.NewLinker()
 	if requiresWasi {
 		sp := wasi.NewWasiSnapshotPreview1()
@@ -54,6 +56,7 @@ func main() {
 
 	instance, err := wasp.NewInstance(
 		module,
+		store,
 		wasp.WithLinker(linker),
 	)
 	if err != nil {

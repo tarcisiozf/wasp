@@ -17,7 +17,7 @@ type Context struct {
 	Locals         *memory.Stack[any]
 	Globals        *memory.Global
 	Memories       []*memory.Memory
-	Tables         []memory.Table
+	Tables         []*memory.Table
 	FuncSignatures []fnsig.Signature
 
 	NumParams  int
