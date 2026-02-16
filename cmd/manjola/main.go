@@ -27,9 +27,8 @@ func main() {
 	if !ok {
 		println("Error: no module found in the program")
 	}
-	funcs := search.FilterChildrenByType[*ast.Func](module)
 
-	for fn := range funcs {
+	for fn := range search.FilterChildrenByType[*ast.Func](module) {
 		funcStr := ast.Stringify(fn)
 		fmt.Println(funcStr)
 	}
