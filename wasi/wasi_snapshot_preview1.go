@@ -1,4 +1,4 @@
-package wasi_snapshot_preview1
+package wasi
 
 import (
 	"crypto/rand"
@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"time"
+	"wasp/wasp"
 )
 
 // WASI error codes
@@ -1095,4 +1096,47 @@ func (sp *WasiSnapshotPreview1) EnvironSizesGet(environCount int32, environBufSi
 	sp.writeUint32(environBufSize, uint32(totalSize))
 
 	return ErrnoSuccess
+}
+
+func (sp *WasiSnapshotPreview1) Register(linker *wasp.Linker) error {
+	var linkerErrors = []error{
+		linker.Define("wasi_snapshot_preview1", "args_get", sp.ArgsGet),
+		linker.Define("wasi_snapshot_preview1", "args_sizes_get", sp.ArgsSizeGet),
+		linker.Define("wasi_snapshot_preview1", "clock_res_get", sp.ClockResGet),
+		linker.Define("wasi_snapshot_preview1", "clock_time_get", sp.ClockTimeGet),
+		linker.Define("wasi_snapshot_preview1", "fd_close", sp.FdClose),
+		linker.Define("wasi_snapshot_preview1", "fd_fdstat_get", sp.FdStatGet),
+		linker.Define("wasi_snapshot_preview1", "fd_fdstat_set_flags", sp.FdStatSetFlags),
+		linker.Define("wasi_snapshot_preview1", "fd_filestat_get", sp.FdFilestatGet),
+		linker.Define("wasi_snapshot_preview1", "fd_filestat_set_size", sp.FdFilestatSetSize),
+		linker.Define("wasi_snapshot_preview1", "fd_filestat_set_times", sp.FdFilestatSetTimes),
+		linker.Define("wasi_snapshot_preview1", "fd_pread", sp.FdPRead),
+		linker.Define("wasi_snapshot_preview1", "fd_prestat_get", sp.FdPrestatGet),
+		linker.Define("wasi_snapshot_preview1", "fd_prestat_dir_name", sp.FdPrestatDirName),
+		linker.Define("wasi_snapshot_preview1", "fd_pwrite", sp.FdPWrite),
+		linker.Define("wasi_snapshot_preview1", "fd_read", sp.FdRead),
+		linker.Define("wasi_snapshot_preview1", "fd_seek", sp.FdSeek),
+		linker.Define("wasi_snapshot_preview1", "fd_write", sp.FdWrite),
+		linker.Define("wasi_snapshot_preview1", "path_create_directory", sp.PathCreateDirectory),
+		linker.Define("wasi_snapshot_preview1", "path_filestat_get", sp.PathFilestatGet),
+		linker.Define("wasi_snapshot_preview1", "path_filestat_set_times", sp.PathFilestatSetTimes),
+		linker.Define("wasi_snapshot_preview1", "path_link", sp.PathLink),
+		linker.Define("wasi_snapshot_preview1", "path_open", sp.PathOpen),
+		linker.Define("wasi_snapshot_preview1", "path_readlink", sp.PathReadLink),
+		linker.Define("wasi_snapshot_preview1", "path_remove_directory", sp.PathRemoveDirectory),
+		linker.Define("wasi_snapshot_preview1", "path_rename", sp.PathRename),
+		linker.Define("wasi_snapshot_preview1", "path_symlink", sp.PathSymlink),
+		linker.Define("wasi_snapshot_preview1", "path_unlink_file", sp.PathUnlinkFile),
+		linker.Define("wasi_snapshot_preview1", "proc_exit", sp.ProcExit),
+		linker.Define("wasi_snapshot_preview1", "random_get", sp.RandomGet),
+		linker.Define("wasi_snapshot_preview1", "fd_readdir", sp.FdReadDir),
+		linker.Define("wasi_snapshot_preview1", "fd_sync", sp.FdSync),
+		linker.Define("wasi_snapshot_preview1", "poll_oneoff", sp.PollOneOf),
+	}
+	for _, err := range linkerErrors {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
