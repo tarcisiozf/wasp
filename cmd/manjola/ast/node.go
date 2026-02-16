@@ -3,7 +3,9 @@ package ast
 type Node interface {
 	Position() int
 	Elem() string
+	ElemType() string
 	Children() []Node
+	String() string
 }
 
 type BaseNode struct {
@@ -21,8 +23,15 @@ func (node *BaseNode) Elem() string {
 }
 
 func (node *BaseNode) Children() []Node {
-	//TODO implement me
 	panic("children not supported")
+}
+
+func (node *BaseNode) ElemType() string {
+	panic("children not supported")
+}
+
+func (node *BaseNode) String() string {
+	panic("string not supported")
 }
 
 type Comment struct {
@@ -46,6 +55,7 @@ func (e *EndComment) Elem() string {
 
 type List struct {
 	BaseNode
+	elemType string
 	children []Node
 }
 
@@ -64,4 +74,15 @@ var _ Node = (*Keyword)(nil)
 
 func (k *Keyword) Elem() string {
 	return k.Keyword
+}
+
+type StringLiteral struct {
+	BaseNode
+	Literal string
+}
+
+var _ Node = (*StringLiteral)(nil)
+
+func (s *StringLiteral) Elem() string {
+	return s.Literal
 }

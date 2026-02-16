@@ -1,5 +1,10 @@
 package lex
 
+import (
+	"fmt"
+	"wasp/cmd/wapo/tokens"
+)
+
 type Lexer struct {
 	data []byte
 	size int
@@ -18,7 +23,7 @@ func (lexer *Lexer) Next() {
 	lexer.pos++
 }
 
-func (lexer *Lexer) byte() byte {
+func (lexer *Lexer) Byte() byte {
 	b := lexer.data[lexer.pos]
 	lexer.pos++
 	return b
@@ -28,10 +33,10 @@ func (lexer *Lexer) Word() string {
 	var bytes []byte
 	for lexer.HasNext() {
 		b := lexer.Current()
-		if IsBlank(b) {
+		if !IsKeywordChar(b) {
 			break
 		}
-		bytes = append(bytes, lexer.byte())
+		bytes = append(bytes, lexer.Byte())
 	}
 	return string(bytes)
 }
@@ -47,7 +52,7 @@ func (lexer *Lexer) ReadUntil(target byte) []byte {
 		if b == target {
 			break
 		}
-		bytes = append(bytes, lexer.byte())
+		bytes = append(bytes, lexer.Byte())
 	}
 
 	return bytes
@@ -57,8 +62,30 @@ func (lexer *Lexer) Pos() int {
 	return lexer.pos
 }
 
+func (lexer *Lexer) Assert(expected ...byte) {
+	offset := lexer.Pos()
+	for i, b := range expected {
+		got := lexer.Byte()
+		if got == b {
+			continue
+		}
+		fmt.Printf(
+			"unexpected byte '%c' at position %d, expected '%s' got '%s' at offset %d\n",
+			got, i,
+			string(expected),
+			string(lexer.Range(offset, offset+len(expected)+10)),
+			offset,
+		)
+		panic("assertion failed")
+	}
+}
+
+func (lexer *Lexer) Range(start, end int) []byte {
+	return lexer.data[start:end]
+}
+
 func IsAlpha(b byte) bool {
-	return b >= 'a' && b <= 'z'
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
 }
 
 func IsNumeric(b byte) bool {
@@ -79,6 +106,65 @@ func IsVar(b byte) bool {
 
 func IsComment(b byte) bool {
 	return b == ';'
+}
+
+func IsKeywordChar(b byte) bool {
+	return IsAlphaNumeric(b) ||
+		IsVar(b) ||
+		b == '.' ||
+		b == '_' ||
+		b == '|' ||
+		b == ':' ||
+		b == '=' ||
+		b == '+'
+}
+
+func (lexer *Lexer) Line(index int) int {
+	var line int
+	for i := 0; i < index; i++ {
+		if lexer.data[i] == tokens.Newline {
+			line++
+		}
+	}
+	return line + 1
+}
+
+func (lexer *Lexer) Col(index int) int {
+	var line int
+	for i := 0; i < index; i++ {
+		if lexer.data[i] == tokens.Newline {
+			line = i
+		}
+	}
+	return index - line
+}
+
+func (lexer *Lexer) String() string {
+	str := fmt.Sprintf("line: %d, col: %d\n", lexer.Line(lexer.pos), lexer.Col(lexer.pos))
+	start := lexer.pos - 20
+	if start < 0 {
+		start = 0
+	}
+	end := lexer.pos + 10
+	if end > lexer.size {
+		end = lexer.size
+	}
+	line := make([]byte, 0, end-start)
+	for i := start; i < end; i++ {
+		if lexer.data[i] == tokens.Newline {
+			line = append(line, '\\', 'n')
+		} else {
+			line = append(line, lexer.data[i])
+		}
+	}
+	str += string(line) + "\n"
+	str += fmt.Sprintf("%s^", string(make([]byte, lexer.pos-start+1)))
+	str += "\n-----------------\n"
+	return str
+}
+
+func (lexer *Lexer) Prev() byte {
+	return lexer.data[lexer.pos-1]
 }
 
 func NewLexer(data []byte) *Lexer {

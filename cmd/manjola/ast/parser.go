@@ -2,91 +2,144 @@ package ast
 
 import (
 	"fmt"
-	"iter"
 	"wasp/cmd/manjola/lex"
 )
 
 func Parse(lexer *lex.Lexer) []Node {
 	var nodes []Node
-	for node := range parse(lexer) {
-		nodes = append(nodes, node)
+	for lexer.HasNext() {
+		node := parse(lexer)
+		if node != nil {
+			nodes = append(nodes, node)
+		}
 	}
 
 	return nodes
 }
 
-func parse(lexer *lex.Lexer) iter.Seq[Node] {
-	return func(yield func(Node) bool) {
-		for lexer.HasNext() {
-			b := lexer.Current()
+func parse(lexer *lex.Lexer) Node {
+	for lexer.HasNext() {
+		b := lexer.Current()
 
-			if b == '(' {
-				yield(parseList(lexer))
-			} else if lex.IsAlphaNumeric(b) || lex.IsVar(b) {
-				yield(parseKeyword(lexer))
-			} else if lex.IsBlank(b) {
-				lexer.Next()
-			} else if lex.IsComment(b) {
-				yield(parseComment(lexer))
-			} else {
-				fmt.Printf("Unexpected byte: '%c'\n", b)
-				panic("unreachable")
-			}
+		if b == '(' {
+			return parseList(lexer)
+		} else if lex.IsKeywordChar(b) {
+			return parseKeyword(lexer)
+		} else if lex.IsBlank(b) {
+			lexer.Next()
+			continue
+		} else if lex.IsComment(b) {
+			return parseComment(lexer)
+		} else if b == '"' {
+			return parseString(lexer)
 		}
+
+		fmt.Printf("Unexpected byte '%c' at position %d\n", b, lexer.Pos())
+		fmt.Println(lexer.String())
+		panic("unreachable")
+	}
+	return nil
+}
+
+func parseString(lexer *lex.Lexer) Node {
+	lexer.Assert('"')
+
+	var literal []byte
+	for lexer.HasNext() {
+		b := lexer.Current()
+		if b == '"' && lexer.Prev() != '\\' {
+			break
+		}
+		literal = append(literal, lexer.Byte())
+	}
+
+	lexer.Assert('"')
+
+	return &StringLiteral{
+		BaseNode{lexer.Pos()},
+		string(literal),
 	}
 }
 
 func parseComment(lexer *lex.Lexer) Node {
-	if lexer.Peek() == ';' {
+	lexer.Assert(';')
+
+	if lexer.Current() == ';' {
 		return &EndComment{
 			BaseNode{lexer.Pos()},
 			string(lexer.ReadUntil('\n')),
 		}
 	}
 
-	lexer.Next()
-
-	return &Comment{
+	comment := &Comment{
 		BaseNode{lexer.Pos()},
 		string(lexer.ReadUntil(';')),
 	}
+
+	lexer.Assert(';', ')')
+
+	return comment
 }
 
 func parseKeyword(lexer *lex.Lexer) Node {
+	pos := lexer.Pos()
+	keyword := lexer.Word()
 	return &Keyword{
-		BaseNode{lexer.Pos()},
-		lexer.Word(),
+		BaseNode{pos},
+		keyword,
 	}
 }
 
 func parseList(lexer *lex.Lexer) Node {
-	if lexer.Current() != '(' {
-		panic("Expected '(' at the beginning of a list")
-	}
+	lexer.Assert('(')
 
 	pos := lexer.Pos()
-	lexer.Next()
 
 	var children []Node
 	for lexer.HasNext() {
-		b := lexer.Peek()
+		b := lexer.Current()
 		if b == ')' {
-			lexer.Next() // consume ')'
 			break
 		}
 
-		for child := range parse(lexer) {
-			children = append(children, child)
+		child := parse(lexer)
+		if child != nil {
+			children = append(children, parse(lexer))
 		}
 	}
 
-	//if len(node.children) > 0 && node.children[0].t == nodeTypeKeyword {
-	//	elemType := node.children[0].elem
-	//	return List{node, elemType}
-	//}
+	lexer.Assert(')')
+
+	numChildren := len(children)
+	var elemType string
+	if numChildren > 0 {
+		first := children[0]
+
+		switch first.(type) {
+		case *Comment:
+			if numChildren == 1 {
+				return first
+			}
+		case *Keyword:
+			if isListType(first.Elem()) {
+				elemType = first.Elem()
+				children = children[1:]
+			}
+		}
+	}
 
 	return &List{
 		BaseNode{pos},
+		elemType,
 		children,
 	}
+}
+
+func isListType(str string) bool {
+	switch str {
+	case "module", "param", "result", "func",
+		"type", "import", "local", "mut":
+		return true
+	}
+	return false
 }
