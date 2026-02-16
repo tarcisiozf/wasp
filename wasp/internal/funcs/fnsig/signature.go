@@ -1,6 +1,7 @@
-package funcs
+package fnsig
 
 import (
+	"bytes"
 	"strings"
 	"wasp/wasp/internal/types"
 )
@@ -8,6 +9,10 @@ import (
 type Signature struct {
 	Params  []byte
 	Results []byte
+}
+
+func (s Signature) Equals(other Signature) bool {
+	return bytes.Equal(s.Params, other.Params) && bytes.Equal(s.Results, other.Results)
 }
 
 func (s Signature) String() string {

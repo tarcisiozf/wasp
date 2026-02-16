@@ -3,11 +3,12 @@ package module
 import (
 	"fmt"
 	"wasp/wasp/internal/funcs"
+	"wasp/wasp/internal/funcs/fnsig"
 	"wasp/wasp/internal/memory"
 )
 
 type Module struct {
-	functionSignatures []funcs.Signature
+	functionSignatures []fnsig.Signature
 	functions          []funcs.Function
 
 	exports map[string]Export
@@ -82,4 +83,17 @@ func (module *Module) Exports() map[string]Export {
 
 func (module *Module) Tables() []memory.Table {
 	return module.tables
+}
+
+// FuncSignatures returns a slice of signatures indexed by function index
+// (imports first, then local functions)
+func (module *Module) FunctionSignatures() []fnsig.Signature {
+	result := make([]fnsig.Signature, len(module.imports)+len(module.functions))
+	for i, imp := range module.imports {
+		result[i] = imp.Signature
+	}
+	for i, fn := range module.functions {
+		result[len(module.imports)+i] = fn.Signature
+	}
+	return result
 }

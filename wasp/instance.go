@@ -5,6 +5,7 @@ import (
 	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/external"
+	"wasp/wasp/internal/funcs/fnsig"
 	"wasp/wasp/internal/memory"
 	"wasp/wasp/internal/module"
 )
@@ -23,10 +24,11 @@ func WithLinker(linker *Linker) InstanceOption {
 }
 
 type Instance struct {
-	module   *module.Module
-	globals  *memory.Global
-	memories []*memory.Memory
-	tables   []memory.Table
+	module         *module.Module
+	globals        *memory.Global
+	memories       []*memory.Memory
+	tables         []memory.Table
+	funcSignatures []fnsig.Signature
 
 	linker *Linker
 
@@ -44,14 +46,16 @@ func NewInstance(module *module.Module, options ...InstanceOption) (*Instance, e
 	}
 
 	tables := module.Tables()
+	funcSignatures := module.FunctionSignatures()
 
 	callStack := memory.NewStack[*execution.CallFrame]()
 
 	instance := &Instance{
-		module:   module,
-		globals:  globals,
-		memories: memories,
-		tables:   tables,
+		module:         module,
+		globals:        globals,
+		memories:       memories,
+		tables:         tables,
+		funcSignatures: funcSignatures,
 
 		callStack: callStack,
 	}
@@ -241,11 +245,12 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 			NumResults: numResults,
 			Params:     params,
 
-			Stack:    memory.NewStack[any](),
-			Locals:   locals,
-			Globals:  instance.globals,
-			Memories: instance.memories,
-			Tables:   instance.tables,
+			Stack:          memory.NewStack[any](),
+			Locals:         locals,
+			Globals:        instance.globals,
+			Memories:       instance.memories,
+			Tables:         instance.tables,
+			FuncSignatures: instance.funcSignatures,
 
 			Body:                binary.NewIterator(fn.Body),
 			FunctionCallRequest: -1,

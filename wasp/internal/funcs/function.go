@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/funcs/fnblock"
+	"wasp/wasp/internal/funcs/fnsig"
 	"wasp/wasp/internal/instructions"
 	"wasp/wasp/internal/opcodes"
 )
 
 type Function struct {
-	Signature Signature
+	Signature fnsig.Signature
 	Locals    []any
 	Body      []byte
 

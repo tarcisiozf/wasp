@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"wasp/wasp/internal/execution"
-	"wasp/wasp/internal/funcs"
+	"wasp/wasp/internal/funcs/fnsig"
 	"wasp/wasp/internal/types"
 )
 
@@ -45,7 +45,7 @@ func (f *Function) call(params []any) ([]any, error) {
 	return anyResults, nil
 }
 
-func (f *Function) CheckSignatureCompatibility(signature funcs.Signature) error {
+func (f *Function) CheckSignatureCompatibility(signature fnsig.Signature) error {
 	numInputs := f.typeOf.NumIn()
 	numExpected := len(signature.Params)
 

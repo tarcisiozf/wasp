@@ -420,6 +420,72 @@ func TestCallIndirect(t *testing.T) {
 	}
 
 	assert.Equal(t, []any{int32(42)}, results)
+
+	// Test calling multiply function (index 1)
+	_, results, err = instance.RunExport("dispatch", 6, 7, 1) // should call func1 (mul)
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+
+	assert.Equal(t, []any{int32(42)}, results)
+}
+
+func TestCallIndirectTypeMismatch(t *testing.T) {
+	testEnv := tests.NewEnvironment(
+		tests.WithWasmtimeBuilder(),
+	)
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  ;; type 0: (i32, i32) -> i32
+		  (type (func (param i32 i32) (result i32)))
+		  ;; type 1: (i32) -> i32
+		  (type (func (param i32) (result i32)))
+		
+		  ;; table 0 with 2 function refs
+		  (table 2 funcref)
+		
+		  ;; func 0 has type 0: (i32, i32) -> i32
+		  (func (param i32 i32) (result i32)
+			local.get 0
+			local.get 1
+			i32.add
+		  )
+		
+		  ;; func 1 has type 1: (i32) -> i32
+		  (func (param i32) (result i32)
+			local.get 0
+			i32.const 2
+			i32.mul
+		  )
+		
+		  ;; initialize table[0]=func0, table[1]=func1
+		  (elem (i32.const 0) 0 1)
+		
+		  ;; This function tries to call func1 (type 1) but uses type 0
+		  (func (export "bad_call") (param i32 i32) (result i32)
+			local.get 0
+			local.get 1
+			;; call table[1] which is func1 (type 1), but expect type 0
+			i32.const 1
+			call_indirect (type 0)
+		  )
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	fmt.Println(build.Asm)
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	// This should fail due to type mismatch
+	_, _, err = instance.RunExport("bad_call", 10, 20)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "type mismatch")
 }
 
 //func TestCall(t *testing.T) {

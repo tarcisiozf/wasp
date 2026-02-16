@@ -2,14 +2,14 @@ package module
 
 import (
 	"fmt"
-	"wasp/wasp/internal/funcs"
+	"wasp/wasp/internal/funcs/fnsig"
 )
 
 type Import struct {
 	ModuleName string
 	FieldName  string
 	Kind       byte
-	Signature  funcs.Signature
+	Signature  fnsig.Signature
 }
 
 func (i Import) String() string {

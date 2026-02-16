@@ -5,6 +5,7 @@ import (
 	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/funcs"
 	"wasp/wasp/internal/funcs/fnblock"
+	"wasp/wasp/internal/funcs/fnsig"
 	"wasp/wasp/internal/memory"
 	"wasp/wasp/internal/opcodes"
 	"wasp/wasp/internal/types"
@@ -326,7 +327,7 @@ func parseFuncType(module *Module, iter *binary.Iterator) error {
 		results[i] = iter.Byte()
 	}
 
-	module.functionSignatures = append(module.functionSignatures, funcs.Signature{
+	module.functionSignatures = append(module.functionSignatures, fnsig.Signature{
 		Params:  params,
 		Results: results,
 	})

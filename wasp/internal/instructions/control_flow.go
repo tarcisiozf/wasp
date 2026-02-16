@@ -156,8 +156,19 @@ var (
 			return execution.ErrUninitializedElement
 		}
 
-		// TODO: Validate that the function signature matches signatureIndex
-		_ = signatureIndex
+		if signatureIndex < 0 || signatureIndex >= len(ctx.FuncSignatures) {
+			return execution.ErrInvalidSignatureIndex
+		}
+		expectedSig := ctx.FuncSignatures[signatureIndex]
+
+		if funcIndex < 0 || funcIndex >= len(ctx.FuncSignatures) {
+			return execution.ErrInvalidFunctionIndex
+		}
+		funcSig := ctx.FuncSignatures[funcIndex]
+
+		if !expectedSig.Equals(funcSig) {
+			return execution.ErrIndirectCallTypeMismatch
+		}
 
 		ctx.FunctionCallRequest = funcIndex
 
