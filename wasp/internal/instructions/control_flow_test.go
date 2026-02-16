@@ -475,3 +475,72 @@ func TestSelect(t *testing.T) {
 
 	assert.Equal(t, []any{int32(20)}, results)
 }
+
+func TestBrTable(t *testing.T) {
+	linker := wasp.NewLinker()
+
+	logSpy := tests.NewSpy()
+	assert.NoError(t, linker.Define("console", "log", logSpy.Called))
+
+	testEnv := tests.NewEnvironment(
+		tests.WithInstanceOptions(
+			wasp.WithLinker(linker),
+		),
+	)
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  ;; Import the browser console object, which you'll need to pass in from JavaScript
+		  (import "console" "log" (func $log (param i32)))
+		
+		  (func
+			;; Label each block for easy reference
+			;; (they can also be referenced by their index)
+			(block $outer_block
+			  (block $middle_block
+				(block $inner_block
+		
+				  ;; Choose which block to break out of based on their order in the br_table
+				  ;; 0 is $inner_block, 1 is $outer_block, 2 is $middle_block
+				  i32.const 0
+		
+				  ;; Create a br_table with three targets
+				  (br_table $inner_block $outer_block $middle_block)
+		
+				  ;; The code will never reach this point since we broke out of the block
+				  unreachable
+		
+				)
+		
+				;; If you jump out of $inner_block but stay in $middle_block,
+				;; 42 will be logged
+				;; If you jump out of $middle_block also,
+				;; by jumping out of either $middle_block or $outer_block,
+				;; this will be skipped
+				i32.const 42
+				call $log
+			  )
+			)
+		  )
+
+		  (start 1)
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	fmt.Println(build.Asm)
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	_, err = instance.RunStart()
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+
+	logSpy.CalledOnce(t)
+	logSpy.FirstCall().CalledWith(t, 42)
+}

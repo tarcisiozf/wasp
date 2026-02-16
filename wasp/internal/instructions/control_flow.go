@@ -85,6 +85,50 @@ var (
 		return nil
 	})
 
+	BrTable = addInstruction(opcodes.BrTable, func(ctx *execution.Context) error {
+		// Read the number of targets
+		numTargets := ctx.Body.Varint()
+
+		// Read all target labels
+		targets := make([]int, numTargets)
+		for i := 0; i < numTargets; i++ {
+			targets[i] = ctx.Body.Varint()
+		}
+
+		// Read the default label
+		defaultLabel := ctx.Body.Varint()
+
+		// Pop the index from the stack
+		index := ctx.Stack.Pop()
+
+		// Convert index to int
+		var idx int
+		switch v := index.(type) {
+		case int32:
+			idx = int(v)
+		case int64:
+			idx = int(v)
+		case uint32:
+			idx = int(v)
+		case uint64:
+			idx = int(v)
+		case int:
+			idx = v
+		default:
+			idx = 0
+		}
+
+		// Select the target label
+		var labelIdx int
+		if idx >= 0 && idx < numTargets {
+			labelIdx = targets[idx]
+		} else {
+			labelIdx = defaultLabel
+		}
+
+		return branchToLabel(ctx, labelIdx)
+	})
+
 	Return = addInstruction(opcodes.Return, func(ctx *execution.Context) error {
 		ctx.Done = true
 		return nil
