@@ -60,7 +60,7 @@ func parseString(lexer *lex.Lexer) Node {
 	lexer.Assert('"')
 
 	return &StringLiteral{
-		BaseNode{lexer.Pos()},
+		BaseNode{lexer.Pos(), nil},
 		string(literal),
 	}
 }
@@ -70,13 +70,13 @@ func parseComment(lexer *lex.Lexer) Node {
 
 	if lexer.Current() == ';' {
 		return &EndComment{
-			BaseNode{lexer.Pos()},
+			BaseNode{lexer.Pos(), nil},
 			string(lexer.ReadUntil('\n')),
 		}
 	}
 
 	comment := &Comment{
-		BaseNode{lexer.Pos()},
+		BaseNode{lexer.Pos(), nil},
 		string(lexer.ReadUntil(';')),
 	}
 
@@ -89,7 +89,7 @@ func parseKeyword(lexer *lex.Lexer) Node {
 	pos := lexer.Pos()
 	keyword := lexer.Word()
 	return &Keyword{
-		BaseNode{pos},
+		BaseNode{pos, nil},
 		keyword,
 	}
 }
@@ -118,7 +118,6 @@ func parseList(lexer *lex.Lexer) Node {
 	}
 
 	numChildren := len(children)
-	var elemType string
 	if numChildren > 0 {
 		first := children[0]
 
@@ -129,25 +128,30 @@ func parseList(lexer *lex.Lexer) Node {
 			}
 		case *Keyword:
 			kw := first.(*Keyword)
-			if isListType(kw.Elem()) {
-				elemType = kw.Elem()
-				children = children[1:]
+			node := tryCastList(pos, kw.Keyword, children[1:])
+			if node != nil {
+				return node
 			}
 		}
 	}
 
 	return &List{
-		BaseNode{pos},
-		elemType,
-		children,
+		BaseNode{pos, children},
 	}
 }
 
-func isListType(str string) bool {
-	switch str {
-	case "module", "param", "result", "func",
-		"type", "import", "local", "mut":
-		return true
+func tryCastList(offset int, t string, children []Node) Node {
+	switch t {
+	case "module":
+		return asListType[Module](offset, children)
+	case "func":
+		return asListType[Func](offset, children)
 	}
-	return false
+	return nil
+}
+
+func asListType[T ListLike](pos int, children []Node) *T {
+	return &T{
+		BaseNode{pos, children},
+	}
 }

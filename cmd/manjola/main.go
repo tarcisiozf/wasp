@@ -23,10 +23,7 @@ func main() {
 	lexer := lex.NewLexer(file)
 	rootNodes := ast.Parse(lexer)
 
-	for listNode := range ast.WalkType[*ast.List](rootNodes) {
-		if listNode.ElemType != "func" {
-			continue
-		}
+	for listNode := range ast.WalkType[*ast.Func](rootNodes) {
 		funcStr := ast.Stringify(listNode)
 		fmt.Println(funcStr)
 	}

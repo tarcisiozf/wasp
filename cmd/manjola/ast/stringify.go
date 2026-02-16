@@ -13,19 +13,8 @@ func Stringify(node Node) string {
 
 func s(sb *strings.Builder, depth int, node Node) {
 	switch node.(type) {
-	case *List:
-		list := node.(*List)
-
-		sb.WriteByte('(')
-		if list.ElemType != "" {
-			sb.WriteString(list.ElemType)
-			sb.WriteByte(' ')
-		}
-		for _, child := range list.Children {
-			s(sb, depth+1, child)
-			sb.WriteByte(' ')
-		}
-		sb.WriteByte(')')
+	case *List, *Module, *Func:
+		writeListLike(sb, depth, node)
 	case *Keyword:
 		sb.WriteString(node.(*Keyword).Keyword)
 	case *Comment:
@@ -43,4 +32,13 @@ func s(sb *strings.Builder, depth int, node Node) {
 	default:
 		panic(fmt.Sprintf("not implemented: %T", node))
 	}
+}
+
+func writeListLike(sb *strings.Builder, depth int, node Node) {
+	sb.WriteByte('(')
+	for _, child := range node.Children() {
+		s(sb, depth+1, child)
+		sb.WriteByte(' ')
+	}
+	sb.WriteByte(')')
 }

@@ -4,17 +4,23 @@ import "fmt"
 
 type Node interface {
 	Position() int
+	Children() []Node
 	String() string
 }
 
 type BaseNode struct {
-	Pos int
+	pos      int
+	children []Node
+}
+
+func (node *BaseNode) Children() []Node {
+	return node.children
 }
 
 var _ Node = (*BaseNode)(nil)
 
 func (node *BaseNode) Position() int {
-	return node.Pos
+	return node.pos
 }
 
 func (node *BaseNode) String() string {
@@ -34,14 +40,12 @@ var _ Node = (*EndComment)(nil)
 
 type List struct {
 	BaseNode
-	ElemType string
-	Children []Node
 }
 
 var _ Node = (*List)(nil)
 
 func (list *List) String() string {
-	return fmt.Sprintf("List<%s>(%d)", list.ElemType, len(list.Children))
+	return fmt.Sprintf("List<%T>(%d)", list, len(list.children))
 }
 
 type Keyword struct {
@@ -50,10 +54,6 @@ type Keyword struct {
 }
 
 var _ Node = (*Keyword)(nil)
-
-func (k *Keyword) Elem() string {
-	return k.Keyword
-}
 
 func (k *Keyword) String() string {
 	return k.Keyword
@@ -68,4 +68,12 @@ var _ Node = (*StringLiteral)(nil)
 
 func (s *StringLiteral) Elem() string {
 	return s.Literal
+}
+
+type Module List
+
+type Func List
+
+type ListLike interface {
+	Module | Func
 }

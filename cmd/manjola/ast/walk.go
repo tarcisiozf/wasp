@@ -18,10 +18,9 @@ func Walk(seq iter.Seq[Node]) iter.Seq[Node] {
 				return
 			}
 
-			switch node.(type) {
-			case *List:
-				list := node.(*List)
-				queue = append(queue, list.Children...)
+			children := node.Children()
+			if len(children) > 0 {
+				queue = append(queue, children...)
 			}
 		}
 	}
