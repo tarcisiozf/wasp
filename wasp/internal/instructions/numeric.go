@@ -99,6 +99,38 @@ func div[T number](ctx *execution.Context) error {
 	return nil
 }
 
+func gt[T number](ctx *execution.Context) error {
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
+	if a > b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func lt[T number](ctx *execution.Context) error {
+	b := castTypedInt[T](ctx.Stack.Pop())
+	a := castTypedInt[T](ctx.Stack.Pop())
+	if a < b {
+		ctx.Stack.Push(1)
+	} else {
+		ctx.Stack.Push(0)
+	}
+	return nil
+}
+
+func abs[T floats](ctx *execution.Context) error {
+	a := castTypedInt[T](ctx.Stack.Pop())
+	if a < 0 {
+		ctx.Stack.Push(-a)
+	} else {
+		ctx.Stack.Push(a)
+	}
+	return nil
+}
+
 func castTypedInt[T number](item any) T {
 	if value, ok := item.(T); ok {
 		return value
@@ -158,6 +190,9 @@ var (
 	F32Eq  = addInstruction(opcodes.F32Eq, eq[float32])
 	F32Ne  = addInstruction(opcodes.F32Ne, ne[float32])
 	F32Div = addInstruction(opcodes.F32Div, div[float32])
+	F32Gt  = addInstruction(opcodes.F32Gt, gt[float32])
+	F32Lt  = addInstruction(opcodes.F32Lt, lt[float32])
+	F32Abs = addInstruction(opcodes.F32Abs, abs[float32])
 
 	F64Add = addInstruction(opcodes.F64Add, add[float64])
 	F64Sub = addInstruction(opcodes.F64Sub, sub[float64])
@@ -165,6 +200,9 @@ var (
 	F64Eq  = addInstruction(opcodes.F64Eq, eq[float64])
 	F64Ne  = addInstruction(opcodes.F64Ne, ne[float64])
 	F64Div = addInstruction(opcodes.F64Div, div[float64])
+	F64Gt  = addInstruction(opcodes.F64Gt, gt[float64])
+	F64Lt  = addInstruction(opcodes.F64Lt, lt[float64])
+	F64Abs = addInstruction(opcodes.F64Abs, abs[float64])
 
 	F32Const = addInstruction(opcodes.F32Const, func(ctx *execution.Context) error {
 		value := ctx.Body.Float32()
