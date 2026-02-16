@@ -7,8 +7,8 @@ import (
 )
 
 func NewModule(binary []byte) (*module.Module, error) {
-	mod := module.NewModule()
-	if err := module.Parse(mod, binary); err != nil {
+	mod := module.NewModule(binary)
+	if err := module.Parse(mod); err != nil {
 		return nil, fmt.Errorf("failed to parse wasm module: %w", err)
 	}
 	return mod, nil

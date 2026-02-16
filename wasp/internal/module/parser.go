@@ -42,8 +42,8 @@ const (
 	funcRef = 0x70
 )
 
-func Parse(module *Module, data []byte) error {
-	iter := binary.NewIterator(data)
+func Parse(module *Module) error {
+	iter := binary.NewIterator(module.wasm)
 
 	binaryMagic := iter.Uint32()
 	if binaryMagic != wasmBinaryMagic {

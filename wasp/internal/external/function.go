@@ -119,6 +119,10 @@ func (f *Function) FieldName() string {
 	return f.fieldName
 }
 
+func (f *Function) String() string {
+	return f.moduleName + "." + f.fieldName
+}
+
 func WrapFunc(moduleName, fieldName string, handler any) (*Function, error) {
 	valueOf := reflect.ValueOf(handler)
 	typeOf := valueOf.Type()

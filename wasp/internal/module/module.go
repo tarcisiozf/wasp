@@ -8,6 +8,8 @@ import (
 )
 
 type Module struct {
+	wasm []byte
+
 	functionSignatures []fnsig.Signature
 	functions          []funcs.Function
 
@@ -23,8 +25,10 @@ type Module struct {
 	memories       []*memory.Memory
 }
 
-func NewModule() *Module {
+func NewModule(wasm []byte) *Module {
 	return &Module{
+		wasm: wasm,
+
 		exports: make(map[string]Export),
 
 		startFuncIndex: -1,
@@ -96,4 +100,8 @@ func (module *Module) FunctionSignatures() []fnsig.Signature {
 		result[len(module.imports)+i] = fn.Signature
 	}
 	return result
+}
+
+func (module *Module) Wasm() []byte {
+	return module.wasm
 }

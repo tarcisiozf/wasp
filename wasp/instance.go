@@ -2,6 +2,8 @@ package wasp
 
 import (
 	"fmt"
+	"math"
+	"wasp/wasp/debug"
 	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/external"
@@ -12,6 +14,11 @@ import (
 
 const (
 	maxCallStackDepth = 1024
+
+	verboseShowFunctionCallsFlag = 1 << 0
+	verboseShowImportsFlag       = 1 << 1
+	verboseShowExportsFlag       = 1 << 2
+	verboseShowAssemblyFlag      = 1 << 3
 )
 
 type InstanceOption func(*Instance) error
@@ -19,6 +26,41 @@ type InstanceOption func(*Instance) error
 func WithLinker(linker *Linker) InstanceOption {
 	return func(e *Instance) error {
 		e.linker = linker
+		return nil
+	}
+}
+
+func VerboseShowFunctionCalls() InstanceOption {
+	return func(e *Instance) error {
+		e.verbose |= verboseShowFunctionCallsFlag
+		return nil
+	}
+}
+
+func VerboseShowImports() InstanceOption {
+	return func(e *Instance) error {
+		e.verbose |= verboseShowImportsFlag
+		return nil
+	}
+}
+
+func VerboseShowExports() InstanceOption {
+	return func(e *Instance) error {
+		e.verbose |= verboseShowExportsFlag
+		return nil
+	}
+}
+
+func VerboseShowAssembly() InstanceOption {
+	return func(e *Instance) error {
+		e.verbose |= verboseShowAssemblyFlag
+		return nil
+	}
+}
+
+func Verbose() InstanceOption {
+	return func(e *Instance) error {
+		e.verbose = math.MaxUint64
 		return nil
 	}
 }
@@ -31,6 +73,7 @@ type Instance struct {
 	store  *Store
 
 	indexedImportedFunctions []*external.Function
+	verbose                  uint64
 
 	callStack *memory.Stack[*execution.CallFrame]
 }
@@ -56,6 +99,28 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 
 	if instance.linker == nil {
 		instance.linker = NewLinker()
+	}
+
+	if instance.verbose&verboseShowAssemblyFlag != 0 {
+		asm, err := debug.WasmToString(module.Wasm())
+		if err != nil {
+			return nil, fmt.Errorf("failed to disassemble module: %w", err)
+		}
+		fmt.Println(asm)
+	}
+
+	if instance.verbose&verboseShowImportsFlag != 0 {
+		fmt.Println("Imports:")
+		for _, imp := range module.Imports() {
+			fmt.Printf("\t%s\n", imp.String())
+		}
+	}
+
+	if instance.verbose&verboseShowExportsFlag != 0 {
+		fmt.Println("Exports:")
+		for _, exp := range module.Exports() {
+			fmt.Printf("\t%s\n", exp.String())
+		}
 	}
 
 	if err := instance.mapImportsToExternalFunctions(); err != nil {
@@ -194,6 +259,10 @@ func (instance *Instance) createImportCallFrame(index int, stack *memory.Stack[a
 	}
 	params := stack.Last(numParams)
 
+	if instance.verbose&verboseShowFunctionCallsFlag != 0 {
+		fmt.Printf("Calling imported function %s with params: %v\n", extFunc.String(), params)
+	}
+
 	return &execution.CallFrame{
 		FunctionIndex: index,
 		Function:      extFunc,
@@ -220,6 +289,10 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 		return nil, fmt.Errorf("not enough parameters on stack for function at index %d: expected %d, got %d", index, numParams, stack.Size())
 	}
 	params := stack.Last(numParams)
+
+	if instance.verbose&verboseShowFunctionCallsFlag != 0 {
+		fmt.Printf("Calling function at index %d with params: %v\n", index, params)
+	}
 
 	locals := memory.NewStackWithCapacity[any](numParams + len(fn.Locals))
 	locals.Push(params...)

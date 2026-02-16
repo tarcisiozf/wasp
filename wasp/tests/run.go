@@ -53,7 +53,9 @@ func (env *Environment) CreateInstance(wasm []byte) (ExecutionResults, error) {
 		return ExecutionResults{}, fmt.Errorf("failed to load module: %w", err)
 	}
 
-	instance, err := wasp.NewInstance(mod, env.instanceOptions...)
+	store := wasp.NewStore(mod)
+
+	instance, err := wasp.NewInstance(mod, store, env.instanceOptions...)
 	if err != nil {
 		return ExecutionResults{}, fmt.Errorf("failed to create instance: %w", err)
 	}

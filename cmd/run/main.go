@@ -25,22 +25,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	println("Exports: ")
-	for _, exp := range module.Exports() {
-		print("\t")
-		println(exp.String())
-	}
-
 	var requiresWasi bool
-
-	println("Imports: ")
 	for _, imp := range module.Imports() {
 		if imp.ModuleName == "wasi_snapshot_preview1" {
 			requiresWasi = true
+			break
 		}
-
-		print("\t")
-		println(imp.String())
 	}
 
 	store := wasp.NewStore(module)
@@ -58,6 +48,7 @@ func main() {
 		module,
 		store,
 		wasp.WithLinker(linker),
+		wasp.Verbose(),
 	)
 	if err != nil {
 		println("Error creating instance of module:", err.Error())
