@@ -183,6 +183,10 @@ func (it *Iterator) Opcode() opcodes.Opcode {
 	return opcodes.Opcode(b)
 }
 
+func (it *Iterator) Move(n int) {
+	it.pos += n
+}
+
 func castPointer[T, S any](bits S) T {
 	return *(*T)(unsafe.Pointer(&bits))
 }

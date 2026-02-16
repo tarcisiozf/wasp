@@ -144,38 +144,7 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 		sections := module.CustomSections()
 		section, ok := sections["name"]
 		if ok {
-			iter := binary.NewIterator(section)
-			for iter.HasNext() {
-				subID := iter.Byte()
-				subSize := iter.Varint()
-
-				switch subID {
-				case 0x00: // module name
-					name := iter.String(iter.Varint())
-					instance.debug.modules = append(instance.debug.modules, name)
-				case 0x01: // function names
-					count := iter.Varint()
-					instance.debug.functions = make([]string, count)
-					for i := 0; i < count; i++ {
-						index := iter.Varint()
-						name := iter.String(iter.Varint())
-						instance.debug.functions[index] = name
-					}
-				//case 0x02: // local names
-				//	funcIndex := iter.Varint()
-				//	count := iter.Varint()
-				//	bar.locals = make([]string, count)
-				//	for i := 0; i < count; i++ {
-				//		index := iter.Varint()
-				//		name := iter.String(iter.Varint())
-				//		bar.locals[index] = name
-				//	}
-				default:
-					// Skip unknown subsection
-					fmt.Printf("\tUnknown Subsection ID: 0x%x (skipping %d bytes)\n", subID, subSize)
-					iter.Bytes(subSize)
-				}
-			}
+			parseCustomSectionName(instance, section)
 		}
 	}
 
@@ -400,4 +369,39 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 			Debug: debugEnabled,
 		},
 	}, nil
+}
+
+func parseCustomSectionName(instance *Instance, section []byte) {
+	iter := binary.NewIterator(section)
+	for iter.HasNext() {
+		subID := iter.Byte()
+		subSize := iter.Varint()
+
+		switch subID {
+		case 0x00: // module name
+			name := iter.String(iter.Varint())
+			instance.debug.modules = append(instance.debug.modules, name)
+		case 0x01: // function names
+			count := iter.Varint()
+			instance.debug.functions = make([]string, count)
+			for i := 0; i < count; i++ {
+				index := iter.Varint()
+				name := iter.String(iter.Varint())
+				instance.debug.functions[index] = name
+			}
+		//case 0x02: // local names
+		//	funcIndex := iter.Varint()
+		//	count := iter.Varint()
+		//	bar.locals = make([]string, count)
+		//	for i := 0; i < count; i++ {
+		//		index := iter.Varint()
+		//		name := iter.String(iter.Varint())
+		//		bar.locals[index] = name
+		//	}
+		default:
+			// Skip unknown subsection
+			fmt.Printf("\tUnknown Subsection ID: 0x%x (skipping %d bytes)\n", subID, subSize)
+			iter.Move(subSize)
+		}
+	}
 }
