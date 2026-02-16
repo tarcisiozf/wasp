@@ -581,3 +581,247 @@ func TestMemoryLoadWithOffset(t *testing.T) {
 
 	assert.Equal(t, []any{int32(42)}, results)
 }
+
+func TestMemoryCopy(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (memory $memory 1)
+		  (export "memory" (memory $memory))
+		
+		  (func (export "test") (result i32)
+			;; Store value 42 at address 0
+			i32.const 0
+			i32.const 42
+			i32.store
+
+			;; Store value 100 at address 4
+			i32.const 4
+			i32.const 100
+			i32.store
+
+			;; Copy 8 bytes from address 0 to address 16
+			i32.const 16   ;; destination
+			i32.const 0    ;; source
+			i32.const 8    ;; size (copy 8 bytes)
+			memory.copy
+
+			;; Load value from address 16 (should be 42)
+			i32.const 16
+			i32.load
+		  )
+
+		  (func (export "test_copy_second") (result i32)
+			;; Load value from address 20 (should be 100, copied from address 4)
+			i32.const 20
+			i32.load
+		  )
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	_, results, err := instance.RunExport("test")
+	if err != nil {
+		t.Fatalf("failed to run export function: %v", err)
+	}
+
+	assert.Equal(t, []any{int32(42)}, results)
+
+	_, results2, err := instance.RunExport("test_copy_second")
+	if err != nil {
+		t.Fatalf("failed to run export function: %v", err)
+	}
+
+	assert.Equal(t, []any{int32(100)}, results2)
+}
+
+func TestMemoryCopyOverlapping(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (memory $memory 1)
+		  (export "memory" (memory $memory))
+		
+		  (func (export "test") (result i32)
+			;; Store values at addresses 0, 4, 8
+			i32.const 0
+			i32.const 1
+			i32.store
+			i32.const 4
+			i32.const 2
+			i32.store
+			i32.const 8
+			i32.const 3
+			i32.store
+
+			;; Copy 8 bytes from address 0 to address 4 (overlapping)
+			i32.const 4    ;; destination
+			i32.const 0    ;; source
+			i32.const 8    ;; size
+			memory.copy
+
+			;; Load value from address 4 (should be 1, originally at address 0)
+			i32.const 4
+			i32.load
+		  )
+
+		  (func (export "test_second") (result i32)
+			;; Load value from address 8 (should be 2, originally at address 4)
+			i32.const 8
+			i32.load
+		  )
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	_, results, err := instance.RunExport("test")
+	if err != nil {
+		t.Fatalf("failed to run export function: %v", err)
+	}
+
+	assert.Equal(t, []any{int32(1)}, results)
+
+	_, results2, err := instance.RunExport("test_second")
+	if err != nil {
+		t.Fatalf("failed to run export function: %v", err)
+	}
+
+	assert.Equal(t, []any{int32(2)}, results2)
+}
+
+func TestMemoryFill(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (memory $memory 1)
+		  (export "memory" (memory $memory))
+		
+		  (func (export "test") (result i32)
+			;; Fill 4 bytes starting at address 0 with value 0x42
+			i32.const 0    ;; destination
+			i32.const 0x42 ;; value (66 in decimal)
+			i32.const 4    ;; size
+			memory.fill
+
+			;; Load from address 0 - should be 0x42424242
+			i32.const 0
+			i32.load
+		  )
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	_, results, err := instance.RunExport("test")
+	if err != nil {
+		t.Fatalf("failed to run export function: %v", err)
+	}
+
+	// 0x42424242 = 1111638594
+	assert.Equal(t, []any{int32(0x42424242)}, results)
+}
+
+func TestMemoryFillZero(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (memory $memory 1)
+		  (export "memory" (memory $memory))
+		
+		  (func (export "test") (result i32)
+			;; First store a non-zero value
+			i32.const 0
+			i32.const 0x12345678
+			i32.store
+
+			;; Fill 4 bytes starting at address 0 with value 0
+			i32.const 0    ;; destination
+			i32.const 0    ;; value
+			i32.const 4    ;; size
+			memory.fill
+
+			;; Load from address 0 - should be 0
+			i32.const 0
+			i32.load
+		  )
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	_, results, err := instance.RunExport("test")
+	if err != nil {
+		t.Fatalf("failed to run export function: %v", err)
+	}
+
+	assert.Equal(t, []any{int32(0)}, results)
+}
+
+func TestMemoryFillPartialWord(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (memory $memory 1)
+		  (export "memory" (memory $memory))
+		
+		  (func (export "test") (result i32)
+			;; First zero out the memory
+			i32.const 0
+			i32.const 0
+			i32.store
+
+			;; Fill only 2 bytes starting at address 0 with value 0xFF
+			i32.const 0    ;; destination
+			i32.const 0xFF ;; value
+			i32.const 2    ;; size (only 2 bytes)
+			memory.fill
+
+			;; Load from address 0 - should be 0x0000FFFF (little-endian)
+			i32.const 0
+			i32.load
+		  )
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	_, results, err := instance.RunExport("test")
+	if err != nil {
+		t.Fatalf("failed to run export function: %v", err)
+	}
+
+	// Only first 2 bytes filled with 0xFF, rest is 0
+	assert.Equal(t, []any{int32(0x0000FFFF)}, results)
+}

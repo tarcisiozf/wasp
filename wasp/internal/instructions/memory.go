@@ -39,6 +39,43 @@ var (
 		return nil
 	})
 
+	MemoryCopy = addInstruction(opcodes.MemoryCopy, func(ctx *execution.Context) error {
+		dstIndex := ctx.Body.Varint()
+		srcIndex := ctx.Body.Varint()
+
+		size := castInt(ctx.Stack.Pop())
+		srcOffset := castInt(ctx.Stack.Pop())
+		dstOffset := castInt(ctx.Stack.Pop())
+
+		src := ctx.Memories[srcIndex]
+		dst := ctx.Memories[dstIndex]
+
+		dst.Store(dstOffset, src.Load(srcOffset, size))
+
+		return nil
+	})
+
+	MemoryFill = addInstruction(opcodes.MemoryFill, func(ctx *execution.Context) error {
+		index := ctx.Body.Varint()
+		size := castInt(ctx.Stack.Pop())
+		value := castInt(ctx.Stack.Pop())
+		offset := castInt(ctx.Stack.Pop())
+
+		if value < 0 || value > 255 {
+			return fmt.Errorf("memory.fill value must be between 0 and 255, got %d", value)
+		}
+
+		chunk := make([]byte, size)
+		for i := range chunk {
+			chunk[i] = byte(value)
+		}
+
+		mem := ctx.Memories[index]
+		mem.Store(offset, chunk)
+
+		return nil
+	})
+
 	// i32.load - load 4 bytes as i32
 	I32Load = addInstruction(opcodes.I32Load, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment (unused, just for validation hints)
