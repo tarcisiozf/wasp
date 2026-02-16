@@ -13,10 +13,6 @@ type instruction struct {
 	Handler handler
 }
 
-func (i instruction) String() any {
-	return fmt.Sprintf("%s(0x%x)", opcodes.Name(i.Opcode), i.Opcode)
-}
-
 var instructions = make([]instruction, 256)
 var extensions = make([]instruction, 20)
 

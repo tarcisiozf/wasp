@@ -30,13 +30,13 @@ func (f *Function) Call(ctx *execution.Context) error {
 		opcode = ctx.Body.Opcode()
 		ix := instructions.Instruction(opcode)
 		if ctx.Debug {
-			fmt.Printf("\t%08x %s\n", f.Offset+pos, ix.String())
+			fmt.Printf("\t%08x:\t%04x\t%s\n", f.Offset+pos, opcode, opcodes.Name(opcode))
 		}
 		if ix.Handler == nil { // TODO: remove before flight
 			return fmt.Errorf("unimplemented instruction: %s (0x%x)", opcodes.Name(opcode), opcode)
 		}
 		if err := ix.Handler(ctx); err != nil {
-			return fmt.Errorf("error executing instruction %s: %w", ix.String(), err)
+			return fmt.Errorf("error executing instruction %x: %w", opcode, err)
 		}
 		if ctx.FunctionCallRequest >= 0 {
 			return nil // pause execution to handle function call
