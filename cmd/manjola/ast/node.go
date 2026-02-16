@@ -4,9 +4,6 @@ import "fmt"
 
 type Node interface {
 	Position() int
-	Elem() string
-	ElemType() string
-	Children() []Node
 	String() string
 }
 
@@ -20,20 +17,8 @@ func (node *BaseNode) Position() int {
 	return node.Pos
 }
 
-func (node *BaseNode) Elem() string {
-	panic("elem not supported")
-}
-
-func (node *BaseNode) Children() []Node {
-	panic("children not supported")
-}
-
-func (node *BaseNode) ElemType() string {
-	panic("elem type not supported")
-}
-
 func (node *BaseNode) String() string {
-	panic("string not supported")
+	panic("String() not implemented")
 }
 
 type Comment struct {
@@ -43,36 +28,20 @@ type Comment struct {
 
 var _ Node = (*Comment)(nil)
 
-func (c *Comment) Elem() string {
-	return c.Comment
-}
-
 type EndComment Comment
 
 var _ Node = (*EndComment)(nil)
 
-func (e *EndComment) Elem() string {
-	return e.Comment
-}
-
 type List struct {
 	BaseNode
-	elemType string
-	children []Node
+	ElemType string
+	Children []Node
 }
 
 var _ Node = (*List)(nil)
 
-func (list *List) Children() []Node {
-	return list.children
-}
-
 func (list *List) String() string {
-	return fmt.Sprintf("List<%s>(%d)", list.elemType, len(list.children))
-}
-
-func (list *List) ElemType() string {
-	return list.elemType
+	return fmt.Sprintf("List<%s>(%d)", list.ElemType, len(list.Children))
 }
 
 type Keyword struct {

@@ -124,8 +124,9 @@ func parseList(lexer *lex.Lexer) Node {
 				return first
 			}
 		case *Keyword:
-			if isListType(first.Elem()) {
-				elemType = first.Elem()
+			kw := first.(*Keyword)
+			if isListType(kw.Elem()) {
+				elemType = kw.Elem()
 				children = children[1:]
 			}
 		}

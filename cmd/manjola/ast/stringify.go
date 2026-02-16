@@ -15,31 +15,30 @@ func s(sb *strings.Builder, depth int, node Node) {
 	switch node.(type) {
 	case *List:
 		list := node.(*List)
-		elemType := list.ElemType()
 
 		sb.WriteByte('(')
-		if elemType != "" {
-			sb.WriteString(elemType)
+		if list.ElemType != "" {
+			sb.WriteString(list.ElemType)
 			sb.WriteByte('\n')
 		}
-		for _, child := range list.Children() {
+		for _, child := range list.Children {
 			s(sb, depth+1, child)
 			sb.WriteByte(' ')
 		}
 		sb.WriteByte(')')
 	case *Keyword:
-		sb.WriteString(node.Elem())
+		sb.WriteString(node.(*Keyword).Keyword)
 	case *Comment:
 		sb.WriteString("(;")
-		sb.WriteString(node.Elem())
+		sb.WriteString(node.(*Comment).Comment)
 		sb.WriteString(";) ")
 	case *EndComment:
 		sb.WriteString(";; ")
-		sb.WriteString(node.Elem())
+		sb.WriteString(node.(*EndComment).Comment)
 		sb.WriteByte('\n')
 	case *StringLiteral:
 		sb.WriteByte('"')
-		sb.WriteString(node.Elem())
+		sb.WriteString(node.(*StringLiteral).Literal)
 		sb.WriteByte('"')
 	default:
 		panic(fmt.Sprintf("not implemented: %T", node))
