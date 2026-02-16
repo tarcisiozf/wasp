@@ -119,7 +119,7 @@ func parseCustomSection(module *Module, iter *binary.Iterator, sectionSize int) 
 	dataLen := sectionSize - bytesRead
 	data := iter.Bytes(dataLen)
 
-	module.customSections = append(module.customSections, CustomSection{
+	module.customSections = append(module.customSections, memory.CustomSection{
 		Name: name,
 		Data: data,
 	})
@@ -154,7 +154,7 @@ func parseDataSection(module *Module, iter *binary.Iterator) error {
 		dataLen := iter.Varint()
 		data := iter.Bytes(dataLen)
 
-		module.data = append(module.data, DataSegment{
+		module.data = append(module.data, memory.DataSegment{
 			MemoryIndex: memoryIndex,
 			Offset:      offset,
 			Data:        data,
@@ -181,12 +181,17 @@ func parseElementSection(module *Module, iter *binary.Iterator) error {
 		offset := iter.Varint()
 		assertOpcode(iter, opcodes.End)
 
-		_ = offset // TODO: store offset info in module struct instead of ignoring
-
 		numElements := iter.Varint()
 		for j := 0; j < numElements; j++ {
 			elementFuncIndex := iter.Varint()
-			_ = elementFuncIndex // TODO: store element info in module struct instead of ignoring
+			// For segment flag 0x0, the table index is implicitly 0
+			tableIndex := 0
+			if tableIndex < len(module.tables) {
+				idx := offset + j
+				if idx < len(module.tables[tableIndex].Elements) {
+					module.tables[tableIndex].Elements[idx] = elementFuncIndex
+				}
+			}
 		}
 	}
 	return nil
@@ -222,10 +227,17 @@ func parseTableSection(module *Module, iter *binary.Iterator) error {
 			maxSize = iter.Varint()
 		}
 
-		module.tables = append(module.tables, Table{
+		// Initialize elements array with -1 (uninitialized)
+		elements := make([]int, initialSize)
+		for j := range elements {
+			elements[j] = -1
+		}
+
+		module.tables = append(module.tables, memory.Table{
 			ElementType: elementType,
 			InitialSize: initialSize,
 			MaxSize:     maxSize,
+			Elements:    elements,
 		})
 	}
 	return nil

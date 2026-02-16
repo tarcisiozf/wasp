@@ -16,6 +16,7 @@ type Context struct {
 	Locals   *memory.Stack[any]
 	Globals  *memory.Global
 	Memories []*memory.Memory
+	Tables   []memory.Table
 
 	NumParams  int
 	NumResults int

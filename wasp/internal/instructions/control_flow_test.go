@@ -362,9 +362,69 @@ func TestCall(t *testing.T) {
 	assert.Equal(t, []any{int32(42)}, results)
 }
 
+func TestCallIndirect(t *testing.T) {
+	testEnv := tests.NewEnvironment(
+		tests.WithWasmtimeBuilder(),
+	)
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  ;; type 0: (i32, i32) -> i32
+		  (type (func (param i32 i32) (result i32)))
+		
+		  ;; table 0 with 2 function refs
+		  (table 2 funcref)
+		
+		  ;; func 0
+		  (func (param i32 i32) (result i32)
+			local.get 0
+			local.get 1
+			i32.add
+		  )
+		
+		  ;; func 1
+		  (func (param i32 i32) (result i32)
+			local.get 0
+			local.get 1
+			i32.mul
+		  )
+		
+		  ;; initialize table[0]=func0, table[1]=func1
+		  (elem (i32.const 0) 0 1)
+		
+		  ;; dispatch(a, b, op) -> i32
+		  (func (export "dispatch") (param i32 i32 i32) (result i32)
+			;; push args first
+			local.get 0
+			local.get 1
+			;; then the table index
+			local.get 2
+			;; indirect call expects the type index (here: 0)
+			call_indirect (type 0)
+		  )
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+
+	fmt.Println(build.Asm)
+
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	_, results, err := instance.RunExport("dispatch", 20, 22, 0) // should call func0 (add)
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+
+	assert.Equal(t, []any{int32(42)}, results)
+}
+
 //func TestCall(t *testing.T) {
 //	testEnv := tests.NewEnvironment(
-//		tests.WithWasmtimeBuild(),
+//		tests.WithWasmtimeBuilder(),
 //	)
 //	build, err := testEnv.BuildWat(t, `
 //		(module

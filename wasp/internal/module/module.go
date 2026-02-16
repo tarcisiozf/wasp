@@ -6,23 +6,6 @@ import (
 	"wasp/wasp/internal/memory"
 )
 
-type DataSegment struct {
-	MemoryIndex int
-	Offset      int
-	Data        []byte
-}
-
-type CustomSection struct {
-	Name string
-	Data []byte
-}
-
-type Table struct {
-	ElementType byte
-	InitialSize int
-	MaxSize     int
-}
-
 type Module struct {
 	functionSignatures []funcs.Signature
 	functions          []funcs.Function
@@ -33,9 +16,9 @@ type Module struct {
 	startFuncIndex int
 
 	globals        memory.Global
-	tables         []Table
-	data           []DataSegment
-	customSections []CustomSection
+	tables         []memory.Table
+	data           []memory.DataSegment
+	customSections []memory.CustomSection
 	memories       []*memory.Memory
 }
 
@@ -95,4 +78,8 @@ func (module *Module) Memories() []*memory.Memory {
 
 func (module *Module) Exports() map[string]Export {
 	return module.exports
+}
+
+func (module *Module) Tables() []memory.Table {
+	return module.tables
 }

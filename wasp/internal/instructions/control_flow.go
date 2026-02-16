@@ -99,29 +99,12 @@ var (
 		defaultLabel := ctx.Body.Varint()
 
 		// Pop the index from the stack
-		index := ctx.Stack.Pop()
-
-		// Convert index to int
-		var idx int
-		switch v := index.(type) {
-		case int32:
-			idx = int(v)
-		case int64:
-			idx = int(v)
-		case uint32:
-			idx = int(v)
-		case uint64:
-			idx = int(v)
-		case int:
-			idx = v
-		default:
-			idx = 0
-		}
+		index := castInt(ctx.Stack.Pop())
 
 		// Select the target label
 		var labelIdx int
-		if idx >= 0 && idx < numTargets {
-			labelIdx = targets[idx]
+		if index >= 0 && index < numTargets {
+			labelIdx = targets[index]
 		} else {
 			labelIdx = defaultLabel
 		}
@@ -144,6 +127,40 @@ var (
 	Call = addInstruction(opcodes.Call, func(ctx *execution.Context) error {
 		functionIndex := ctx.Body.Varint()
 		ctx.FunctionCallRequest = functionIndex
+		return nil
+	})
+
+	CallIndirect = addInstruction(opcodes.CallIndirect, func(ctx *execution.Context) error {
+		signatureIndex := ctx.Body.Varint()
+		tableIndex := ctx.Body.Varint()
+
+		// Pop the element index from the stack
+		elementIndex := castInt(ctx.Stack.Pop())
+
+		// Validate table index
+		if tableIndex < 0 || tableIndex >= len(ctx.Tables) {
+			return execution.ErrInvalidTableIndex
+		}
+		table := ctx.Tables[tableIndex]
+
+		// Validate element index bounds
+		if elementIndex < 0 || elementIndex >= len(table.Elements) {
+			return execution.ErrUndefinedElement
+		}
+
+		// Get the function index from the table
+		funcIndex := table.Elements[elementIndex]
+
+		// Check if the element is initialized (-1 means uninitialized)
+		if funcIndex < 0 {
+			return execution.ErrUninitializedElement
+		}
+
+		// TODO: Validate that the function signature matches signatureIndex
+		_ = signatureIndex
+
+		ctx.FunctionCallRequest = funcIndex
+
 		return nil
 	})
 
