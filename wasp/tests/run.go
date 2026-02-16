@@ -21,7 +21,7 @@ func (r *ExecutionResults) RunExport(name string, args ...any) (*execution.CallF
 }
 
 func (r *ExecutionResults) RunStart() (*execution.CallFrame, error) {
-	fn, err := r.Module.StartFunction()
+	fn, err := r.Module.GetStartFunction()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get start function: %w", err)
 	}

@@ -6,6 +6,8 @@ import (
 	"wasp/wasp/internal/module"
 )
 
+type Module = module.Module
+
 func NewModule(binary []byte) (*module.Module, error) {
 	mod := module.NewModule(binary)
 	if err := module.Parse(mod); err != nil {

@@ -48,7 +48,7 @@ func (module *Module) GetExportedFunction(name string) (int, error) {
 	return export.index, nil
 }
 
-func (module *Module) StartFunction() (int, error) {
+func (module *Module) GetStartFunction() (int, error) {
 	if module.startFuncIndex < 0 {
 		return -1, fmt.Errorf("module does not have a start function")
 	}

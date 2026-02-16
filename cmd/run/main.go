@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"wasp/wasi"
 	"wasp/wasp"
@@ -8,7 +9,7 @@ import (
 
 func main() {
 	args := os.Args[1:]
-	if len(args) != 1 {
+	if len(args) < 1 {
 		println("Usage: run <wasm file>")
 		os.Exit(1)
 	}
@@ -44,23 +45,56 @@ func main() {
 		}
 	}
 
+	var autoRun = true
+	options := []wasp.InstanceOption{
+		wasp.WithLinker(linker),
+	}
+	for _, arg := range args {
+		switch arg {
+		case "--verbose":
+			options = append(options, wasp.Verbose())
+		case "--dry-run":
+			autoRun = false
+		}
+	}
+
 	instance, err := wasp.NewInstance(
 		module,
 		store,
-		wasp.WithLinker(linker),
-		wasp.Verbose(),
+		options...,
 	)
 	if err != nil {
 		println("Error creating instance of module:", err.Error())
 		os.Exit(1)
 	}
 
-	fn, err := module.GetExportedFunction("_start")
-	if err != nil {
-		println("Error getting start function:", err.Error())
-		os.Exit(1)
+	if autoRun {
+		fn, err := findCandidateForStartFunc(module)
+		if err != nil {
+			println("Error getting start function:", err.Error())
+			os.Exit(1)
+		}
+
+		if _, err = instance.Call(fn); err != nil {
+			println("Error calling start function:", err.Error())
+			os.Exit(1)
+		}
+
+		if err := instance.Tick(); err != nil {
+			println("Error ticking instance:", err.Error())
+			os.Exit(1)
+		}
+	}
+}
+
+func findCandidateForStartFunc(module *wasp.Module) (int, error) {
+	if fn, err := module.GetStartFunction(); err == nil {
+		return fn, nil
 	}
 
-	_, _ = instance.Call(fn)
-	_ = instance.Tick()
+	if fn, err := module.GetExportedFunction("_start"); err == nil {
+		return fn, nil
+	}
+
+	return -1, fmt.Errorf("could not find candidate for start function")
 }
