@@ -2,6 +2,7 @@ package debug
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"strings"
 	"wasp/wasp/internal/binary"
@@ -25,23 +26,21 @@ var sections = map[byte]string{
 	0xd: "Tag",
 }
 
-func WasmToString(data []byte) (string, error) {
+func WasmToString(writer io.StringWriter, data []byte) error {
 	iter := binary.NewIterator(data)
 
-	sb := &strings.Builder{}
-
-	f(sb, iter.Position(), "WASM_BINARY_MAGIC", iter.Bytes(4))
-	f(sb, iter.Position(), "WASM_BINARY_VERSION", iter.Bytes(4))
+	f(writer, iter.Position(), "WASM_BINARY_MAGIC", iter.Bytes(4))
+	f(writer, iter.Position(), "WASM_BINARY_VERSION", iter.Bytes(4))
 
 	for iter.HasNext() {
 		pos := iter.Position()
 		sectionID := iter.Byte()
-		sb.WriteString(fmt.Sprintf("; section \"%s\" (%d)\n", sections[sectionID], sectionID))
-		f(sb, pos, "section code", sectionID)
+		writer.WriteString(fmt.Sprintf("; section \"%s\" (%d)\n", sections[sectionID], sectionID))
+		f(writer, pos, "section code", sectionID)
 
 		pos = iter.Position()
 		sectionSize := iter.Varint()
-		f(sb, pos, "section size", sectionSize)
+		f(writer, pos, "section size", sectionSize)
 
 		if sectionSize == 0 {
 			panic("section size is zero")
@@ -50,126 +49,126 @@ func WasmToString(data []byte) (string, error) {
 		var err error
 		switch sectionID {
 		case 0x0: // Custom section
-			sectionCustomToString(sb, iter, sectionSize)
+			sectionCustomToString(writer, iter, sectionSize)
 		case 0x1: // Type section
-			sectionTypeToString(sb, iter)
+			sectionTypeToString(writer, iter)
 		case 0x2: // Import section
-			err = sectionImportToString(sb, iter)
+			err = sectionImportToString(writer, iter)
 		case 0x3: // Function section
-			sectionFunctionToString(sb, iter)
+			sectionFunctionToString(writer, iter)
 		case 0x4: // Table section
-			sectionTableToString(sb, iter)
+			sectionTableToString(writer, iter)
 		case 0x5: // Memory section
-			sectionMemoryToString(sb, iter)
+			sectionMemoryToString(writer, iter)
 		case 0x6: // Global section
-			err = sectionGlobalToString(sb, iter)
+			err = sectionGlobalToString(writer, iter)
 		case 0x7: // Export section
-			sectionExportToString(sb, iter)
+			sectionExportToString(writer, iter)
 		case 0x9: // Element section
-			err = sectionElementToString(sb, iter)
+			err = sectionElementToString(writer, iter)
 		case 0xa: // Code section
-			err = sectionCodeToString(sb, iter)
+			err = sectionCodeToString(writer, iter)
 		case 0xb: // Data section
-			sectionDataToString(sb, iter)
+			sectionDataToString(writer, iter)
 		default:
-			return sb.String(), fmt.Errorf("invalid section type: %x", sectionID)
+			return fmt.Errorf("invalid section type: %x", sectionID)
 		}
 
 		if err != nil {
-			return sb.String(), fmt.Errorf("failed to parse section %s: %v", sections[sectionID], err)
-		}
-	}
-
-	return sb.String(), nil
-}
-
-func sectionDataToString(sb *strings.Builder, iter *binary.Iterator) {
-	pos := iter.Position()
-	numDataSegments := iter.Varint()
-	f(sb, pos, "num data segments", numDataSegments)
-
-	for i := 0; i < numDataSegments; i++ {
-		sb.WriteString(fmt.Sprintf("; data segment header %d\n", i))
-
-		pos = iter.Position()
-		flags := iter.Byte()
-		f(sb, pos, "segment flags", flags)
-
-		pos = iter.Position()
-		opcode := iter.Opcode()
-		g(sb, pos, opcode)
-
-		if err := k(sb, iter, opcode); err != nil {
-			panic(fmt.Sprintf("failed to parse data segment offset expression: %v", err))
-		}
-
-		f(sb, iter.Position(), "end", iter.Opcode())
-
-		pos = iter.Position()
-		dataSize := iter.Varint()
-		f(sb, pos, "data segment size", dataSize)
-
-		pos = iter.Position()
-		data := iter.Bytes(dataSize)
-		sb.WriteString(fmt.Sprintf("; data segment data %d\n", i))
-
-		multi(sb, pos, data)
-	}
-}
-
-func sectionElementToString(sb *strings.Builder, iter *binary.Iterator) error {
-	pos := iter.Position()
-	numElemSegments := iter.Varint()
-	f(sb, pos, "num element segments", numElemSegments)
-
-	for i := 0; i < numElemSegments; i++ {
-		sb.WriteString(fmt.Sprintf("; element segment header %d\n", i))
-
-		pos = iter.Position()
-		segmentFlags := iter.Byte()
-		f(sb, pos, "segment flags", segmentFlags)
-
-		pos = iter.Position()
-		opcode := iter.Opcode()
-		g(sb, pos, opcode)
-
-		if err := k(sb, iter, opcode); err != nil {
-			return err
-		}
-
-		f(sb, iter.Position(), "end", iter.Opcode())
-
-		pos = iter.Position()
-		numElements := iter.Varint()
-		f(sb, pos, "num elements", numElements)
-
-		for i := 0; i < numElements; i++ {
-			f(sb, iter.Position(), "element function index", iter.Varint())
+			return fmt.Errorf("failed to parse section %s: %v", sections[sectionID], err)
 		}
 	}
 
 	return nil
 }
 
-func sectionGlobalToString(sb *strings.Builder, iter *binary.Iterator) (err error) {
+func sectionDataToString(writer io.StringWriter, iter *binary.Iterator) {
+	pos := iter.Position()
+	numDataSegments := iter.Varint()
+	f(writer, pos, "num data segments", numDataSegments)
+
+	for i := 0; i < numDataSegments; i++ {
+		writer.WriteString(fmt.Sprintf("; data segment header %d\n", i))
+
+		pos = iter.Position()
+		flags := iter.Byte()
+		f(writer, pos, "segment flags", flags)
+
+		pos = iter.Position()
+		opcode := iter.Opcode()
+		g(writer, pos, opcode)
+
+		if err := k(writer, iter, opcode); err != nil {
+			panic(fmt.Sprintf("failed to parse data segment offset expression: %v", err))
+		}
+
+		f(writer, iter.Position(), "end", iter.Opcode())
+
+		pos = iter.Position()
+		dataSize := iter.Varint()
+		f(writer, pos, "data segment size", dataSize)
+
+		pos = iter.Position()
+		data := iter.Bytes(dataSize)
+		writer.WriteString(fmt.Sprintf("; data segment data %d\n", i))
+
+		multi(writer, pos, data)
+	}
+}
+
+func sectionElementToString(writer io.StringWriter, iter *binary.Iterator) error {
+	pos := iter.Position()
+	numElemSegments := iter.Varint()
+	f(writer, pos, "num element segments", numElemSegments)
+
+	for i := 0; i < numElemSegments; i++ {
+		writer.WriteString(fmt.Sprintf("; element segment header %d\n", i))
+
+		pos = iter.Position()
+		segmentFlags := iter.Byte()
+		f(writer, pos, "segment flags", segmentFlags)
+
+		pos = iter.Position()
+		opcode := iter.Opcode()
+		g(writer, pos, opcode)
+
+		if err := k(writer, iter, opcode); err != nil {
+			return err
+		}
+
+		f(writer, iter.Position(), "end", iter.Opcode())
+
+		pos = iter.Position()
+		numElements := iter.Varint()
+		f(writer, pos, "num elements", numElements)
+
+		for i := 0; i < numElements; i++ {
+			f(writer, iter.Position(), "element function index", iter.Varint())
+		}
+	}
+
+	return nil
+}
+
+func sectionGlobalToString(writer io.StringWriter, iter *binary.Iterator) (err error) {
 	pos := iter.Position()
 	numGlobals := iter.Varint()
-	f(sb, pos, "num globals", numGlobals)
+	f(writer, pos, "num globals", numGlobals)
 
 	for i := 0; i < numGlobals; i++ {
-		sb.WriteString(fmt.Sprintf("; global %d\n", i))
+		writer.WriteString(fmt.Sprintf("; global %d\n", i))
 
 		pos = iter.Position()
 		contentType := iter.Byte()
-		f(sb, pos, typeToString(contentType), contentType)
+		f(writer, pos, typeToString(contentType), contentType)
 
 		pos = iter.Position()
 		mutability := iter.Byte()
-		f(sb, pos, "global mutability", mutability)
+		f(writer, pos, "global mutability", mutability)
 
 		switch contentType {
 		case 0x7F: // i32
-			err = k(sb, iter, iter.Opcode())
+			err = k(writer, iter, iter.Opcode())
 		default:
 			return fmt.Errorf("unsupported global content type: %02x", contentType)
 		}
@@ -179,139 +178,139 @@ func sectionGlobalToString(sb *strings.Builder, iter *binary.Iterator) (err erro
 		}
 	}
 
-	f(sb, iter.Position(), "global section end opcode", iter.Opcode())
+	f(writer, iter.Position(), "global section end opcode", iter.Opcode())
 
 	return nil
 }
 
-func sectionMemoryToString(sb *strings.Builder, iter *binary.Iterator) {
+func sectionMemoryToString(writer io.StringWriter, iter *binary.Iterator) {
 	pos := iter.Position()
 	numMemories := iter.Varint()
-	f(sb, pos, "num memories", numMemories)
+	f(writer, pos, "num memories", numMemories)
 
 	for i := 0; i < numMemories; i++ {
-		sb.WriteString(fmt.Sprintf("; memory %d\n", i))
+		writer.WriteString(fmt.Sprintf("; memory %d\n", i))
 
 		pos = iter.Position()
 		limitsFlags := iter.Byte()
-		f(sb, pos, "memory limits flags", limitsFlags)
+		f(writer, pos, "memory limits flags", limitsFlags)
 
 		pos = iter.Position()
 		initial := iter.Varint()
-		f(sb, pos, "memory initial size (pages)", initial)
+		f(writer, pos, "memory initial size (pages)", initial)
 
 		if limitsFlags&0x01 != 0 {
 			pos = iter.Position()
 			maximum := iter.Varint()
-			f(sb, pos, "memory maximum size (pages)", maximum)
+			f(writer, pos, "memory maximum size (pages)", maximum)
 		}
 	}
 }
 
-func sectionTableToString(sb *strings.Builder, iter *binary.Iterator) {
+func sectionTableToString(writer io.StringWriter, iter *binary.Iterator) {
 	pos := iter.Position()
 	numTables := iter.Varint()
-	f(sb, pos, "num tables", numTables)
+	f(writer, pos, "num tables", numTables)
 
 	for i := 0; i < numTables; i++ {
-		sb.WriteString(fmt.Sprintf("; table %d", i))
+		writer.WriteString(fmt.Sprintf("; table %d", i))
 
 		pos = iter.Position()
 		elementType := iter.Byte()
-		f(sb, pos, kindToString(elementType), elementType)
+		f(writer, pos, kindToString(elementType), elementType)
 
 		pos = iter.Position()
 		limitsFlags := iter.Byte()
-		f(sb, pos, "table limits flags", limitsFlags)
+		f(writer, pos, "table limits flags", limitsFlags)
 
 		pos = iter.Position()
 		initial := iter.Varint()
-		f(sb, pos, "table initial size", initial)
+		f(writer, pos, "table initial size", initial)
 
 		if limitsFlags&0x01 != 0 {
 			pos = iter.Position()
 			maximum := iter.Varint()
-			f(sb, pos, "table maximum size", maximum)
+			f(writer, pos, "table maximum size", maximum)
 		}
 	}
 }
 
-func sectionImportToString(sb *strings.Builder, iter *binary.Iterator) error {
+func sectionImportToString(writer io.StringWriter, iter *binary.Iterator) error {
 	pos := iter.Position()
 	numImports := iter.Varint()
-	f(sb, pos, "num imports", numImports)
+	f(writer, pos, "num imports", numImports)
 
 	for i := 0; i < numImports; i++ {
-		sb.WriteString(fmt.Sprintf("; import header %d\n", i))
+		writer.WriteString(fmt.Sprintf("; import header %d\n", i))
 
 		pos = iter.Position()
 		moduleLen := iter.Varint()
-		f(sb, pos, "string length", moduleLen)
+		f(writer, pos, "string length", moduleLen)
 
 		pos = iter.Position()
 		module := iter.String(moduleLen)
-		f(sb, pos, fmt.Sprintf("import module name: %s", module), module)
+		f(writer, pos, fmt.Sprintf("import module name: %s", module), module)
 
 		pos = iter.Position()
 		fieldLen := iter.Varint()
-		f(sb, pos, "field string length", fieldLen)
+		f(writer, pos, "field string length", fieldLen)
 
 		pos = iter.Position()
 		field := iter.String(fieldLen)
-		f(sb, pos, fmt.Sprintf("import field: %s", field), field)
+		f(writer, pos, fmt.Sprintf("import field: %s", field), field)
 
 		pos = iter.Position()
 		kind := iter.Byte()
-		f(sb, pos, "import kind", kind)
+		f(writer, pos, "import kind", kind)
 
 		switch kind {
 		case 0x00: // function
 			pos = iter.Position()
 			typeIndex := iter.Varint()
-			f(sb, pos, "import signature index", typeIndex)
+			f(writer, pos, "import signature index", typeIndex)
 
 		//case 0x01: // table
 		//	pos = iter.Position()
 		//	elementType := iter.Byte()
-		//	f(sb, pos, "import table element type", elementType)
+		//	f(writer, pos, "import table element type", elementType)
 		//
 		//	pos = iter.Position()
 		//	limitsFlags := iter.Byte()
-		//	f(sb, pos, "import table limits flags", limitsFlags)
+		//	f(writer, pos, "import table limits flags", limitsFlags)
 		//
 		//	pos = iter.Position()
 		//	initial := iter.Varint()
-		//	f(sb, pos, "import table initial size", initial)
+		//	f(writer, pos, "import table initial size", initial)
 		//
 		//	if limitsFlags&0x01 != 0 {
 		//		pos = iter.Position()
 		//		maximum := iter.Varint()
-		//		f(sb, pos, "import table maximum size", maximum)
+		//		f(writer, pos, "import table maximum size", maximum)
 		//	}
 		//
 		//case 0x02: // memory
 		//	pos = iter.Position()
 		//	limitsFlags := iter.Byte()
-		//	f(sb, pos, "import memory limits flags", limitsFlags)
+		//	f(writer, pos, "import memory limits flags", limitsFlags)
 		//
 		//	pos = iter.Position()
 		//	initial := iter.Varint()
-		//	f(sb, pos, "import memory initial size (pages)", initial)
+		//	f(writer, pos, "import memory initial size (pages)", initial)
 		//
 		//	if limitsFlags&0x01 != 0 {
 		//		pos = iter.Position()
 		//		maximum := iter.Varint()
-		//		f(sb, pos, "import memory maximum size (pages)", maximum)
+		//		f(writer, pos, "import memory maximum size (pages)", maximum)
 		//	}
 		//
 		//case 0x03: // global
 		//	pos = iter.Position()
 		//	contentType := iter.Byte()
-		//	f(sb, pos, "import global content type", contentType)
+		//	f(writer, pos, "import global content type", contentType)
 		//
 		//	pos = iter.Position()
 		//	mutability := iter.Byte()
-		//	f(sb, pos, "import global mutability", mutability)
+		//	f(writer, pos, "import global mutability", mutability)
 
 		default:
 			return fmt.Errorf("unknown import kind: %02x", kind)
@@ -320,15 +319,15 @@ func sectionImportToString(sb *strings.Builder, iter *binary.Iterator) error {
 	return nil
 }
 
-func sectionCustomToString(sb *strings.Builder, iter *binary.Iterator, sectionSize int) {
+func sectionCustomToString(writer io.StringWriter, iter *binary.Iterator, sectionSize int) {
 	startPos := iter.Position()
 
 	nameLen := iter.Varint()
-	f(sb, startPos, "custom section name length", nameLen)
+	f(writer, startPos, "custom section name length", nameLen)
 
 	pos := iter.Position()
 	name := iter.String(nameLen)
-	f(sb, pos, fmt.Sprintf("custom section name: %s", name), name)
+	f(writer, pos, fmt.Sprintf("custom section name: %s", name), name)
 
 	// Calculate remaining bytes in the section
 	bytesRead := iter.Position() - startPos
@@ -336,18 +335,18 @@ func sectionCustomToString(sb *strings.Builder, iter *binary.Iterator, sectionSi
 
 	pos = iter.Position()
 	data := iter.Bytes(dataLen)
-	sb.WriteString(fmt.Sprintf("; custom section data (%d bytes)\n", dataLen))
+	writer.WriteString(fmt.Sprintf("; custom section data (%d bytes)\n", dataLen))
 
-	multi(sb, pos, data)
+	multi(writer, pos, data)
 }
 
-func sectionCodeToString(sb *strings.Builder, iter *binary.Iterator) error {
+func sectionCodeToString(writer io.StringWriter, iter *binary.Iterator) error {
 	pos := iter.Position()
 	numFunctions := iter.Varint()
-	f(sb, pos, "num functions", numFunctions)
+	f(writer, pos, "num functions", numFunctions)
 
 	for i := 0; i < numFunctions; i++ {
-		if err := funcToString(sb, iter, i); err != nil {
+		if err := funcToString(writer, iter, i); err != nil {
 			return fmt.Errorf("failed to parse function %d: %v", i, err)
 		}
 	}
@@ -355,70 +354,70 @@ func sectionCodeToString(sb *strings.Builder, iter *binary.Iterator) error {
 	return nil
 }
 
-func sectionExportToString(sb *strings.Builder, iter *binary.Iterator) {
+func sectionExportToString(writer io.StringWriter, iter *binary.Iterator) {
 	pos := iter.Position()
 	numExports := iter.Varint()
-	f(sb, pos, "num exports", numExports)
+	f(writer, pos, "num exports", numExports)
 
 	for i := 0; i < numExports; i++ {
 		pos = iter.Position()
 		nameLen := iter.Varint()
-		f(sb, pos, "string length", nameLen)
+		f(writer, pos, "string length", nameLen)
 
 		pos = iter.Position()
 		name := iter.String(nameLen)
-		f(sb, pos, fmt.Sprintf("export name %s", name), name)
+		f(writer, pos, fmt.Sprintf("export name %s", name), name)
 
 		pos = iter.Position()
 		kind := iter.Byte()
-		f(sb, pos, "export kind", kind)
+		f(writer, pos, "export kind", kind)
 
 		pos = iter.Position()
 		index := iter.Varint()
-		f(sb, pos, fmt.Sprintf("export %s index", kindToString(kind)), index)
+		f(writer, pos, fmt.Sprintf("export %s index", kindToString(kind)), index)
 	}
 }
 
-func sectionFunctionToString(sb *strings.Builder, iter *binary.Iterator) {
+func sectionFunctionToString(writer io.StringWriter, iter *binary.Iterator) {
 	pos := iter.Position()
 	numFunctions := iter.Varint()
-	f(sb, pos, "num functions", numFunctions)
+	f(writer, pos, "num functions", numFunctions)
 	for i := 0; i < numFunctions; i++ {
 		pos = iter.Position()
 		typeIndex := iter.Varint()
-		f(sb, pos, fmt.Sprintf("function %d signature index", i), typeIndex)
+		f(writer, pos, fmt.Sprintf("function %d signature index", i), typeIndex)
 	}
 }
 
-func sectionTypeToString(sb *strings.Builder, iter *binary.Iterator) {
+func sectionTypeToString(writer io.StringWriter, iter *binary.Iterator) {
 	numTypes := iter.Varint()
-	f(sb, iter.Position(), "num types", numTypes)
+	f(writer, iter.Position(), "num types", numTypes)
 	for i := 0; i < numTypes; i++ {
 		pos := iter.Position()
 		form := iter.Byte()
 
-		sb.WriteString(fmt.Sprintf("; %s type %d\n", typeToString(form), i))
-		f(sb, pos, typeToString(form), form)
+		writer.WriteString(fmt.Sprintf("; %s type %d\n", typeToString(form), i))
+		f(writer, pos, typeToString(form), form)
 
 		switch form {
 		case 0x60: // func type
 			pos = iter.Position()
 			numParams := iter.Varint()
 
-			f(sb, pos, "num params", numParams)
+			f(writer, pos, "num params", numParams)
 			for j := 0; j < numParams; j++ {
 				pos = iter.Position()
 				paramType := iter.Byte()
-				f(sb, pos, typeToString(paramType), paramType)
+				f(writer, pos, typeToString(paramType), paramType)
 			}
 
 			pos = iter.Position()
 			numResults := iter.Varint()
-			f(sb, pos, "num results", numResults)
+			f(writer, pos, "num results", numResults)
 			for j := 0; j < numResults; j++ {
 				pos = iter.Position()
 				resultType := iter.Byte()
-				f(sb, pos, typeToString(resultType), resultType)
+				f(writer, pos, typeToString(resultType), resultType)
 			}
 		default:
 			panic(fmt.Sprintf("unknown type form: %02x", form))
@@ -426,12 +425,12 @@ func sectionTypeToString(sb *strings.Builder, iter *binary.Iterator) {
 	}
 }
 
-func funcToString(sb *strings.Builder, iter *binary.Iterator, index int) error {
-	sb.WriteString(fmt.Sprintf("; function body %d\n", index))
+func funcToString(writer io.StringWriter, iter *binary.Iterator, index int) error {
+	writer.WriteString(fmt.Sprintf("; function body %d\n", index))
 
 	pos := iter.Position()
 	bodySize := iter.Varint()
-	f(sb, pos, "func body size", bodySize)
+	f(writer, pos, "func body size", bodySize)
 
 	if bodySize == 0 {
 		return fmt.Errorf("invalid body size: %d", bodySize)
@@ -439,23 +438,23 @@ func funcToString(sb *strings.Builder, iter *binary.Iterator, index int) error {
 
 	pos = iter.Position()
 	localDeclCount := iter.Varint()
-	f(sb, pos, "local decl count", localDeclCount)
+	f(writer, pos, "local decl count", localDeclCount)
 
 	for i := 0; i < localDeclCount; i++ {
-		f(sb, iter.Position(), "local type count", iter.Varint())
+		f(writer, iter.Position(), "local type count", iter.Varint())
 
 		pos = iter.Position()
 		localType := iter.Byte()
-		f(sb, pos, typeToString(localType), localType)
+		f(writer, pos, typeToString(localType), localType)
 	}
 
 	var depth int
 	for iter.HasNext() {
 		pos = iter.Position()
 		opcode := iter.Opcode()
-		g(sb, pos, opcode)
+		g(writer, pos, opcode)
 
-		err := k(sb, iter, opcode)
+		err := k(writer, iter, opcode)
 		if err != nil {
 			return err
 		}
@@ -472,7 +471,7 @@ func funcToString(sb *strings.Builder, iter *binary.Iterator, index int) error {
 	return nil
 }
 
-func multi(sb *strings.Builder, offset int, data []byte) {
+func multi(writer io.StringWriter, offset int, data []byte) {
 	head := 0
 	for head < len(data) {
 		chunkSize := 16
@@ -482,15 +481,15 @@ func multi(sb *strings.Builder, offset int, data []byte) {
 		chunk := data[head : head+chunkSize]
 		n := len(chunk)
 
-		sb.WriteString(o(offset+head, fmt.Sprintf("%x", chunk)))
-		sb.WriteByte('\n')
+		writer.WriteString(o(offset+head, fmt.Sprintf("%x", chunk)))
+		writer.WriteString("\n")
 
 		head += n
 	}
 }
 
-func g(sb *strings.Builder, offset int, opcode opcodes.Opcode) {
-	f(sb, offset, opcodes.Name(opcode), opcode)
+func g(writer io.StringWriter, offset int, opcode opcodes.Opcode) {
+	f(writer, offset, opcodes.Name(opcode), opcode)
 }
 
 func isBranchingOpcode(opcode opcodes.Opcode) bool {
@@ -499,70 +498,70 @@ func isBranchingOpcode(opcode opcodes.Opcode) bool {
 		opcode == opcodes.Loop
 }
 
-func k(sb *strings.Builder, iter *binary.Iterator, opcode opcodes.Opcode) (err error) {
+func k(writer io.StringWriter, iter *binary.Iterator, opcode opcodes.Opcode) (err error) {
 	switch opcode {
 	case opcodes.GlobalGet, opcodes.GlobalSet:
-		f(sb, iter.Position(), "global index", iter.Varint())
+		f(writer, iter.Position(), "global index", iter.Varint())
 
 	case opcodes.I32Const:
-		f(sb, iter.Position(), "i32 literal", iter.Varint())
+		f(writer, iter.Position(), "i32 literal", iter.Varint())
 
 	case opcodes.I64Const:
-		f(sb, iter.Position(), "i64 literal", iter.Varint())
+		f(writer, iter.Position(), "i64 literal", iter.Varint())
 
 	case opcodes.F64Const:
-		f(sb, iter.Position(), "f64 literal", iter.Float64())
+		f(writer, iter.Position(), "f64 literal", iter.Float64())
 
 	case opcodes.F32Const:
-		f(sb, iter.Position(), "f32 literal", iter.Float32())
+		f(writer, iter.Position(), "f32 literal", iter.Float32())
 
 	case opcodes.LocalTee, opcodes.LocalGet, opcodes.LocalSet:
-		f(sb, iter.Position(), "local index", iter.Varint())
+		f(writer, iter.Position(), "local index", iter.Varint())
 
 	case opcodes.Block, opcodes.Loop:
-		f(sb, iter.Position(), typeToString(iter.Peek()), iter.Byte())
+		f(writer, iter.Position(), typeToString(iter.Peek()), iter.Byte())
 
 	case opcodes.Br, opcodes.BrIf:
-		f(sb, iter.Position(), "break depth", iter.Varint())
+		f(writer, iter.Position(), "break depth", iter.Varint())
 
 	case opcodes.I32Load8U, opcodes.I32Load8S, opcodes.I32Load,
 		opcodes.I64Load, opcodes.I32Load16S, opcodes.I32Load16U,
 		opcodes.I64Load8S, opcodes.I64Load8U, opcodes.I64Load16S,
 		opcodes.I64Load16U, opcodes.I64Load32S, opcodes.I64Load32U,
 		opcodes.F64Load, opcodes.F32Load:
-		f(sb, iter.Position(), "alignment", iter.Byte())
-		f(sb, iter.Position(), "load offset", iter.Varint())
+		f(writer, iter.Position(), "alignment", iter.Byte())
+		f(writer, iter.Position(), "load offset", iter.Varint())
 
 	case opcodes.I32Store, opcodes.I64Store, opcodes.I32Store16,
 		opcodes.I32Store8, opcodes.I64Store16, opcodes.I64Store8,
 		opcodes.I64Store32, opcodes.F64Store, opcodes.F32Store:
-		f(sb, iter.Position(), "alignment", iter.Byte())
-		f(sb, iter.Position(), "store offset", iter.Varint())
+		f(writer, iter.Position(), "alignment", iter.Byte())
+		f(writer, iter.Position(), "store offset", iter.Varint())
 
 	case opcodes.Call, opcodes.ReturnCall:
-		f(sb, iter.Position(), "function index", iter.Varint())
+		f(writer, iter.Position(), "function index", iter.Varint())
 
 	case opcodes.CallIndirect:
-		f(sb, iter.Position(), "signature index", iter.Varint())
-		f(sb, iter.Position(), "table index", iter.Varint())
+		f(writer, iter.Position(), "signature index", iter.Varint())
+		f(writer, iter.Position(), "table index", iter.Varint())
 
 	case opcodes.BrTable:
 		numTargets := iter.Varint()
-		f(sb, iter.Position(), "num targets", numTargets)
+		f(writer, iter.Position(), "num targets", numTargets)
 		for i := 0; i < numTargets; i++ {
-			f(sb, iter.Position(), "break depth", iter.Varint())
+			f(writer, iter.Position(), "break depth", iter.Varint())
 		}
-		f(sb, iter.Position(), "break depth for default", iter.Varint())
+		f(writer, iter.Position(), "break depth for default", iter.Varint())
 
 	case opcodes.MemoryFill, opcodes.MemorySize, opcodes.MemoryGrow:
-		f(sb, iter.Position(), "memidx", iter.Varint())
+		f(writer, iter.Position(), "memidx", iter.Varint())
 
 	case opcodes.MemoryCopy:
-		f(sb, iter.Position(), "dst memidx", iter.Varint())
-		f(sb, iter.Position(), "src memidx", iter.Varint())
+		f(writer, iter.Position(), "dst memidx", iter.Varint())
+		f(writer, iter.Position(), "src memidx", iter.Varint())
 
 	case opcodes.If:
-		f(sb, iter.Position(), typeToString(iter.Peek()), iter.Byte())
+		f(writer, iter.Position(), typeToString(iter.Peek()), iter.Byte())
 
 	case opcodes.I32Sub, opcodes.I32Add, opcodes.I32Or, opcodes.I32Xor,
 		opcodes.I32GtS, opcodes.I32Eqz, opcodes.I32And, opcodes.I32Ne,
@@ -665,9 +664,9 @@ func o(offset int, data string) string {
 	return fmt.Sprintf("%s: %s", p(offset), data)
 }
 
-func f(sb *strings.Builder, offset int, label string, x any) {
+func f(writer io.StringWriter, offset int, label string, x any) {
 	str := o(offset, valueToHex(x))
-	sb.WriteString(fmt.Sprintf("%s; %s\n", pad(str, 50), label))
+	writer.WriteString(fmt.Sprintf("%s; %s\n", pad(str, 50), label))
 }
 
 func pad(str string, n int) string {

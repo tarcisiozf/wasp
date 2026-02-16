@@ -3,6 +3,7 @@ package wasp
 import (
 	"fmt"
 	"math"
+	"strings"
 	"wasp/wasp/debug"
 	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/execution"
@@ -102,11 +103,11 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 	}
 
 	if instance.verbose&verboseShowAssemblyFlag != 0 {
-		asm, err := debug.WasmToString(module.Wasm())
-		if err != nil {
+		var sb strings.Builder
+		if err := debug.WasmToString(&sb, module.Wasm()); err != nil {
 			return nil, fmt.Errorf("failed to disassemble module: %w", err)
 		}
-		fmt.Println(asm)
+		fmt.Println(sb.String())
 	}
 
 	if instance.verbose&verboseShowImportsFlag != 0 {
