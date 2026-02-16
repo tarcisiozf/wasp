@@ -13,23 +13,24 @@ type Module struct {
 	functionSignatures []fnsig.Signature
 	functions          []funcs.Function
 
-	exports map[string]Export
-	imports []Import
+	customSections map[string][]byte
+	exports        map[string]Export
+	imports        []Import
 
 	startFuncIndex int
 
-	globals        memory.Global
-	tables         []memory.Table
-	data           []memory.DataSegment
-	customSections []memory.CustomSection
-	memories       []*memory.Memory
+	globals  memory.Global
+	tables   []memory.Table
+	data     []memory.DataSegment
+	memories []*memory.Memory
 }
 
 func NewModule(wasm []byte) *Module {
 	return &Module{
 		wasm: wasm,
 
-		exports: make(map[string]Export),
+		exports:        make(map[string]Export),
+		customSections: make(map[string][]byte),
 
 		startFuncIndex: -1,
 	}
@@ -104,4 +105,8 @@ func (module *Module) FunctionSignatures() []fnsig.Signature {
 
 func (module *Module) Wasm() []byte {
 	return module.wasm
+}
+
+func (module *Module) CustomSections() map[string][]byte {
+	return module.customSections
 }

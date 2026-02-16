@@ -120,10 +120,7 @@ func parseCustomSection(module *Module, iter *binary.Iterator, sectionSize int) 
 	dataLen := sectionSize - bytesRead
 	data := iter.Bytes(dataLen)
 
-	module.customSections = append(module.customSections, memory.CustomSection{
-		Name: name,
-		Data: data,
-	})
+	module.customSections[name] = append(module.customSections[name], data...)
 	return nil
 }
 
