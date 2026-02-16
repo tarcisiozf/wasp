@@ -1,10 +1,13 @@
 package module
 
+import "fmt"
+
 type Export struct {
-	kind  int
+	name  string
+	kind  byte
 	index int
 }
 
-func (e Export) Kind() int {
-	return e.kind
+func (e Export) String() string {
+	return fmt.Sprintf("%s (kind: 0x%x)", e.name, e.kind)
 }

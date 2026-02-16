@@ -353,12 +353,13 @@ func parseExportSection(module *Module, iter *binary.Iterator) error {
 	for i := 0; i < numExports; i++ {
 		nameLen := iter.Varint()
 		name := iter.String(nameLen)
-		exportKind := iter.Varint() // TODO: check kind
-		exportIndex := iter.Varint()
+		kind := iter.Byte() // TODO: check kind
+		index := iter.Varint()
 
 		module.exports[name] = Export{
-			kind:  exportKind,
-			index: exportIndex,
+			name:  name,
+			kind:  kind,
+			index: index,
 		}
 	}
 	return nil
