@@ -13,7 +13,7 @@ func WithInstanceOptions(opts ...wasp.InstanceOption) EnvironmentOption {
 	}
 }
 
-func WithWasmtimeBuild() EnvironmentOption {
+func WithWasmtimeBuilder() EnvironmentOption {
 	builder := &WasmtimeWatBuilder{}
 	return func(env *Environment) {
 		env.watBuilder = builder
