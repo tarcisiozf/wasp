@@ -3,7 +3,7 @@ package wasp
 import (
 	"fmt"
 	"math"
-	"strings"
+	"os"
 	"wasp/wasp/debug"
 	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/execution"
@@ -103,23 +103,23 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 	}
 
 	if instance.verbose&verboseShowAssemblyFlag != 0 {
-		var sb strings.Builder
-		if err := debug.WasmToString(&sb, module.Wasm()); err != nil {
+		if err := debug.WasmToString(os.Stdout, module.Wasm()); err != nil {
 			return nil, fmt.Errorf("failed to disassemble module: %w", err)
 		}
-		fmt.Println(sb.String())
 	}
 
 	if instance.verbose&verboseShowImportsFlag != 0 {
-		fmt.Println("Imports:")
-		for _, imp := range module.Imports() {
+		imports := module.Imports()
+		fmt.Printf("Imports (count %d):\n", len(imports))
+		for _, imp := range imports {
 			fmt.Printf("\t%s\n", imp.String())
 		}
 	}
 
 	if instance.verbose&verboseShowExportsFlag != 0 {
-		fmt.Println("Exports:")
-		for _, exp := range module.Exports() {
+		exports := module.Exports()
+		fmt.Printf("Exports (count %d):\n", len(exports))
+		for _, exp := range exports {
 			fmt.Printf("\t%s\n", exp.String())
 		}
 	}

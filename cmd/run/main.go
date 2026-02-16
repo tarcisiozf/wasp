@@ -51,7 +51,7 @@ func main() {
 	}
 	for _, arg := range args {
 		switch arg {
-		case "--verbose":
+		case "--verbose", "-v":
 			options = append(options, wasp.Verbose())
 		case "--dry-run":
 			autoRun = false
