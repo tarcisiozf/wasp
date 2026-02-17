@@ -19,9 +19,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	asm, err := debug.WasmToString(wasm)
-	println(asm)
-
+	err = debug.WasmToString(os.Stdout, wasm)
 	if err != nil {
 		println("Error converting WASM to string:", err.Error())
 		os.Exit(1)

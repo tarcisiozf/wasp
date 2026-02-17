@@ -1,2 +1,2 @@
-asm:
-	wat2wasm math.wat -v > math.s 2>&1
+build-asm:
+	go build -o bin/wasp-asm cmd/asm
