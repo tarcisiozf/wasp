@@ -596,4 +596,16 @@ var (
 		ctx.Stack.Push(int64(math.Float64bits(a)))
 		return nil
 	})
+
+	F64ConvertI32U = addInstruction(opcodes.F64ConvertI32U, func(ctx *execution.Context) error {
+		a := toUnsigned32(castTypedInt[int32](ctx.Stack.Pop()))
+		ctx.Stack.Push(float64(a))
+		return nil
+	})
+
+	F64Sqrt = addInstruction(opcodes.F64Sqrt, func(ctx *execution.Context) error {
+		a := castTypedInt[float64](ctx.Stack.Pop())
+		ctx.Stack.Push(math.Sqrt(a))
+		return nil
+	})
 )
