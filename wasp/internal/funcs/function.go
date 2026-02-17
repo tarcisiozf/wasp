@@ -10,6 +10,7 @@ import (
 )
 
 type Function struct {
+	Name      string
 	Signature fnsig.Signature
 	Locals    []any
 	Body      []byte
@@ -21,10 +22,17 @@ type Function struct {
 	Offset int
 }
 
+func (f *Function) String() string {
+	if f.Name != "" {
+		return f.Name
+	}
+	return fmt.Sprintf("func_%d", f.Index)
+}
+
 func (f *Function) Call(ctx *execution.Context) error {
 	var opcode opcodes.Opcode
 
-	for !ctx.Done {
+	for ctx.Body.HasNext() {
 		ctx.Body.SetCheckpoint()
 		opcode = ctx.Body.Opcode()
 		ix := instructions.Instruction(opcode)
@@ -39,6 +47,9 @@ func (f *Function) Call(ctx *execution.Context) error {
 		}
 		if ctx.FunctionCallRequest >= 0 {
 			return nil // pause execution to handle function call
+		}
+		if ctx.Done {
+			return nil // function execution complete
 		}
 	}
 	return nil

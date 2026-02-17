@@ -59,7 +59,22 @@ func Parse(module *Module) error {
 		return fmt.Errorf("failed to parse wasm sections: %w", err)
 	}
 
+	addFunctionNamesFromCustomData(module)
+
 	return nil
+}
+
+func addFunctionNamesFromCustomData(module *Module) {
+	sections := module.CustomSections()
+	nameSection, ok := sections["name"]
+	if !ok {
+		return
+	}
+	_, functions := parseCustomSectionName(nameSection)
+	numImports := len(module.imports)
+	for i := 0; i < len(module.functions); i++ {
+		module.functions[i].Name = functions[numImports+i]
+	}
 }
 
 func parseSections(module *Module, iter *binary.Iterator) (err error) {
@@ -589,4 +604,40 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) error {
 		return fmt.Errorf("unknown opcode: %02x\n", opcode)
 	}
 	return nil
+}
+
+func parseCustomSectionName(section []byte) (modules, funcs []string) {
+	iter := binary.NewIterator(section)
+	for iter.HasNext() {
+		subID := iter.Byte()
+		subSize := iter.Varint()
+
+		switch subID {
+		case 0x00: // module name
+			name := iter.String(iter.Varint())
+			modules = append(modules, name)
+		case 0x01: // function names
+			count := iter.Varint()
+			funcs = make([]string, count)
+			for i := 0; i < count; i++ {
+				index := iter.Varint()
+				name := iter.String(iter.Varint())
+				funcs[index] = name
+			}
+		//case 0x02: // local names
+		//	funcIndex := iter.Varint()
+		//	count := iter.Varint()
+		//	bar.locals = make([]string, count)
+		//	for i := 0; i < count; i++ {
+		//		index := iter.Varint()
+		//		name := iter.String(iter.Varint())
+		//		bar.locals[index] = name
+		//	}
+		default:
+			// Skip unknown subsection
+			//fmt.Printf("\tUnknown Subsection ID: 0x%x (skipping %d bytes)\n", subID, subSize)
+			iter.Move(subSize)
+		}
+	}
+	return modules, funcs
 }

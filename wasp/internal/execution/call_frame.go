@@ -4,6 +4,7 @@ import "fmt"
 
 type Function interface {
 	Call(context *Context) error
+	String() string
 }
 
 type CallFrame struct {

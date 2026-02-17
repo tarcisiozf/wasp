@@ -143,14 +143,6 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 		}
 	}
 
-	if instance.debug.showFunctionCallsFlag {
-		sections := module.CustomSections()
-		section, ok := sections["name"]
-		if ok {
-			parseCustomSectionName(instance, section)
-		}
-	}
-
 	if err := instance.mapImportsToExternalFunctions(); err != nil {
 		return nil, fmt.Errorf("invalid imports: %w", err)
 	}
@@ -188,8 +180,20 @@ func (instance *Instance) Tick() error {
 	// Keep track of the original/root frame for tail calls
 	var rootFrame *execution.CallFrame
 
+	var fntype string
+	var fnindex int
+
 	for !instance.callStack.IsEmpty() {
 		callFrame := instance.callStack.Top()
+
+		if instance.debug.showFunctionCallsFlag {
+			fnindex = callFrame.FunctionIndex
+			fntype = "imported"
+			if fnindex >= len(instance.indexedImportedFunctions) {
+				fntype = "local"
+				fnindex = fnindex - len(instance.indexedImportedFunctions)
+			}
+		}
 
 		if callFrame.Done() {
 			instance.callStack.Pop()
@@ -205,10 +209,20 @@ func (instance *Instance) Tick() error {
 
 			if prev != nil {
 				results := callFrame.Context.Results()
+
+				if instance.debug.showFunctionCallsFlag {
+					fmt.Printf("\n\t# results of %s (%d): %v\n\n", fntype, fnindex, formatArgs(results))
+				}
+
 				prev.Context.Stack.Push(results...)
 			}
 
 			continue
+		}
+
+		if instance.debug.showFunctionCallsFlag {
+			fnname := callFrame.Function.String()
+			fmt.Printf("Calling %s function at index %d (0x%x) $%s\n\tparams: %v\n", fntype, fnindex, fnindex, fnname, formatArgs(callFrame.Context.Params))
 		}
 
 		if err := callFrame.Call(); err != nil {
@@ -302,10 +316,6 @@ func (instance *Instance) createImportCallFrame(index int, stack *memory.Stack[a
 	}
 	params := stack.Last(numParams)
 
-	if instance.debug.showFunctionCallsFlag {
-		fmt.Printf("Calling imported function at index %d (0x%x) %s with params: %v\n", index, index, extFunc.String(), formatArgs(params))
-	}
-
 	return &execution.CallFrame{
 		FunctionIndex: index,
 		Function:      extFunc,
@@ -332,15 +342,6 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 		return nil, fmt.Errorf("not enough parameters on stack for function at index %d: expected %d, got %d", index, numParams, stack.Size())
 	}
 	params := stack.Last(numParams)
-
-	if instance.debug.showFunctionCallsFlag {
-		localIndex := index - len(instance.indexedImportedFunctions)
-		name := "<unk>"
-		if index < len(instance.debug.functions) {
-			name = instance.debug.functions[index]
-		}
-		fmt.Printf("Calling function at index %d (0x%x) $%s with params: %v\n", localIndex, localIndex, name, formatArgs(params))
-	}
 
 	debugEnabled := instance.debug.showInstructions
 
@@ -380,39 +381,4 @@ func formatArgs(list []any) []string {
 		out[i] = fmt.Sprintf("%T(%v)", param, param)
 	}
 	return out
-}
-
-func parseCustomSectionName(instance *Instance, section []byte) {
-	iter := binary.NewIterator(section)
-	for iter.HasNext() {
-		subID := iter.Byte()
-		subSize := iter.Varint()
-
-		switch subID {
-		case 0x00: // module name
-			name := iter.String(iter.Varint())
-			instance.debug.modules = append(instance.debug.modules, name)
-		case 0x01: // function names
-			count := iter.Varint()
-			instance.debug.functions = make([]string, count)
-			for i := 0; i < count; i++ {
-				index := iter.Varint()
-				name := iter.String(iter.Varint())
-				instance.debug.functions[index] = name
-			}
-		//case 0x02: // local names
-		//	funcIndex := iter.Varint()
-		//	count := iter.Varint()
-		//	bar.locals = make([]string, count)
-		//	for i := 0; i < count; i++ {
-		//		index := iter.Varint()
-		//		name := iter.String(iter.Varint())
-		//		bar.locals[index] = name
-		//	}
-		default:
-			// Skip unknown subsection
-			//fmt.Printf("\tUnknown Subsection ID: 0x%x (skipping %d bytes)\n", subID, subSize)
-			iter.Move(subSize)
-		}
-	}
 }
