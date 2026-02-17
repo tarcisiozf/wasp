@@ -22,15 +22,14 @@ type Function struct {
 }
 
 func (f *Function) Call(ctx *execution.Context) error {
-	var pos int
 	var opcode opcodes.Opcode
 
 	for !ctx.Done {
-		pos = ctx.Body.Position()
+		ctx.Body.SetCheckpoint()
 		opcode = ctx.Body.Opcode()
 		ix := instructions.Instruction(opcode)
 		if ctx.Debug {
-			fmt.Printf("\t%08x:\t%04x\t%s\n", f.Offset+pos, opcode, opcodes.Name(opcode))
+			fmt.Printf("\t%08x:\t%04x\t%s\n", f.Offset+ctx.Body.Checkpoint(), opcode, opcodes.Name(opcode))
 		}
 		if ix.Handler == nil { // TODO: remove before flight
 			return fmt.Errorf("unimplemented instruction: %s (0x%x)", opcodes.Name(opcode), opcode)
