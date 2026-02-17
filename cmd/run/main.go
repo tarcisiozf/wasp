@@ -46,15 +46,18 @@ func main() {
 	}
 
 	var autoRun = true
+	var runFunc string
 	options := []wasp.InstanceOption{
 		wasp.WithLinker(linker),
 	}
-	for _, arg := range args {
+	for i, arg := range args {
 		switch arg {
 		case "--verbose", "-v":
 			options = append(options, wasp.Verbose())
 		case "--dry-run":
 			autoRun = false
+		case "--func", "-f":
+			runFunc = args[i+1]
 		}
 	}
 
@@ -69,13 +72,13 @@ func main() {
 	}
 
 	if autoRun {
-		fn, err := findCandidateForStartFunc(module)
+		funcref, err := findCandidateForStartFunc(module, runFunc)
 		if err != nil {
 			println("Error getting start function:", err.Error())
 			os.Exit(1)
 		}
 
-		if _, err = instance.Call(fn); err != nil {
+		if _, err = instance.Call(funcref); err != nil {
 			println("Error calling start function:", err.Error())
 			os.Exit(1)
 		}
@@ -87,7 +90,11 @@ func main() {
 	}
 }
 
-func findCandidateForStartFunc(module *wasp.Module) (int, error) {
+func findCandidateForStartFunc(module *wasp.Module, target string) (int, error) {
+	if target != "" {
+		return module.GetExportedFunction(target)
+	}
+
 	if fn, err := module.GetStartFunction(); err == nil {
 		return fn, nil
 	}

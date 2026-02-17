@@ -1038,7 +1038,6 @@ func (sp *WasiSnapshotPreview1) FdReadDir(fd int32, buf int32, bufLen int32, coo
 
 // FdSync synchronizes file data to disk
 func (sp *WasiSnapshotPreview1) FdSync(fd int32) int32 {
-
 	if fileDesc, ok := sp.openFiles[fd]; ok && fileDesc.File != nil {
 		if err := fileDesc.File.Sync(); err != nil {
 			return ErrnoIo
