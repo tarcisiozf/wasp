@@ -3,6 +3,7 @@ package wasp
 import (
 	"fmt"
 	"os"
+	"strings"
 	"wasp/wasp/debug"
 	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/execution"
@@ -180,20 +181,8 @@ func (instance *Instance) Tick() error {
 	// Keep track of the original/root frame for tail calls
 	var rootFrame *execution.CallFrame
 
-	var fntype string
-	var fnindex int
-
 	for !instance.callStack.IsEmpty() {
 		callFrame := instance.callStack.Top()
-
-		if instance.debug.showFunctionCallsFlag {
-			fnindex = callFrame.FunctionIndex
-			fntype = "imported"
-			if fnindex >= len(instance.indexedImportedFunctions) {
-				fntype = "local"
-				fnindex = fnindex - len(instance.indexedImportedFunctions)
-			}
-		}
 
 		if callFrame.Done() {
 			instance.callStack.Pop()
@@ -211,7 +200,7 @@ func (instance *Instance) Tick() error {
 				results := callFrame.Context.Results()
 
 				if instance.debug.showFunctionCallsFlag {
-					fmt.Printf("\n\t# results of %s (%d): %v\n\n", fntype, fnindex, formatArgs(results))
+					fmt.Printf("\tresults: [%s]\n\n", formatArgs(results))
 				}
 
 				prev.Context.Stack.Push(results...)
@@ -221,8 +210,14 @@ func (instance *Instance) Tick() error {
 		}
 
 		if instance.debug.showFunctionCallsFlag {
+			fnindex := callFrame.FunctionIndex
+			fntype := '@'
+			if fnindex >= len(instance.indexedImportedFunctions) {
+				fntype = '$'
+				fnindex = fnindex - len(instance.indexedImportedFunctions)
+			}
 			fnname := callFrame.Function.String()
-			fmt.Printf("Calling %s function at index %d (0x%x) $%s\n\tparams: %v\n", fntype, fnindex, fnindex, fnname, formatArgs(callFrame.Context.Params))
+			fmt.Printf("%c%s ( %s ) - %d (0x%x)\n", fntype, fnname, formatArgs(callFrame.Context.Params), fnindex, fnindex)
 		}
 
 		if err := callFrame.Call(); err != nil {
@@ -375,10 +370,10 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 	}, nil
 }
 
-func formatArgs(list []any) []string {
+func formatArgs(list []any) string {
 	out := make([]string, len(list))
 	for i, param := range list {
 		out[i] = fmt.Sprintf("%T(%v)", param, param)
 	}
-	return out
+	return strings.Join(out, ", ")
 }
