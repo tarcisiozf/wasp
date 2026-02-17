@@ -31,8 +31,9 @@ var (
 		index := ctx.Body.Varint()
 		delta := castInt(ctx.Stack.Pop())
 		mem := ctx.Memories[index]
+		prevPages := mem.NumPages()
 		if mem.Grow(delta) {
-			ctx.Stack.Push(1)
+			ctx.Stack.Push(prevPages)
 		} else {
 			ctx.Stack.Push(-1)
 		}
