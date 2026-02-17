@@ -230,3 +230,7 @@
 - [ ] popcnt
   - [ ] i32.popcnt (0x69)
   - [ ] i64.popcnt (0x7b)
+
+## TODO
+
+- [ ] remove debug printing logic out of Instance struct
