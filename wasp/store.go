@@ -19,6 +19,13 @@ func NewStore(module *module.Module) *Store {
 		memories[i] = mem.Clone()
 	}
 
+	// Apply data segments to memory
+	dataSegments := module.DataSegments()
+	for i, segment := range dataSegments {
+		mem := memories[segment.MemoryIndex]
+		mem.Store(segment.Offset, segment.Data)
+	}
+
 	tables := module.Tables()
 	storeTables := make([]*memory.Table, len(tables))
 	for i, tbl := range tables {

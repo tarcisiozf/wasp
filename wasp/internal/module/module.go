@@ -110,3 +110,7 @@ func (module *Module) Wasm() []byte {
 func (module *Module) CustomSections() map[string][]byte {
 	return module.customSections
 }
+
+func (module *Module) DataSegments() []memory.DataSegment {
+	return module.data
+}
