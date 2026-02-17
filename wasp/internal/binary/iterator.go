@@ -8,9 +8,10 @@ import (
 )
 
 type Iterator struct {
-	data []byte
-	size int
-	pos  int
+	data       []byte
+	size       int
+	pos        int
+	checkpoint int
 }
 
 func (it *Iterator) Uint32() uint32 {
@@ -187,14 +188,26 @@ func (it *Iterator) Move(n int) {
 	it.pos += n
 }
 
+func (it *Iterator) SetCheckpoint() {
+	it.checkpoint = it.pos
+}
+
+func (it *Iterator) Checkpoint() int {
+	if it.checkpoint >= 0 {
+		return it.checkpoint
+	}
+	return it.pos
+}
+
 func castPointer[T, S any](bits S) T {
 	return *(*T)(unsafe.Pointer(&bits))
 }
 
 func NewIterator(data []byte) *Iterator {
 	return &Iterator{
-		data: data,
-		size: len(data),
-		pos:  0,
+		data:       data,
+		size:       len(data),
+		pos:        0,
+		checkpoint: -1,
 	}
 }
