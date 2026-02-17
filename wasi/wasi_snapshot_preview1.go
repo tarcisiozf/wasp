@@ -484,9 +484,17 @@ func (sp *WasiSnapshotPreview1) FdPrestatDirName(fd int32, path int32, pathLen i
 		return ErrnoInval
 	}
 
-	sp.writeBytes(path, []byte(preopenPath))
+	// Write null-terminated path
+	data := cstring(preopenPath)
+	sp.writeBytes(path, data)
 
 	return ErrnoSuccess
+}
+
+func cstring(str string) []byte {
+	bytes := make([]byte, len(str)+1)
+	copy(bytes, str)
+	return bytes
 }
 
 // FdPWrite writes to a file at a specific offset without changing the fd position
