@@ -559,7 +559,7 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) error {
 		opcodes.I32GeS, opcodes.I32Extend16S, opcodes.I32ReinterpretF32,
 		opcodes.I32TruncSatF32S, opcodes.I32Rotr, opcodes.I32Rotl,
 		opcodes.I32TruncSatF32U, opcodes.I32TruncSatF64S,
-		opcodes.I32TruncSatF64U:
+		opcodes.I32TruncSatF64U, opcodes.I32Popcnt:
 		// no immediate arguments
 		return nil
 	case opcodes.I64ExtendI32S, opcodes.I64Eqz, opcodes.I64GtU,
@@ -570,8 +570,9 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) error {
 		opcodes.I64DivU, opcodes.I64DivS, opcodes.I64Xor, opcodes.I64Or,
 		opcodes.I64Ctz, opcodes.I64Clz, opcodes.I64RemS, opcodes.I64RemU,
 		opcodes.I64Rotl, opcodes.I64Rotr, opcodes.I64GeS, opcodes.I64LeS,
-		opcodes.I64ReinterpretF64, opcodes.I64Extend8S,
-		opcodes.I64Extend16S, opcodes.I64Extend32S:
+		opcodes.I64ReinterpretF64, opcodes.I64Extend8S, opcodes.I64Extend16S,
+		opcodes.I64Extend32S, opcodes.I64TruncSatF32S, opcodes.I64TruncSatF32U,
+		opcodes.I64TruncSatF64S, opcodes.I64TruncSatF64U:
 		// no immediate arguments
 		return nil
 	case opcodes.F64Mul, opcodes.F64Add, opcodes.F64Sub,
@@ -593,7 +594,7 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) error {
 		opcodes.F32Ceil, opcodes.F32Floor, opcodes.F32Trunc,
 		opcodes.F32Nearest, opcodes.F32ReinterpretI32,
 		opcodes.F32Abs, opcodes.F32Lt, opcodes.F32Gt, opcodes.F32Le,
-		opcodes.F32Ge, opcodes.F32Eq, opcodes.F32Ne:
+		opcodes.F32Ge, opcodes.F32Eq, opcodes.F32Ne, opcodes.F32Neg:
 		// no immediate arguments
 		return nil
 	case opcodes.End, opcodes.Drop, opcodes.Select,
