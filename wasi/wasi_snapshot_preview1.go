@@ -485,8 +485,7 @@ func (sp *WasiSnapshotPreview1) FdPrestatDirName(fd int32, path int32, pathLen i
 	}
 
 	// Write null-terminated path
-	data := cstring(preopenPath)
-	sp.writeBytes(path, data)
+	sp.writeBytes(path, cstring(preopenPath))
 
 	return ErrnoSuccess
 }

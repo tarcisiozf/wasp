@@ -20,8 +20,7 @@ func NewStore(module *module.Module) *Store {
 	}
 
 	// Apply data segments to memory
-	dataSegments := module.DataSegments()
-	for i, segment := range dataSegments {
+	for _, segment := range module.DataSegments() {
 		mem := memories[segment.MemoryIndex]
 		mem.Store(segment.Offset, segment.Data)
 	}
