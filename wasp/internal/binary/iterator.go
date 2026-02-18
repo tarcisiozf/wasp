@@ -122,6 +122,46 @@ func (it *Iterator) Varint() int {
 	panic("invalid varint")
 }
 
+// SignedVarint32 reads a signed 32-bit LEB128 encoded integer
+func (it *Iterator) SignedVarint32() int32 {
+	var result int32
+	var shift uint
+	for {
+		b := it.data[it.pos]
+		it.pos++
+		result |= int32(b&0x7F) << shift
+		shift += 7
+		if b < 0x80 {
+			// Sign extend if the sign bit is set
+			if shift < 32 && (b&0x40) != 0 {
+				result |= ^int32(0) << shift
+			}
+			break
+		}
+	}
+	return result
+}
+
+// SignedVarint64 reads a signed 64-bit LEB128 encoded integer
+func (it *Iterator) SignedVarint64() int64 {
+	var result int64
+	var shift uint
+	for {
+		b := it.data[it.pos]
+		it.pos++
+		result |= int64(b&0x7F) << shift
+		shift += 7
+		if b < 0x80 {
+			// Sign extend if the sign bit is set
+			if shift < 64 && (b&0x40) != 0 {
+				result |= ^int64(0) << shift
+			}
+			break
+		}
+	}
+	return result
+}
+
 func (it *Iterator) String(len int) string {
 	return string(it.Bytes(len))
 }
