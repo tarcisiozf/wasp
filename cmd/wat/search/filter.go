@@ -2,7 +2,7 @@ package search
 
 import (
 	"iter"
-	"wasp/cmd/manjola/ast"
+	"wasp/cmd/wat/ast"
 )
 
 func FilterChildrenByType[T ast.Node](parent ast.Node) iter.Seq[T] {

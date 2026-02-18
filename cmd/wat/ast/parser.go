@@ -3,7 +3,7 @@ package ast
 import (
 	"fmt"
 	"iter"
-	"wasp/cmd/manjola/lex"
+	"wasp/cmd/wat/lex"
 )
 
 func Parse(lexer *lex.Lexer) iter.Seq[Node] {

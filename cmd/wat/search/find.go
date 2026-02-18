@@ -2,7 +2,7 @@ package search
 
 import (
 	"iter"
-	"wasp/cmd/manjola/ast"
+	"wasp/cmd/wat/ast"
 )
 
 func FindByType[T ast.Node](nodes iter.Seq[ast.Node]) (T, bool) {

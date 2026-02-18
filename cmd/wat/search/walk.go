@@ -2,7 +2,7 @@ package search
 
 import (
 	"iter"
-	"wasp/cmd/manjola/ast"
+	"wasp/cmd/wat/ast"
 )
 
 func Walk(seq iter.Seq[ast.Node]) iter.Seq[ast.Node] {

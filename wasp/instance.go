@@ -2,9 +2,7 @@ package wasp
 
 import (
 	"fmt"
-	"os"
 	"strings"
-	"wasp/wasp/debug"
 	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/external"
@@ -114,11 +112,11 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 		instance.linker = NewLinker()
 	}
 
-	if instance.debug.showAssemblyFlag {
-		if err := debug.WasmToString(os.Stdout, module.Wasm()); err != nil {
-			return nil, fmt.Errorf("failed to disassemble module: %w", err)
-		}
-	}
+	//if instance.debug.showAssemblyFlag {
+	//	if err := debug.WasmToString(os.Stdout, module.Wasm()); err != nil {
+	//		return nil, fmt.Errorf("failed to disassemble module: %w", err)
+	//	}
+	//}
 
 	if instance.debug.showImportsFlag {
 		imports := module.Imports()
