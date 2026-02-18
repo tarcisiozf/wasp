@@ -219,7 +219,7 @@ func (instance *Instance) Tick() error {
 		}
 
 		if err := callFrame.Call(); err != nil {
-			return fmt.Errorf("error executing enqueueCall frame: %w", err)
+			return fmt.Errorf("error enqueueing call frame: %w", err)
 		}
 
 		if callFrame.Context.FunctionCallRequest >= 0 {

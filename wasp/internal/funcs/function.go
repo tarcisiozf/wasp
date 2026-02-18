@@ -40,7 +40,7 @@ func (f *Function) Call(ctx *execution.Context) error {
 			fmt.Printf("\t%08x:\t%04x\t%s\n", f.Offset+ctx.Body.Checkpoint(), opcode, opcodes.Name(opcode))
 		}
 		if ix.Handler == nil { // TODO: remove before flight
-			return fmt.Errorf("unimplemented instruction: %s (0x%x)", opcodes.Name(opcode), opcode)
+			return fmt.Errorf("unimplemented instruction: %s", opcodes.Name(opcode))
 		}
 		if err := ix.Handler(ctx); err != nil {
 			return fmt.Errorf("error executing instruction %x: %w", opcode, err)
