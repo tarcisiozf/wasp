@@ -623,4 +623,18 @@ var (
 		ctx.Stack.Push(math.Sqrt(a))
 		return nil
 	})
+
+	I32TruncSatF64S = addInstruction(opcodes.I32TruncSatF64S, func(ctx *execution.Context) error {
+		a := castNumber[float64](ctx.Stack.Pop())
+		if math.IsNaN(a) {
+			ctx.Stack.Push(int32(0))
+		} else if a >= float64(math.MaxInt32) {
+			ctx.Stack.Push(int32(math.MaxInt32))
+		} else if a <= float64(math.MinInt32) {
+			ctx.Stack.Push(int32(math.MinInt32))
+		} else {
+			ctx.Stack.Push(int32(a))
+		}
+		return nil
+	})
 )
