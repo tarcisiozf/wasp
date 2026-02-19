@@ -16,22 +16,23 @@ func (global *Global) Push(value any, mutable bool) {
 	})
 }
 
-func (global *Global) Get(index int) any {
+func (global *Global) Get(index int) (any, error) {
 	if index < 0 || index >= len(global.entries) {
-		panic("global index out of bounds")
+		return nil, ErrIndexOutOfBounds
 	}
-	return global.entries[index].Value
+	return global.entries[index].Value, nil
 }
 
-func (global *Global) Set(index int, pop any) {
+func (global *Global) Set(index int, pop any) error {
 	if index < 0 || index >= len(global.entries) {
-		panic("global index out of bounds")
+		return ErrIndexOutOfBounds
 	}
 	entry := global.entries[index]
 	if !entry.Mutable {
-		panic("cannot set immutable global")
+		return ErrCannotSetImmutableGlobal
 	}
 	entry.Value = pop
+	return nil
 }
 
 func (global *Global) Clone() *Global {

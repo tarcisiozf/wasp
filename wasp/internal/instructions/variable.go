@@ -1,6 +1,7 @@
 package instructions
 
 import (
+	"fmt"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/opcodes"
 )
@@ -26,13 +27,19 @@ var (
 
 	GlobalGet = addInstruction(opcodes.GlobalGet, func(ctx *execution.Context) error {
 		globalIndex := ctx.Body.Varint()
-		value := ctx.Globals.Get(globalIndex)
+		value, err := ctx.Globals.Get(globalIndex)
+		if err != nil {
+			return fmt.Errorf("global get ix: %w", err)
+		}
 		ctx.Stack.Push(value)
 		return nil
 	})
 	GlobalSet = addInstruction(opcodes.GlobalSet, func(ctx *execution.Context) error {
 		globalIndex := ctx.Body.Varint()
-		ctx.Globals.Set(globalIndex, ctx.Stack.Pop())
+		err := ctx.Globals.Set(globalIndex, ctx.Stack.Pop())
+		if err != nil {
+			return fmt.Errorf("global set ix: %w", err)
+		}
 		return nil
 	})
 )
