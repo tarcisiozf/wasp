@@ -92,7 +92,7 @@ type Instance struct {
 func NewInstance(module *module.Module, store *Store, options ...InstanceOption) (*Instance, error) {
 	funcSignatures := module.FunctionSignatures()
 
-	callStack := memory.NewStack[*execution.CallFrame]()
+	callStack := memory.NewStackWithCapacity[*execution.CallFrame](maxCallStackDepth)
 
 	instance := &Instance{
 		module:         module,
