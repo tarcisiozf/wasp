@@ -32,6 +32,9 @@ func main() {
 		fmt.Println("WASM loaded in ", time.Since(start))
 
 		linker := wasp.NewLinker()
+
+		dg(linker)
+
 		sp := wasi.NewWasiSnapshotPreview1()
 		sp.SetArgs(os.Args[1:]) // Pass remaining args to WASI
 		sp.AddPreopen(3, ".")   // Preopen current directory as fd 3
@@ -40,25 +43,17 @@ func main() {
 			os.Exit(1)
 		}
 
+		store := wasp.NewStore(module)
+
 		instance, err := wasp.NewInstance(
 			module,
+			store,
 			wasp.WithLinker(linker),
+			wasp.Verbose(),
 		)
 		if err != nil {
 			println("Error creating runtime:", err.Error())
 			os.Exit(1)
-		}
-
-		_ = instance
-
-		fmt.Println("imports:")
-		for _, imp := range module.Imports() {
-			fmt.Printf("\t %s\n", imp.String())
-		}
-
-		fmt.Println("exports:")
-		for _, exp := range module.Exports() {
-			fmt.Printf("\t %s\n", exp.String())
 		}
 
 		fn, err := module.GetExportedFunction("_start")
@@ -86,6 +81,31 @@ func main() {
 		})
 
 		fmt.Printf("Results: %v\n", results)
+	})
+}
+
+func dg(linker *wasp.Linker) {
+	linker.Define("dg", "init", func() {
+
+	})
+
+	linker.Define("dg", "draw_frame", func(ptr, resx, resy int32) {
+
+	})
+
+	linker.Define("dg", "sleep_ms", func(ms int32) {
+
+	})
+
+	linker.Define("dg", "get_ticks_ms", func() int32 {
+		return 0
+	})
+
+	linker.Define("dg", "get_key", func() int32 {
+		return -1
+	})
+
+	linker.Define("dg", "set_window_title", func(ptr int32) {
 	})
 }
 
