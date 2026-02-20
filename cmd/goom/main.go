@@ -10,6 +10,7 @@ import (
 	"wasp/wasp"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 var gameCh = make(chan ebiten.Game, 1)
@@ -95,17 +96,62 @@ func main() {
 	}
 }
 
+type keyEvent struct {
+	key     byte
+	pressed bool
+}
+
 type Game struct {
 	width  int
 	height int
 
-	img    *ebiten.Image
-	pixels []byte
+	img       *ebiten.Image
+	pixels    []byte
+	keyEvents chan keyEvent
 }
 
 var _ ebiten.Game = (*Game)(nil)
 
+const (
+	KEY_RIGHTARROW = 0xae
+	KEY_LEFTARROW  = 0xac
+	KEY_UPARROW    = 0xad
+	KEY_DOWNARROW  = 0xaf
+	KEY_STRAFE_L   = 0xa0
+	KEY_STRAFE_R   = 0xa1
+	KEY_USE        = 0xa2
+	KEY_FIRE       = 0xa3
+	KEY_ESCAPE     = 27
+	KEY_ENTER      = 13
+	KEY_TAB        = 9
+)
+
+var keyMap = map[byte]ebiten.Key{
+	KEY_RIGHTARROW: ebiten.KeyRight,
+	KEY_LEFTARROW:  ebiten.KeyLeft,
+	KEY_UPARROW:    ebiten.KeyUp,
+	KEY_DOWNARROW:  ebiten.KeyDown,
+	KEY_STRAFE_L:   ebiten.KeyA,
+	KEY_STRAFE_R:   ebiten.KeyD,
+	KEY_USE:        ebiten.KeyE,
+	KEY_FIRE:       ebiten.KeySpace,
+	KEY_ESCAPE:     ebiten.KeyEscape,
+	KEY_ENTER:      ebiten.KeyEnter,
+	KEY_TAB:        ebiten.KeyTab,
+}
+
 func (g *Game) Update() error {
+	for code, key := range keyMap {
+		var pressed bool
+		if inpututil.IsKeyJustPressed(key) {
+			pressed = true
+		} else if inpututil.IsKeyJustReleased(key) {
+			pressed = false
+		} else {
+			continue
+		}
+		g.keyEvents <- keyEvent{code, pressed}
+	}
 	return nil
 }
 
@@ -126,6 +172,8 @@ func newGame(width, height int) *Game {
 
 		pixels: make([]byte, width*height*4), // RGBA format
 		img:    ebiten.NewImage(width, height),
+
+		keyEvents: make(chan keyEvent, 32),
 	}
 }
 
@@ -158,10 +206,10 @@ func dg(linker *wasp.Linker, store *wasp.Store) {
 		}
 
 		numPixels := width * height
-		dataSize := numPixels * 4
-		data := defaultMemory.Load(int(ptr), dataSize)
+		size := numPixels * 4
+		data := defaultMemory.Load(int(ptr), size)
 
-		pixels := make([]byte, numPixels*4)
+		pixels := make([]byte, size)
 		for i := 0; i < numPixels; i++ {
 			offset := i * 4
 			pixels[offset] = data[offset+2]   // R
@@ -183,7 +231,23 @@ func dg(linker *wasp.Linker, store *wasp.Store) {
 	})
 
 	linker.Define("dg", "get_key", func() int32 {
-		return -1
+		if game == nil {
+			return -1
+		}
+
+		var event keyEvent
+		select {
+		case event = <-game.keyEvents:
+		default:
+			return -1
+		}
+
+		key := int32(event.key)
+		if event.pressed {
+			key |= 1 << 9
+		}
+
+		return key
 	})
 
 	linker.Define("dg", "set_window_title", func(ptr, len int32) {
