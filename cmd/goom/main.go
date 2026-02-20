@@ -11,7 +11,7 @@ import (
 
 func main() {
 	args := os.Args[1:]
-	if len(args) != 1 {
+	if len(args) < 1 {
 		println("Usage: run <wasm file>")
 		os.Exit(1)
 	}
@@ -47,11 +47,20 @@ func main() {
 			os.Exit(1)
 		}
 
+		options := []wasp.InstanceOption{
+			wasp.WithLinker(linker),
+		}
+		for _, arg := range args {
+			switch arg {
+			case "-v", "--verbose":
+				options = append(options, wasp.Verbose())
+			}
+		}
+
 		instance, err := wasp.NewInstance(
 			module,
 			store,
-			wasp.WithLinker(linker),
-			wasp.Verbose(),
+			options...,
 		)
 		if err != nil {
 			println("Error creating runtime:", err.Error())
