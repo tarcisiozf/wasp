@@ -43,7 +43,7 @@ func (f *Function) Call(ctx *execution.Context) error {
 			return fmt.Errorf("unimplemented instruction: %s", opcodes.Name(opcode))
 		}
 		if err := ix.Handler(ctx); err != nil {
-			return fmt.Errorf("error executing instruction %x: %w", opcode, err)
+			return fmt.Errorf("error executing instruction %s: %w", opcodes.Name(opcode), err)
 		}
 		if ctx.FunctionCallRequest >= 0 {
 			return nil // pause execution to handle function call
