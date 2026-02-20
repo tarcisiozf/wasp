@@ -243,7 +243,13 @@ func isNonZero(v any) bool {
 		return val != 0
 	case uint64:
 		return val != 0
+	case float32:
+		return val != 0
+	case float64:
+		return val != 0
 	default:
-		return v != 0
+		// For any other type, try to compare to zero
+		// This handles bool and other types
+		return v != nil && v != 0 && v != false
 	}
 }
