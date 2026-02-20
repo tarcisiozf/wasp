@@ -139,7 +139,6 @@ func dg(linker *wasp.Linker, store *wasp.Store) {
 
 	linker.Define("dg", "init", func(resx, resy int32) {
 		init.Do(func() {
-			fmt.Println("DG initialized")
 			started = time.Now()
 
 			width = int(resx)
@@ -154,7 +153,6 @@ func dg(linker *wasp.Linker, store *wasp.Store) {
 	})
 
 	linker.Define("dg", "draw_frame", func(ptr int32) {
-		fmt.Printf("DB draw_frame called with ptr=%d\n", ptr)
 		if game == nil {
 			return
 		}
@@ -165,30 +163,26 @@ func dg(linker *wasp.Linker, store *wasp.Store) {
 
 		pixels := make([]byte, numPixels*4)
 		for i := 0; i < numPixels; i++ {
-			src := i * 4
-			dst := i * 4
-			pixels[dst] = data[src+2]   // R
-			pixels[dst+1] = data[src+1] // G
-			pixels[dst+2] = data[src]   // B
-			pixels[dst+3] = 0xFF        // A
+			offset := i * 4
+			pixels[offset] = data[offset+2]   // R
+			pixels[offset+1] = data[offset+1] // G
+			pixels[offset+2] = data[offset]   // B
+			pixels[offset+3] = 0xFF           // A
 		}
 		copy(game.pixels, pixels)
 	})
 
 	linker.Define("dg", "sleep_ms", func(ms int32) {
-		fmt.Printf("DB sleep_ms called with ms=%d\n", ms)
 		time.Sleep(time.Duration(ms) * time.Millisecond)
 	})
 
 	linker.Define("dg", "get_ticks_ms", func() int32 {
 		elapsed := time.Since(started)
 		ms := int32(elapsed.Milliseconds())
-		fmt.Printf("DB get_ticks_ms called, returning %d ms\n", ms)
 		return ms
 	})
 
 	linker.Define("dg", "get_key", func() int32 {
-		fmt.Println("DB get_key called")
 		return -1
 	})
 
