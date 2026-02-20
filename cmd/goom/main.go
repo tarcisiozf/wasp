@@ -2,12 +2,17 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"os"
-	"runtime"
+	"sync"
 	"time"
 	"wasp/wasi"
 	"wasp/wasp"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
+
+var gameCh = make(chan ebiten.Game, 1)
 
 func main() {
 	args := os.Args[1:]
@@ -22,93 +27,155 @@ func main() {
 		os.Exit(1)
 	}
 
-	memstats(func() {
-		start := time.Now()
-		module, err := wasp.NewModule(wasm)
+	start := time.Now()
+	module, err := wasp.NewModule(wasm)
+	if err != nil {
+		println("Error loading module:", err.Error())
+		os.Exit(1)
+	}
+	fmt.Println("WASM loaded in ", time.Since(start))
+
+	store := wasp.NewStore(module)
+
+	linker := wasp.NewLinker()
+
+	dg(linker, store)
+
+	sp := wasi.NewWasiSnapshotPreview1()
+	sp.SetArgs([]string{"doom1.wad"}) // Pass remaining args to WASI
+	sp.AddPreopen(3, ".")             // Preopen current directory as fd 3
+	//sp.AddPreopen(4, "doom1.wad")
+	sp.SetMemory(store.Memories[0]) // Set the memory for WASI to use
+	if err := sp.Register(linker); err != nil {
+		println("Error defining function:", err.Error())
+		os.Exit(1)
+	}
+
+	options := []wasp.InstanceOption{
+		wasp.WithLinker(linker),
+		wasp.IgnoreUnreachable(), // Allow DOOM to continue despite UBSan panics
+	}
+	for _, arg := range args {
+		switch arg {
+		case "-v", "--verbose":
+			options = append(options, wasp.Verbose())
+		}
+	}
+
+	instance, err := wasp.NewInstance(
+		module,
+		store,
+		options...,
+	)
+	if err != nil {
+		println("Error creating runtime:", err.Error())
+		os.Exit(1)
+	}
+
+	fn, err := module.GetExportedFunction("_start")
+	if err != nil {
+		println("Error getting function:", err.Error())
+		os.Exit(1)
+	}
+
+	go (func() {
+		_, err := instance.Call(fn)
 		if err != nil {
-			println("Error loading module:", err.Error())
+			println("Error calling function:", err.Error())
 			os.Exit(1)
 		}
-		fmt.Println("WASM loaded in ", time.Since(start))
-
-		store := wasp.NewStore(module)
-
-		linker := wasp.NewLinker()
-
-		dg(linker, store)
-
-		sp := wasi.NewWasiSnapshotPreview1()
-		sp.SetArgs([]string{"doom1.wad"}) // Pass remaining args to WASI
-		sp.AddPreopen(3, ".")             // Preopen current directory as fd 3
-		//sp.AddPreopen(4, "doom1.wad")
-		sp.SetMemory(store.Memories[0]) // Set the memory for WASI to use
-		if err := sp.Register(linker); err != nil {
-			println("Error defining function:", err.Error())
+		if err := instance.Tick(); err != nil {
+			println("Error during execution:", err.Error())
 			os.Exit(1)
 		}
+	})()
 
-		options := []wasp.InstanceOption{
-			wasp.WithLinker(linker),
-			wasp.IgnoreUnreachable(), // Allow DOOM to continue despite UBSan panics
-		}
-		for _, arg := range args {
-			switch arg {
-			case "-v", "--verbose":
-				options = append(options, wasp.Verbose())
-			}
-		}
+	if err := ebiten.RunGame(<-gameCh); err != nil {
+		panic(err)
+	}
+}
 
-		instance, err := wasp.NewInstance(
-			module,
-			store,
-			options...,
-		)
-		if err != nil {
-			println("Error creating runtime:", err.Error())
-			os.Exit(1)
-		}
+type Game struct {
+	width  int
+	height int
 
-		fn, err := module.GetExportedFunction("_start")
-		if err != nil {
-			println("Error getting function:", err.Error())
-			os.Exit(1)
-		}
+	img    *ebiten.Image
+	pixels []byte
+}
 
-		var results []any
-		elapsed(func() {
-			cf, err := instance.Call(fn)
-			if err != nil {
-				println("Error calling function:", err.Error())
-				os.Exit(1)
-			}
-			if err := instance.Tick(); err != nil {
-				println("Error during execution:", err.Error())
-				os.Exit(1)
-			}
-			results, err = cf.Results()
-			if err != nil {
-				println("Error getting results:", err.Error())
-				os.Exit(1)
-			}
-		})
+var _ ebiten.Game = (*Game)(nil)
 
-		fmt.Printf("Results: %v\n", results)
-	})
+func (g *Game) Update() error {
+	return nil
+}
+
+func (g *Game) Draw(screen *ebiten.Image) {
+	g.img.WritePixels(g.pixels)
+	screen.Fill(color.Black)
+	screen.DrawImage(g.img, nil)
+}
+
+func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
+	return g.width, g.height
+}
+
+func newGame(width, height int) *Game {
+	return &Game{
+		width:  width,
+		height: height,
+
+		pixels: make([]byte, width*height*4), // RGBA format
+		img:    ebiten.NewImage(width, height),
+	}
 }
 
 func dg(linker *wasp.Linker, store *wasp.Store) {
 	var started time.Time
-	linker.Define("dg", "init", func() {
-		fmt.Println("DG initialized")
-		started = time.Now()
+	var init sync.Once
+	var game *Game
+	var width, height int
+
+	defaultMemory := store.Memories[0]
+
+	linker.Define("dg", "init", func(resx, resy int32) {
+		init.Do(func() {
+			fmt.Println("DG initialized")
+			started = time.Now()
+
+			width = int(resx)
+			height = int(resy)
+			ebiten.SetWindowSize(width, height)
+			ebiten.SetWindowTitle("GOOM")
+
+			game = newGame(width, height)
+			gameCh <- game
+			close(gameCh)
+		})
 	})
 
-	linker.Define("dg", "draw_frame", func(ptr, resx, resy int32) {
-		fmt.Printf("DB draw_frame called with ptr=%d, resx=%d, resy=%d\n", ptr, resx, resy)
+	linker.Define("dg", "draw_frame", func(ptr int32) {
+		fmt.Printf("DB draw_frame called with ptr=%d\n", ptr)
+		if game == nil {
+			return
+		}
+
+		size := width * height * 4
+		data := defaultMemory.Load(int(ptr), size*4)
+
+		pixels := make([]byte, size)
+		for i := 0; i < size; i += 4 {
+			p := data[i:]
+			pixels[i] = p[3]      // R
+			pixels[i+1] = p[7]    // G
+			pixels[i+2] = p[i+11] // B
+			pixels[i+3] = 0xFF    // A
+		}
+		copy(game.pixels, pixels)
 	})
 
 	linker.Define("dg", "sleep_ms", func(ms int32) {
 		fmt.Printf("DB sleep_ms called with ms=%d\n", ms)
+		time.Sleep(time.Duration(ms) * time.Millisecond)
 	})
 
 	linker.Define("dg", "get_ticks_ms", func() int32 {
@@ -132,21 +199,4 @@ func dg(linker *wasp.Linker, store *wasp.Store) {
 		// Log but don't panic - this allows DOOM to continue despite UB
 		fmt.Printf("[UBSAN] shift out of bounds: lhs=%d, rhs=%d (continuing)\n", lhs, rhs)
 	})
-}
-
-func memstats(f func()) {
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	f()
-	runtime.ReadMemStats(&after)
-
-	fmt.Printf("Memory usage: %d bytes\n", after.Alloc-before.Alloc)
-	fmt.Printf("Heap allocations: %d bytes\n", after.HeapAlloc-before.HeapAlloc)
-	fmt.Printf("Heap objects: %d\n", after.HeapObjects-before.HeapObjects)
-}
-
-func elapsed(f func()) {
-	start := time.Now()
-	f()
-	fmt.Printf("Elapsed time: %s\n", time.Since(start))
 }
