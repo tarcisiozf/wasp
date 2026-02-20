@@ -159,16 +159,18 @@ func dg(linker *wasp.Linker, store *wasp.Store) {
 			return
 		}
 
-		size := width * height * 4
-		data := defaultMemory.Load(int(ptr), size*4)
+		numPixels := width * height
+		dataSize := numPixels * 4
+		data := defaultMemory.Load(int(ptr), dataSize)
 
-		pixels := make([]byte, size)
-		for i := 0; i < size; i += 4 {
-			p := data[i:]
-			pixels[i] = p[3]      // R
-			pixels[i+1] = p[7]    // G
-			pixels[i+2] = p[i+11] // B
-			pixels[i+3] = 0xFF    // A
+		pixels := make([]byte, numPixels*4)
+		for i := 0; i < numPixels; i++ {
+			src := i * 4
+			dst := i * 4
+			pixels[dst] = data[src+2]   // R
+			pixels[dst+1] = data[src+1] // G
+			pixels[dst+2] = data[src]   // B
+			pixels[dst+3] = 0xFF        // A
 		}
 		copy(game.pixels, pixels)
 	})
