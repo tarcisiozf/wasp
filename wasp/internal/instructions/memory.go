@@ -344,7 +344,10 @@ var (
 	F32Store = addInstruction(opcodes.F32Store, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		value := ctx.Stack.Pop().(float32)
+		value, err := castNumber[float32](ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		base, err := castInt(ctx.Stack.Pop())
 		if err != nil {
 			return err
@@ -363,7 +366,10 @@ var (
 	F64Store = addInstruction(opcodes.F64Store, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		value := ctx.Stack.Pop().(float64)
+		value, err := castNumber[float64](ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		base, err := castInt(ctx.Stack.Pop())
 		if err != nil {
 			return err
