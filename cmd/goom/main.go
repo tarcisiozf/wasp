@@ -49,6 +49,7 @@ func main() {
 
 		options := []wasp.InstanceOption{
 			wasp.WithLinker(linker),
+			wasp.IgnoreUnreachable(), // Allow DOOM to continue despite UBSan panics
 		}
 		for _, arg := range args {
 			switch arg {
@@ -124,6 +125,12 @@ func dg(linker *wasp.Linker, store *wasp.Store) {
 
 	linker.Define("dg", "set_window_title", func(ptr, len int32) {
 		fmt.Printf("DB set_window_title called with ptr=%d, len=%d\n", ptr, len)
+	})
+
+	// UBSan stubs - allow undefined behavior to continue without panicking
+	linker.Define("env", "__ubsan_handle_shift_out_of_bounds", func(dataPtr, lhs, rhs int32) {
+		// Log but don't panic - this allows DOOM to continue despite UB
+		fmt.Printf("[UBSAN] shift out of bounds: lhs=%d, rhs=%d (continuing)\n", lhs, rhs)
 	})
 }
 

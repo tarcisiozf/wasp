@@ -134,7 +134,7 @@ func (it *Iterator) SignedVarint32() int32 {
 		if b < 0x80 {
 			// Sign extend if the sign bit is set
 			if shift < 32 && (b&0x40) != 0 {
-				result |= ^int32(0) << shift
+				result |= int32(^uint32(0) << shift)
 			}
 			break
 		}
@@ -154,7 +154,7 @@ func (it *Iterator) SignedVarint64() int64 {
 		if b < 0x80 {
 			// Sign extend if the sign bit is set
 			if shift < 64 && (b&0x40) != 0 {
-				result |= ^int64(0) << shift
+				result |= int64(^uint64(0) << shift)
 			}
 			break
 		}

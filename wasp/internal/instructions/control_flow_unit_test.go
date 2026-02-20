@@ -173,7 +173,12 @@ func TestCallIndirectUnit(t *testing.T) {
 		}
 		ctx.Tables = []*memory.Table{table}
 
-		// Setup function signatures - both pointing to same signature
+		// Setup type signatures (indexed by type index for call_indirect)
+		ctx.TypeSignatures = []fnsig.Signature{
+			{Params: []byte{}, Results: []byte{}}, // type 0
+		}
+
+		// Setup function signatures (indexed by function index)
 		ctx.FuncSignatures = []fnsig.Signature{
 			{Params: []byte{}, Results: []byte{}},
 			{Params: []byte{}, Results: []byte{}},
@@ -232,6 +237,7 @@ func TestCallIndirectUnit(t *testing.T) {
 			Elements: []int{-1}, // uninitialized
 		}
 		ctx.Tables = []*memory.Table{table}
+		ctx.TypeSignatures = []fnsig.Signature{{}}
 		ctx.FuncSignatures = []fnsig.Signature{{}}
 		ctx.Stack.Push(int32(0))
 
@@ -252,10 +258,15 @@ func TestCallIndirectUnit(t *testing.T) {
 		}
 		ctx.Tables = []*memory.Table{table}
 
-		// Different signatures
+		// Type signatures (indexed by type index)
+		ctx.TypeSignatures = []fnsig.Signature{
+			{Params: []byte{0x7F}, Results: []byte{}}, // type 0: (i32) -> ()
+		}
+
+		// Function signatures (indexed by function index) - different from type 0
 		ctx.FuncSignatures = []fnsig.Signature{
-			{Params: []byte{0x7F}, Results: []byte{}}, // sig 0: (i32) -> ()
-			{Params: []byte{}, Results: []byte{0x7F}}, // sig 1: () -> (i32) - different!
+			{Params: []byte{0x7F}, Results: []byte{}}, // func 0: (i32) -> ()
+			{Params: []byte{}, Results: []byte{0x7F}}, // func 1: () -> (i32) - different!
 		}
 		ctx.Stack.Push(int32(0))
 

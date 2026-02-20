@@ -1,6 +1,7 @@
 package wasp
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"wasp/wasp/internal/binary"
@@ -64,6 +65,16 @@ func Verbose() InstanceOption {
 	}
 }
 
+// IgnoreUnreachable makes the interpreter continue past unreachable instructions
+// instead of returning an error. Useful when running WASM with UBSan that panics
+// on undefined behavior but you want to continue anyway.
+func IgnoreUnreachable() InstanceOption {
+	return func(e *Instance) error {
+		e.ignoreUnreachable = true
+		return nil
+	}
+}
+
 type DebugData struct {
 	showFunctionCallsFlag bool
 	showImportsFlag       bool
@@ -79,24 +90,28 @@ type DebugData struct {
 type Instance struct {
 	module         *module.Module
 	funcSignatures []fnsig.Signature
+	typeSignatures []fnsig.Signature
 
 	linker *Linker
 	store  *Store
 
 	indexedImportedFunctions []*external.Function
 	debug                    DebugData
+	ignoreUnreachable        bool
 
 	callStack *memory.Stack[*execution.CallFrame]
 }
 
 func NewInstance(module *module.Module, store *Store, options ...InstanceOption) (*Instance, error) {
 	funcSignatures := module.FunctionSignatures()
+	typeSignatures := module.TypeSignatures()
 
 	callStack := memory.NewStackWithCapacity[*execution.CallFrame](maxCallStackDepth)
 
 	instance := &Instance{
 		module:         module,
 		funcSignatures: funcSignatures,
+		typeSignatures: typeSignatures,
 
 		store: store,
 
@@ -219,6 +234,12 @@ func (instance *Instance) Tick() error {
 		}
 
 		if err := callFrame.Call(); err != nil {
+			// Check if this is an unreachable error and we're configured to ignore it
+			if instance.ignoreUnreachable && errors.Is(err, execution.ErrUnreachable) {
+				// Mark frame as done and continue - this will pop it and return to caller
+				callFrame.Context.Done = true
+				continue
+			}
 			return fmt.Errorf("error enqueueing call frame: %w", err)
 		}
 
@@ -357,6 +378,7 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 			Memories:       instance.store.Memories,
 			Tables:         instance.store.Tables,
 			FuncSignatures: instance.funcSignatures,
+			TypeSignatures: instance.typeSignatures,
 
 			Body:                binary.NewIterator(fn.Body),
 			FunctionCallRequest: -1,

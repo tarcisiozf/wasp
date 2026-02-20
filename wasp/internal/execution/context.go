@@ -18,7 +18,8 @@ type Context struct {
 	Globals        *memory.Global
 	Memories       []*memory.Memory
 	Tables         []*memory.Table
-	FuncSignatures []fnsig.Signature
+	FuncSignatures []fnsig.Signature // indexed by function index
+	TypeSignatures []fnsig.Signature // indexed by type index (for call_indirect)
 
 	NumParams  int
 	NumResults int

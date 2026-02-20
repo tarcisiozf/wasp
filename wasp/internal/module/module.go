@@ -90,6 +90,12 @@ func (module *Module) Tables() []memory.Table {
 	return module.tables
 }
 
+// TypeSignatures returns a slice of signatures from the type section,
+// indexed by type index (used for call_indirect)
+func (module *Module) TypeSignatures() []fnsig.Signature {
+	return module.functionSignatures
+}
+
 // FuncSignatures returns a slice of signatures indexed by function index
 // (imports first, then local functions)
 func (module *Module) FunctionSignatures() []fnsig.Signature {

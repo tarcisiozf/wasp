@@ -162,10 +162,10 @@ var (
 			return execution.ErrUninitializedElement
 		}
 
-		if signatureIndex < 0 || signatureIndex >= len(ctx.FuncSignatures) {
+		if signatureIndex < 0 || signatureIndex >= len(ctx.TypeSignatures) {
 			return execution.ErrInvalidSignatureIndex
 		}
-		expectedSig := ctx.FuncSignatures[signatureIndex]
+		expectedSig := ctx.TypeSignatures[signatureIndex]
 
 		if funcIndex < 0 || funcIndex >= len(ctx.FuncSignatures) {
 			return execution.ErrInvalidFunctionIndex
