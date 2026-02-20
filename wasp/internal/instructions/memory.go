@@ -8,16 +8,16 @@ import (
 	"wasp/wasp/internal/opcodes"
 )
 
-func castInt64(item any) int64 {
+func castInt64(item any) (int64, error) {
 	switch v := item.(type) {
 	case int64:
-		return v
+		return v, nil
 	case int32:
-		return int64(v)
+		return int64(v), nil
 	case int:
-		return int64(v)
+		return int64(v), nil
 	}
-	panic(fmt.Sprintf("expected int64, got %T", item))
+	return 0, fmt.Errorf("expected int64, got %T", item)
 }
 
 var (
@@ -29,7 +29,10 @@ var (
 
 	MemoryGrow = addInstruction(opcodes.MemoryGrow, func(ctx *execution.Context) error {
 		index := ctx.Body.Varint()
-		delta := castInt(ctx.Stack.Pop())
+		delta, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		mem := ctx.Memories[index]
 		prevPages := mem.NumPages()
 		if mem.Grow(delta) {
@@ -44,9 +47,18 @@ var (
 		dstIndex := ctx.Body.Varint()
 		srcIndex := ctx.Body.Varint()
 
-		size := castInt(ctx.Stack.Pop())
-		srcOffset := castInt(ctx.Stack.Pop())
-		dstOffset := castInt(ctx.Stack.Pop())
+		size, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		srcOffset, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		dstOffset, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 
 		src := ctx.Memories[srcIndex]
 		dst := ctx.Memories[dstIndex]
@@ -58,9 +70,18 @@ var (
 
 	MemoryFill = addInstruction(opcodes.MemoryFill, func(ctx *execution.Context) error {
 		index := ctx.Body.Varint()
-		size := castInt(ctx.Stack.Pop())
-		value := castInt(ctx.Stack.Pop())
-		offset := castInt(ctx.Stack.Pop())
+		size, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		value, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		offset, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 
 		if value < 0 || value > 255 {
 			return fmt.Errorf("memory.fill value must be between 0 and 255, got %d", value)
@@ -81,7 +102,10 @@ var (
 	I32Load = addInstruction(opcodes.I32Load, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment (unused, just for validation hints)
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 4)
 		ctx.Stack.Push(int32(binary.LittleEndian.Uint32(bytes)))
@@ -92,7 +116,10 @@ var (
 	I64Load = addInstruction(opcodes.I64Load, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 8)
 		ctx.Stack.Push(int64(binary.LittleEndian.Uint64(bytes)))
@@ -103,7 +130,10 @@ var (
 	F32Load = addInstruction(opcodes.F32Load, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 4)
 		bits := binary.LittleEndian.Uint32(bytes)
@@ -115,7 +145,10 @@ var (
 	F64Load = addInstruction(opcodes.F64Load, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 8)
 		bits := binary.LittleEndian.Uint64(bytes)
@@ -127,7 +160,10 @@ var (
 	I32Load8S = addInstruction(opcodes.I32Load8S, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 1)
 		ctx.Stack.Push(int32(int8(bytes[0])))
@@ -138,7 +174,10 @@ var (
 	I32Load8U = addInstruction(opcodes.I32Load8U, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 1)
 		ctx.Stack.Push(int32(bytes[0]))
@@ -149,7 +188,10 @@ var (
 	I32Load16S = addInstruction(opcodes.I32Load16S, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 2)
 		ctx.Stack.Push(int32(int16(binary.LittleEndian.Uint16(bytes))))
@@ -160,7 +202,10 @@ var (
 	I32Load16U = addInstruction(opcodes.I32Load16U, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 2)
 		ctx.Stack.Push(int32(binary.LittleEndian.Uint16(bytes)))
@@ -171,7 +216,10 @@ var (
 	I64Load8S = addInstruction(opcodes.I64Load8S, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 1)
 		ctx.Stack.Push(int64(int8(bytes[0])))
@@ -182,7 +230,10 @@ var (
 	I64Load8U = addInstruction(opcodes.I64Load8U, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 1)
 		ctx.Stack.Push(int64(bytes[0]))
@@ -193,7 +244,10 @@ var (
 	I64Load16S = addInstruction(opcodes.I64Load16S, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 2)
 		ctx.Stack.Push(int64(int16(binary.LittleEndian.Uint16(bytes))))
@@ -204,7 +258,10 @@ var (
 	I64Load16U = addInstruction(opcodes.I64Load16U, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 2)
 		ctx.Stack.Push(int64(binary.LittleEndian.Uint16(bytes)))
@@ -215,7 +272,10 @@ var (
 	I64Load32S = addInstruction(opcodes.I64Load32S, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 4)
 		ctx.Stack.Push(int64(int32(binary.LittleEndian.Uint32(bytes))))
@@ -226,7 +286,10 @@ var (
 	I64Load32U = addInstruction(opcodes.I64Load32U, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 		bytes := ctx.Memories[0].Load(addr, 4)
 		ctx.Stack.Push(int64(binary.LittleEndian.Uint32(bytes)))
@@ -237,8 +300,14 @@ var (
 	I32Store = addInstruction(opcodes.I32Store, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		value := castInt(ctx.Stack.Pop())
-		base := castInt(ctx.Stack.Pop())
+		value, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 
 		bytes := make([]byte, 4)
@@ -253,8 +322,14 @@ var (
 	I64Store = addInstruction(opcodes.I64Store, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		value := castInt64(ctx.Stack.Pop())
-		base := castInt(ctx.Stack.Pop())
+		value, err := castInt64(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 
 		bytes := make([]byte, 8)
@@ -270,7 +345,10 @@ var (
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
 		value := ctx.Stack.Pop().(float32)
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 
 		bytes := make([]byte, 4)
@@ -286,7 +364,10 @@ var (
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
 		value := ctx.Stack.Pop().(float64)
-		base := castInt(ctx.Stack.Pop())
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 
 		bytes := make([]byte, 8)
@@ -301,8 +382,14 @@ var (
 	I32Store8 = addInstruction(opcodes.I32Store8, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		value := castInt(ctx.Stack.Pop())
-		base := castInt(ctx.Stack.Pop())
+		value, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 
 		ctx.Memories[0].Store(addr, []byte{byte(value)})
@@ -314,8 +401,14 @@ var (
 	I32Store16 = addInstruction(opcodes.I32Store16, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		value := castInt(ctx.Stack.Pop())
-		base := castInt(ctx.Stack.Pop())
+		value, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 
 		bytes := make([]byte, 2)
@@ -330,8 +423,14 @@ var (
 	I64Store8 = addInstruction(opcodes.I64Store8, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		value := castInt64(ctx.Stack.Pop())
-		base := castInt(ctx.Stack.Pop())
+		value, err := castInt64(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 
 		ctx.Memories[0].Store(addr, []byte{byte(value)})
@@ -343,8 +442,14 @@ var (
 	I64Store16 = addInstruction(opcodes.I64Store16, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		value := castInt64(ctx.Stack.Pop())
-		base := castInt(ctx.Stack.Pop())
+		value, err := castInt64(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 
 		bytes := make([]byte, 2)
@@ -359,8 +464,14 @@ var (
 	I64Store32 = addInstruction(opcodes.I64Store32, func(ctx *execution.Context) error {
 		_ = ctx.Body.Varint() // alignment
 		offset := ctx.Body.Varint()
-		value := castInt64(ctx.Stack.Pop())
-		base := castInt(ctx.Stack.Pop())
+		value, err := castInt64(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		base, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 		addr := base + offset
 
 		bytes := make([]byte, 4)

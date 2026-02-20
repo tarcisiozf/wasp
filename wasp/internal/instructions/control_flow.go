@@ -99,7 +99,10 @@ var (
 		defaultLabel := ctx.Body.Varint()
 
 		// Pop the index from the stack
-		index := castInt(ctx.Stack.Pop())
+		index, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 
 		// Select the target label
 		var labelIdx int
@@ -135,7 +138,10 @@ var (
 		tableIndex := ctx.Body.Varint()
 
 		// Pop the element index from the stack
-		elementIndex := castInt(ctx.Stack.Pop())
+		elementIndex, err := castInt(ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
 
 		// Validate table index
 		if tableIndex < 0 || tableIndex >= len(ctx.Tables) {
