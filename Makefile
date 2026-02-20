@@ -4,4 +4,7 @@ build-asm:
 build-run:
 	go build -o bin/wasp cmd/run/main.go
 
-build: build-asm build-run
+build-goom:
+	go build -o bin/goom cmd/goom/main.go
+
+build: build-asm build-run build-goom
