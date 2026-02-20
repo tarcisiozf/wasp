@@ -330,7 +330,8 @@ func TestI32Load16SUnit(t *testing.T) {
 
 	// Store a negative value as signed 16-bit (-1000 = 0xFC18)
 	bytes := make([]byte, 2)
-	binary.LittleEndian.PutUint16(bytes, uint16(int16(-1000)))
+	signedVal := int16(-1000)
+	binary.LittleEndian.PutUint16(bytes, uint16(signedVal))
 	ctx.Memories[0].Store(8, bytes)
 
 	ctx.Stack.Push(int32(8))
@@ -349,7 +350,8 @@ func TestI32Load16UUnit(t *testing.T) {
 
 	// Store 0xFC18 (64536 unsigned, -1000 signed)
 	bytes := make([]byte, 2)
-	binary.LittleEndian.PutUint16(bytes, uint16(int16(-1000)))
+	signedVal := int16(-1000)
+	binary.LittleEndian.PutUint16(bytes, uint16(signedVal))
 	ctx.Memories[0].Store(8, bytes)
 
 	ctx.Stack.Push(int32(8))

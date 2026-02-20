@@ -23,7 +23,7 @@ var (
 	If = addInstruction(opcodes.If, func(ctx *execution.Context) error {
 		_ = ctx.Body.Byte() // consume block type
 		startPos := ctx.Body.Position()
-		ctx.Condition = ctx.Stack.Pop() != 0
+		ctx.Condition = isNonZero(ctx.Stack.Pop())
 
 		// Push block frame for branching
 		ctx.BlockStack.Push(execution.BlockFrame{
