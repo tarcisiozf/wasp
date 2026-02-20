@@ -31,19 +31,21 @@ func main() {
 		}
 		fmt.Println("WASM loaded in ", time.Since(start))
 
+		store := wasp.NewStore(module)
+
 		linker := wasp.NewLinker()
 
-		dg(linker)
+		dg(linker, store)
 
 		sp := wasi.NewWasiSnapshotPreview1()
-		sp.SetArgs(os.Args[1:]) // Pass remaining args to WASI
-		sp.AddPreopen(3, ".")   // Preopen current directory as fd 3
+		sp.SetArgs([]string{"doom1.wad"}) // Pass remaining args to WASI
+		sp.AddPreopen(3, ".")             // Preopen current directory as fd 3
+		//sp.AddPreopen(4, "doom1.wad")
+		sp.SetMemory(store.Memories[0]) // Set the memory for WASI to use
 		if err := sp.Register(linker); err != nil {
 			println("Error defining function:", err.Error())
 			os.Exit(1)
 		}
-
-		store := wasp.NewStore(module)
 
 		instance, err := wasp.NewInstance(
 			module,
@@ -84,28 +86,35 @@ func main() {
 	})
 }
 
-func dg(linker *wasp.Linker) {
+func dg(linker *wasp.Linker, store *wasp.Store) {
+	var started time.Time
 	linker.Define("dg", "init", func() {
-
+		fmt.Println("DG initialized")
+		started = time.Now()
 	})
 
 	linker.Define("dg", "draw_frame", func(ptr, resx, resy int32) {
-
+		fmt.Printf("DB draw_frame called with ptr=%d, resx=%d, resy=%d\n", ptr, resx, resy)
 	})
 
 	linker.Define("dg", "sleep_ms", func(ms int32) {
-
+		fmt.Printf("DB sleep_ms called with ms=%d\n", ms)
 	})
 
 	linker.Define("dg", "get_ticks_ms", func() int32 {
-		return 0
+		elapsed := time.Since(started)
+		ms := int32(elapsed.Milliseconds())
+		fmt.Printf("DB get_ticks_ms called, returning %d ms\n", ms)
+		return ms
 	})
 
 	linker.Define("dg", "get_key", func() int32 {
+		fmt.Println("DB get_key called")
 		return -1
 	})
 
-	linker.Define("dg", "set_window_title", func(ptr int32) {
+	linker.Define("dg", "set_window_title", func(ptr, len int32) {
+		fmt.Printf("DB set_window_title called with ptr=%d, len=%d\n", ptr, len)
 	})
 }
 
