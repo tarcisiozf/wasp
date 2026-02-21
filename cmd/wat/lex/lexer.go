@@ -2,7 +2,6 @@ package lex
 
 import (
 	"fmt"
-	"wasp/cmd/wapo/tokens"
 )
 
 type Lexer struct {
@@ -136,7 +135,7 @@ func IsKeywordChar(b byte) bool {
 func (lexer *Lexer) Line(index int) int {
 	var line int
 	for i := 0; i < index; i++ {
-		if lexer.data[i] == tokens.Newline {
+		if lexer.data[i] == '\n' {
 			line++
 		}
 	}
@@ -146,7 +145,7 @@ func (lexer *Lexer) Line(index int) int {
 func (lexer *Lexer) Col(index int) int {
 	var line int
 	for i := 0; i < index; i++ {
-		if lexer.data[i] == tokens.Newline {
+		if lexer.data[i] == '\n' {
 			line = i
 		}
 	}
@@ -165,7 +164,7 @@ func (lexer *Lexer) String() string {
 	}
 	line := make([]byte, 0, end-start)
 	for i := start; i < end; i++ {
-		if lexer.data[i] == tokens.Newline {
+		if lexer.data[i] == '\n' {
 			line = append(line, '\\', 'n')
 		} else {
 			line = append(line, lexer.data[i])
