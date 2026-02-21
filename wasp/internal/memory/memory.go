@@ -72,3 +72,11 @@ func (memory *Memory) NumPages() int {
 func (memory *Memory) PageSize() int {
 	return pageSize
 }
+
+func (memory *Memory) MaxPages() int {
+	return memory.maxPages
+}
+
+func (memory *Memory) Data() []byte {
+	return memory.data
+}

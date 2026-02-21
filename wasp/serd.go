@@ -1,138 +1,198 @@
 package wasp
 
 import (
-	"encoding/binary"
+	"encoding/gob"
 	"fmt"
 	"io"
-	biniter "wasp/wasp/internal/binary"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/memory"
 )
 
-type itemType byte
+type fooStore struct {
+	Globals  []fooGlobalItem
+	Memories []fooMemory
+	Tables   []fooTables
+}
 
-const (
-	typeInt32 itemType = iota + 1
-	typeInt64
-	typeFloat32
-	typeFloat64
-)
+type fooGlobalItem struct {
+	Value   any
+	Mutable bool
+}
+
+type fooMemory struct {
+	Data     []byte
+	NumPages int
+	MaxPages int
+}
+
+type fooTables = memory.Table
+
+type fooCallFrame struct {
+	FunctionIndex int
+	Context       fooCallContext
+}
+
+type fooBlockFrame struct {
+	StartPos int
+}
+
+type fooCallContext struct {
+	Stack  []any
+	Locals []any
+
+	NumParams  int
+	NumResults int
+	Params     []any
+
+	BodyPos             int
+	BodyCheckpoint      int
+	FunctionCallRequest int
+	Done                bool
+	TailCall            bool
+
+	Condition  bool
+	BlockStack []fooBlockFrame
+}
+
+type fooState struct {
+	Store     fooStore
+	CallStack []fooCallFrame
+}
 
 func Foo(dest io.Writer, store *Store, instance *Instance) error {
-	marshalStoreGlobals(dest, store.Globals)
-	marshalStoreMemories(dest, store.Memories)
-	marshalStoreTables(dest, store.Tables)
-	marshalStack(dest, instance.callStack)
+	fooStore, err := toFooStore(store)
+	if err != nil {
+		return err
+	}
+	callStack, err := toFooCallStack(instance)
+	if err != nil {
+		return err
+	}
+	state := fooState{
+		Store:     fooStore,
+		CallStack: callStack,
+	}
+
+	enc := gob.NewEncoder(dest)
+	if err := enc.Encode(state); err != nil {
+		return fmt.Errorf("failed to encode state: %v", err)
+	}
+
 	return nil
 }
 
-func marshalStoreGlobals(dest io.Writer, globals *memory.Global) {
+func Bar(src io.Reader) error {
+	var state fooState
+
+	dec := gob.NewDecoder(src)
+	if err := dec.Decode(&state); err != nil {
+		return fmt.Errorf("failed to decode state: %v", err)
+	}
+
+	return nil
+}
+
+func toFooStore(store *Store) (fooStore, error) {
+	globals, err := toFooGlobals(store.Globals)
+	if err != nil {
+		return fooStore{}, err
+	}
+	memories := toFooMemories(store.Memories)
+	tables := toFooTables(store.Tables)
+	return fooStore{
+		Globals:  globals,
+		Memories: memories,
+		Tables:   tables,
+	}, nil
+}
+
+func toFooGlobals(globals *memory.Global) ([]fooGlobalItem, error) {
 	size := globals.Size()
-	marshalInt(dest, size)
+	items := make([]fooGlobalItem, size)
 	for i := 0; i < size; i++ {
 		value, mutable, err := globals.Get(i)
 		if err != nil {
-			panic(fmt.Sprintf("failed to get global at index %d: %v", i, err))
+			return nil, fmt.Errorf("failed to get global at index %d: %v", i, err)
 		}
-		marshal(dest, mutable)
-		marshal(dest, value)
+		items[i] = fooGlobalItem{
+			Value:   value,
+			Mutable: mutable,
+		}
+	}
+	return items, nil
+}
+
+func toFooMemories(memories []*memory.Memory) []fooMemory {
+	items := make([]fooMemory, len(memories))
+	for i, mem := range memories {
+		items[i] = toFooMemory(mem)
+	}
+	return items
+}
+
+func toFooMemory(mem *memory.Memory) fooMemory {
+	return fooMemory{
+		Data:     mem.Data(),
+		NumPages: mem.NumPages(),
+		MaxPages: mem.MaxPages(),
 	}
 }
 
-func marshalStoreMemories(dest io.Writer, memories []*memory.Memory) {
+func toFooTables(tables []*memory.Table) []fooTables {
+	items := make([]fooTables, len(tables))
+	for i, table := range tables {
+		items[i] = *table
+	}
+	return items
 }
 
-func marshalStoreTables(dest io.Writer, tables []*memory.Table) {
-
-}
-
-func marshalStack[T any](dest io.Writer, stack *memory.Stack[T]) {
-	size := stack.Size()
-	marshalInt(dest, size)
+func toFooCallStack(instance *Instance) ([]fooCallFrame, error) {
+	size := instance.callStack.Size()
+	frames := make([]fooCallFrame, size)
 	for i := 0; i < size; i++ {
-		marshal(dest, stack.At(i))
+		frame := instance.callStack.At(i)
+		frames[i] = toFooCallFrame(frame)
 	}
+	return frames, nil
 }
 
-func marshalSlice[T any](dest io.Writer, slice []T) {
-	size := len(slice)
-	marshalInt(dest, size)
-	for i := 0; i < size; i++ {
-		marshal(dest, slice[i])
+func toFooCallFrame(frame *execution.CallFrame) fooCallFrame {
+	stack := make([]any, frame.Context.Stack.Size())
+	for i := 0; i < frame.Context.Stack.Size(); i++ {
+		stack[i] = frame.Context.Stack.At(i)
 	}
-}
 
-func marshalCallFrame(dest io.Writer, frame *execution.CallFrame) {
-	marshalInt(dest, frame.FunctionIndex)
-
-	marshalStack(dest, frame.Context.Locals)
-	marshalStack(dest, frame.Context.Stack)
-
-	marshal(dest, frame.Context.NumParams)
-	marshal(dest, frame.Context.NumResults)
-	marshalSlice(dest, frame.Context.Params)
-
-	marshalIterator(dest, frame.Context.Body)
-	marshal(dest, frame.Context.FunctionCallRequest)
-	marshal(dest, frame.Context.Done)
-	marshal(dest, frame.Context.TailCall)
-
-	marshal(dest, frame.Context.Condition)
-	marshalStack(dest, frame.Context.BlockStack)
-}
-
-func marshalIterator(dest io.Writer, iter *biniter.Iterator) {
-	marshalInt(dest, iter.Position())
-	marshalInt(dest, iter.Checkpoint())
-}
-
-func marshalInt(dest io.Writer, count int) {
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, uint64(count))
-	write(dest, b...)
-}
-
-func marshalBool(dest io.Writer, cond bool) {
-	b := byte(0)
-	if cond {
-		b = 1
+	locals := make([]any, frame.Context.Locals.Size())
+	for i := 0; i < frame.Context.Locals.Size(); i++ {
+		locals[i] = frame.Context.Locals.At(i)
 	}
-	write(dest, b)
-}
 
-func marshal(dest io.Writer, item any) {
-	switch item.(type) {
-	case *execution.CallFrame:
-		marshalCallFrame(dest, item.(*execution.CallFrame))
-	case int:
-		marshalInt(dest, item.(int))
-	case bool:
-		marshalBool(dest, item.(bool))
-	case int32:
-		marshalInt32(dest, item.(int32))
-	case execution.BlockFrame:
-		marshalBlockFrame(dest, item.(execution.BlockFrame))
-	default:
-		panic(fmt.Sprintf("unsupported type: %T", item))
+	blockStack := make([]fooBlockFrame, frame.Context.BlockStack.Size())
+	for i := 0; i < frame.Context.BlockStack.Size(); i++ {
+		blockFrame := frame.Context.BlockStack.At(i)
+		blockStack[i] = fooBlockFrame{
+			StartPos: blockFrame.StartPos,
+		}
 	}
-}
 
-func marshalBlockFrame(dest io.Writer, blockFrame execution.BlockFrame) {
-	marshalInt(dest, blockFrame.StartPos)
-}
+	return fooCallFrame{
+		FunctionIndex: frame.FunctionIndex,
+		Context: fooCallContext{
+			Stack:  stack,
+			Locals: locals,
 
-func marshalInt32(dest io.Writer, value int32) {
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, uint32(value))
-	write(dest, b...)
-}
+			NumParams:  frame.Context.NumParams,
+			NumResults: frame.Context.NumResults,
+			Params:     frame.Context.Params,
 
-func write(dest io.Writer, b ...byte) {
-	n, err := dest.Write(b)
-	if err != nil {
-		panic(fmt.Sprintf("failed to write: %v", err))
-	}
-	if n != len(b) {
-		panic(fmt.Sprintf("failed to write all bytes: %d of %d", n, len(b)))
+			BodyPos:             frame.Context.Body.Position(),
+			BodyCheckpoint:      frame.Context.Body.Checkpoint(),
+			FunctionCallRequest: frame.Context.FunctionCallRequest,
+			Done:                frame.Context.Done,
+			TailCall:            frame.Context.TailCall,
+
+			Condition:  frame.Context.Condition,
+			BlockStack: blockStack,
+		},
 	}
 }
