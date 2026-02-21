@@ -9,6 +9,15 @@ import (
 	"wasp/wasp/internal/memory"
 )
 
+type itemType byte
+
+const (
+	typeInt32 itemType = iota + 1
+	typeInt64
+	typeFloat32
+	typeFloat64
+)
+
 func Foo(dest io.Writer, store *Store, instance *Instance) error {
 	marshalStoreGlobals(dest, store.Globals)
 	marshalStoreMemories(dest, store.Memories)
@@ -80,15 +89,15 @@ func marshalIterator(dest io.Writer, iter *biniter.Iterator) {
 func marshalInt(dest io.Writer, count int) {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, uint64(count))
-	write(dest, b)
+	write(dest, b...)
 }
 
-func marshalBool(dest io.Writer, b bool) {
-	if b {
-		write(dest, []byte{1})
-	} else {
-		write(dest, []byte{0})
+func marshalBool(dest io.Writer, cond bool) {
+	b := byte(0)
+	if cond {
+		b = 1
 	}
+	write(dest, b)
 }
 
 func marshal(dest io.Writer, item any) {
@@ -99,12 +108,26 @@ func marshal(dest io.Writer, item any) {
 		marshalInt(dest, item.(int))
 	case bool:
 		marshalBool(dest, item.(bool))
+	case int32:
+		marshalInt32(dest, item.(int32))
+	case execution.BlockFrame:
+		marshalBlockFrame(dest, item.(execution.BlockFrame))
 	default:
 		panic(fmt.Sprintf("unsupported type: %T", item))
 	}
 }
 
-func write(dest io.Writer, b []byte) {
+func marshalBlockFrame(dest io.Writer, blockFrame execution.BlockFrame) {
+	marshalInt(dest, blockFrame.StartPos)
+}
+
+func marshalInt32(dest io.Writer, value int32) {
+	b := make([]byte, 4)
+	binary.LittleEndian.PutUint32(b, uint32(value))
+	write(dest, b...)
+}
+
+func write(dest io.Writer, b ...byte) {
 	n, err := dest.Write(b)
 	if err != nil {
 		panic(fmt.Sprintf("failed to write: %v", err))

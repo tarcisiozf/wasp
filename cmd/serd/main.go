@@ -1,13 +1,15 @@
 package main
 
 import (
-	"bytes"
+	"fmt"
 	"os"
+	"time"
+	"wasp/wasi"
 	"wasp/wasp"
 )
 
 func main() {
-	wasm, err := os.ReadFile("math.wasm")
+	wasm, err := os.ReadFile("ray.wasm")
 	if err != nil {
 		panic(err)
 	}
@@ -19,28 +21,50 @@ func main() {
 
 	store := wasp.NewStore(module)
 
-	funcref, err := module.GetExportedFunction("square")
+	linker := wasp.NewLinker()
+	sp := wasi.NewWasiSnapshotPreview1()
+	sp.SetArgs(nil)                 // Pass remaining args to WASI
+	sp.AddPreopen(3, ".")           // Preopen current directory as fd 3
+	sp.SetMemory(store.Memories[0]) // Set the memory for WASI to use
+	if err := sp.Register(linker); err != nil {
+		panic(err)
+	}
+	linker.Define("env", "save_film", func(ptr, h, w int32) {})
+
+	funcref, err := module.GetExportedFunction("_start")
 	if err != nil {
 		panic(err)
 	}
 
-	instance, err := wasp.NewInstance(module, store)
+	instance, err := wasp.NewInstance(module, store, wasp.WithLinker(linker))
 	if err != nil {
 		panic(err)
 	}
 
-	_, err = instance.Call(funcref, 5)
+	_, err = instance.Call(funcref)
 	if err != nil {
 		panic(err)
 	}
 
-	instance.Run()
+	go func() {
+		time.Sleep(3 * time.Second)
+		instance.Pause()
+	}()
 
-	var buf bytes.Buffer
-	err = wasp.Foo(&buf, store, instance)
+	if err := instance.Run(); err != nil {
+		panic(err)
+	}
+
+	file, err := os.Create("dump.bin")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	err = wasp.Foo(file, store, instance)
 	if err != nil {
 		panic(err)
 	}
 
-	println("Result:", buf.Len())
+	fmt.Println("@ END")
 }
