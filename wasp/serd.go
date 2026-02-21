@@ -82,7 +82,7 @@ func SerializeState(dest io.Writer, store *Store, instance *Instance) error {
 	return nil
 }
 
-func DeserializeState(src io.Reader, module *Module) (*Store, *Instance, error) {
+func DeserializeState(src io.Reader, module *Module, linker *Linker) (*Store, *Instance, error) {
 	var state ExecutionState
 
 	dec := gob.NewDecoder(src)
@@ -112,7 +112,7 @@ func DeserializeState(src io.Reader, module *Module) (*Store, *Instance, error) 
 		}
 	}
 
-	instance, err := NewInstance(module, store)
+	instance, err := NewInstance(module, store, WithLinker(linker))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create instance: %v", err)
 	}
@@ -136,31 +136,38 @@ func DeserializeState(src io.Reader, module *Module) (*Store, *Instance, error) 
 			},
 		}
 
+		frame.Context.Globals = store.Globals
+		frame.Context.Memories = store.Memories
+		frame.Context.Tables = store.Tables
+
+		frame.Context.FuncSignatures = instance.funcSignatures
+		frame.Context.TypeSignatures = instance.typeSignatures
+
+		if module.IsImport(frameState.FunctionIndex) {
+			extFunc, err := instance.getImportedFunc(frameState.FunctionIndex)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to get imported function at index %d: %v", frameState.FunctionIndex, err)
+			}
+			frame.Function = extFunc
+		}
+
 		if module.IsFunction(frameState.FunctionIndex) {
 			fn := module.FunctionAt(frameState.FunctionIndex)
+			frame.Function = fn
 
 			body := binary.NewIterator(fn.Body)
 			body.Seek(frameState.Context.BodyPos)
 			body.SetCheckpointTo(frameState.Context.BodyCheckpoint)
 			frame.Context.Body = body
 
-			frame.Context.Globals = store.Globals
-			frame.Context.Memories = store.Memories
-			frame.Context.Tables = store.Tables
-
-			frame.Context.FuncSignatures = instance.funcSignatures
-			frame.Context.TypeSignatures = instance.typeSignatures
-
 			frame.Context.Blocks = fn.Blocks
 		}
 
-		if len(frameState.Context.BlockStack) > 0 {
-			frame.Context.BlockStack = memory.NewStack[execution.BlockFrame]()
-			for _, blockFrame := range frameState.Context.BlockStack {
-				frame.Context.BlockStack.Push(execution.BlockFrame{
-					StartPos: blockFrame.StartPos,
-				})
-			}
+		frame.Context.BlockStack = memory.NewStack[execution.BlockFrame]()
+		for _, blockFrame := range frameState.Context.BlockStack {
+			frame.Context.BlockStack.Push(execution.BlockFrame{
+				StartPos: blockFrame.StartPos,
+			})
 		}
 
 		instance.callStack.Push(frame)

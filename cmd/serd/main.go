@@ -1,10 +1,17 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"time"
+	"wasp/pkg/images"
 	"wasp/wasi"
 	"wasp/wasp"
+)
+
+const (
+	dumpFileName = "dump.bin"
 )
 
 func main() {
@@ -18,35 +25,68 @@ func main() {
 		panic(err)
 	}
 
-	store := wasp.NewStore(module)
+	var store *wasp.Store
+	var instance *wasp.Instance
 
 	linker := wasp.NewLinker()
 	sp := wasi.NewWasiSnapshotPreview1()
-	sp.SetArgs(nil)                 // Pass remaining args to WASI
-	sp.AddPreopen(3, ".")           // Preopen current directory as fd 3
-	sp.SetMemory(store.Memories[0]) // Set the memory for WASI to use
+	sp.SetArgs(nil)       // Pass remaining args to WASI
+	sp.AddPreopen(3, ".") // Preopen current directory as fd 3
 	if err := sp.Register(linker); err != nil {
 		panic(err)
 	}
-	linker.Define("env", "save_film", func(ptr, h, w int32) {})
+	linker.Define("env", "save_film", func(ptr, height, width int32) {
+		size := height * width * 3
+		data := store.Memories[0].Load(int(ptr), int(size))
 
-	funcref, err := module.GetExportedFunction("_start")
-	if err != nil {
-		panic(err)
+		err := images.SaveBMP("output.bmp", data, int(width), int(height))
+		if err != nil {
+			println("Error saving BMP:", err.Error())
+			os.Exit(1)
+		}
+	})
+
+	var hasDump bool
+	dump, err := os.Open(dumpFileName)
+	if err == nil {
+		store, instance, err = wasp.DeserializeState(dump, module, linker)
+		if err != nil {
+			panic(err)
+		}
+		hasDump = true
+	} else {
+		if !errors.Is(err, os.ErrNotExist) {
+			panic(err)
+		}
+	}
+	defer dump.Close()
+
+	if !hasDump {
+		store = wasp.NewStore(module)
+		instance, err = wasp.NewInstance(module, store, wasp.WithLinker(linker))
+		if err != nil {
+			panic(err)
+		}
+		funcref, err := module.GetExportedFunction("_start")
+		if err != nil {
+			panic(err)
+		}
+
+		_, err = instance.Call(funcref)
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	instance, err := wasp.NewInstance(module, store, wasp.WithLinker(linker))
-	if err != nil {
-		panic(err)
-	}
+	fmt.Printf("hasDump: %v\n", hasDump)
 
-	_, err = instance.Call(funcref)
-	if err != nil {
-		panic(err)
-	}
+	sp.SetMemory(store.Memories[0]) // Set the memory for WASI to use
 
 	go func() {
-		time.Sleep(3 * time.Second)
+		if hasDump {
+			return
+		}
+		time.Sleep(15 * time.Second)
 		instance.Pause()
 	}()
 
@@ -54,14 +94,16 @@ func main() {
 		panic(err)
 	}
 
-	file, err := os.Create("dump.bin")
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
+	if !hasDump {
+		file, err := os.Create(dumpFileName)
+		if err != nil {
+			panic(err)
+		}
+		defer file.Close()
 
-	err = wasp.SerializeState(file, store, instance)
-	if err != nil {
-		panic(err)
+		err = wasp.SerializeState(file, store, instance)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
