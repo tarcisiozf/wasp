@@ -27,7 +27,7 @@ var (
 
 	GlobalGet = addInstruction(opcodes.GlobalGet, func(ctx *execution.Context) error {
 		globalIndex := ctx.Body.Varint()
-		value, err := ctx.Globals.Get(globalIndex)
+		value, _, err := ctx.Globals.Get(globalIndex)
 		if err != nil {
 			return fmt.Errorf("global get ix: %w", err)
 		}

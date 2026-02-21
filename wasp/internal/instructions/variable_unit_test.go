@@ -93,9 +93,10 @@ func TestGlobalSet(t *testing.T) {
 		err := instructions.GlobalSet.Handler(ctx)
 		assert.NoError(t, err)
 
-		result, err := ctx.Globals.Get(globalIndex)
+		result, mut, err := ctx.Globals.Get(globalIndex)
 		assert.NoError(t, err)
 		assert.Equal(t, n, result)
+		assert.True(t, mut)
 		assert.Zero(t, ctx.Stack.Size())
 	})
 
@@ -110,9 +111,10 @@ func TestGlobalSet(t *testing.T) {
 		err := instructions.GlobalSet.Handler(ctx)
 		assert.ErrorIs(t, err, memory.ErrCannotSetImmutableGlobal)
 
-		result, err := ctx.Globals.Get(globalIndex)
+		result, mut, err := ctx.Globals.Get(globalIndex)
 		assert.NoError(t, err)
 		assert.Equal(t, 0, result)
+		assert.False(t, mut)
 		assert.Zero(t, ctx.Stack.Size())
 	})
 }

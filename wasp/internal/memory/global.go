@@ -16,11 +16,12 @@ func (global *Global) Push(value any, mutable bool) {
 	})
 }
 
-func (global *Global) Get(index int) (any, error) {
+func (global *Global) Get(index int) (any, bool, error) {
 	if index < 0 || index >= len(global.entries) {
-		return nil, ErrIndexOutOfBounds
+		return nil, false, ErrIndexOutOfBounds
 	}
-	return global.entries[index].Value, nil
+	entry := global.entries[index]
+	return entry.Value, entry.Mutable, nil
 }
 
 func (global *Global) Set(index int, pop any) error {
@@ -47,4 +48,8 @@ func (global *Global) Clone() *Global {
 	return &Global{
 		entries: entries,
 	}
+}
+
+func (global *Global) Size() int {
+	return len(global.entries)
 }

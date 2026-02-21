@@ -13,13 +13,14 @@ type BlockFrame struct {
 }
 
 type Context struct {
-	Stack          *memory.Stack[any]
-	Locals         *memory.Stack[any]
 	Globals        *memory.Global
 	Memories       []*memory.Memory
 	Tables         []*memory.Table
 	FuncSignatures []fnsig.Signature // indexed by function index
 	TypeSignatures []fnsig.Signature // indexed by type index (for call_indirect)
+
+	Stack  *memory.Stack[any]
+	Locals *memory.Stack[any]
 
 	NumParams  int
 	NumResults int
