@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
+	"wasp/wasp/internal/binary"
 	"wasp/wasp/internal/execution"
 	"wasp/wasp/internal/memory"
 )
@@ -81,15 +82,91 @@ func SerializeState(dest io.Writer, store *Store, instance *Instance) error {
 	return nil
 }
 
-func DeserializeState(src io.Reader) error {
+func DeserializeState(src io.Reader, module *Module) (*Store, *Instance, error) {
 	var state ExecutionState
 
 	dec := gob.NewDecoder(src)
 	if err := dec.Decode(&state); err != nil {
-		return fmt.Errorf("failed to decode state: %v", err)
+		return nil, nil, fmt.Errorf("failed to decode state: %v", err)
 	}
 
-	return nil
+	store := &Store{
+		Globals:  memory.NewGlobal(),
+		Memories: make([]*memory.Memory, len(state.Store.Memories)),
+		Tables:   make([]*memory.Table, len(state.Store.Tables)),
+	}
+	for _, item := range state.Store.Globals {
+		store.Globals.Push(item.Value, item.Mutable)
+	}
+	for i, memState := range state.Store.Memories {
+		mem := memory.NewMemory(memState.NumPages, memState.MaxPages)
+		mem.Store(0, memState.Data)
+		store.Memories[i] = mem
+	}
+	for i, table := range state.Store.Tables {
+		store.Tables[i] = &memory.Table{
+			ElementType: table.ElementType,
+			InitialSize: table.InitialSize,
+			MaxSize:     table.MaxSize,
+			Elements:    table.Elements,
+		}
+	}
+
+	instance, err := NewInstance(module, store)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create instance: %v", err)
+	}
+
+	for _, frameState := range state.CallStack {
+		frame := &execution.CallFrame{
+			FunctionIndex: frameState.FunctionIndex,
+			Context: execution.Context{
+				Stack:  memory.NewStack[any](frameState.Context.Stack...),
+				Locals: memory.NewStack[any](frameState.Context.Locals...),
+
+				NumParams:  frameState.Context.NumParams,
+				NumResults: frameState.Context.NumResults,
+				Params:     frameState.Context.Params,
+
+				FunctionCallRequest: frameState.Context.FunctionCallRequest,
+				Done:                frameState.Context.Done,
+				TailCall:            frameState.Context.TailCall,
+
+				Condition: frameState.Context.Condition,
+			},
+		}
+
+		if module.IsFunction(frameState.FunctionIndex) {
+			fn := module.FunctionAt(frameState.FunctionIndex)
+
+			body := binary.NewIterator(fn.Body)
+			body.Seek(frameState.Context.BodyPos)
+			body.SetCheckpointTo(frameState.Context.BodyCheckpoint)
+			frame.Context.Body = body
+
+			frame.Context.Globals = store.Globals
+			frame.Context.Memories = store.Memories
+			frame.Context.Tables = store.Tables
+
+			frame.Context.FuncSignatures = instance.funcSignatures
+			frame.Context.TypeSignatures = instance.typeSignatures
+
+			frame.Context.Blocks = fn.Blocks
+		}
+
+		if len(frameState.Context.BlockStack) > 0 {
+			frame.Context.BlockStack = memory.NewStack[execution.BlockFrame]()
+			for _, blockFrame := range frameState.Context.BlockStack {
+				frame.Context.BlockStack.Push(execution.BlockFrame{
+					StartPos: blockFrame.StartPos,
+				})
+			}
+		}
+
+		instance.callStack.Push(frame)
+	}
+
+	return store, instance, nil
 }
 
 func toStateStore(store *Store) (StateStore, error) {

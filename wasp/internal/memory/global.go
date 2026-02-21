@@ -9,6 +9,10 @@ type Global struct {
 	entries []*globalEntry
 }
 
+func NewGlobal() *Global {
+	return &Global{}
+}
+
 func (global *Global) Push(value any, mutable bool) {
 	global.entries = append(global.entries, &globalEntry{
 		Mutable: mutable,

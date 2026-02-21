@@ -239,6 +239,10 @@ func (it *Iterator) Checkpoint() int {
 	return it.pos
 }
 
+func (it *Iterator) SetCheckpointTo(checkpoint int) {
+	it.checkpoint = checkpoint
+}
+
 func castPointer[T, S any](bits S) T {
 	return *(*T)(unsafe.Pointer(&bits))
 }

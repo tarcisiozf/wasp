@@ -377,8 +377,9 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 			NumResults: numResults,
 			Params:     params,
 
-			Stack:          memory.NewStack[any](),
-			Locals:         locals,
+			Stack:  memory.NewStack[any](),
+			Locals: locals,
+
 			Globals:        instance.store.Globals,
 			Memories:       instance.store.Memories,
 			Tables:         instance.store.Tables,
