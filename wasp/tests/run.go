@@ -37,8 +37,8 @@ func (r *ExecutionResults) run(index int, args ...any) (*execution.CallFrame, []
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to execute function: %w", err)
 	}
-	if err := r.Instance.Tick(); err != nil {
-		return nil, nil, fmt.Errorf("failed to tick instance: %w", err)
+	if err := r.Instance.Run(); err != nil {
+		return nil, nil, fmt.Errorf("failed to run instance: %w", err)
 	}
 	results, err := callFrame.Results()
 	if err != nil {

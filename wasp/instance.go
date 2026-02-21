@@ -190,7 +190,7 @@ func (instance *Instance) enqueueCall(fnIndex int, stack *memory.Stack[any]) (*e
 	return callFrame, nil
 }
 
-func (instance *Instance) Tick() error {
+func (instance *Instance) Run() error {
 	// Keep track of the original/root frame for tail calls
 	var rootFrame *execution.CallFrame
 

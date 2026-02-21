@@ -103,8 +103,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := instance.Tick(); err != nil {
-			println("Error ticking instance:", err.Error())
+		if err := instance.Run(); err != nil {
+			println("Error running instance:", err.Error())
 			os.Exit(1)
 		}
 	}

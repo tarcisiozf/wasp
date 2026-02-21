@@ -34,6 +34,8 @@ func main() {
 		panic(err)
 	}
 
+	instance.Run()
+
 	var buf bytes.Buffer
 	err = wasp.Foo(&buf, store, instance)
 	if err != nil {
