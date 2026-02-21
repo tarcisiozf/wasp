@@ -8,35 +8,35 @@ import (
 	"wasp/wasp/internal/memory"
 )
 
-type fooStore struct {
-	Globals  []fooGlobalItem
-	Memories []fooMemory
-	Tables   []fooTables
+type StateStore struct {
+	Globals  []GlobalItem
+	Memories []MemoryState
+	Tables   []TableState
 }
 
-type fooGlobalItem struct {
+type GlobalItem struct {
 	Value   any
 	Mutable bool
 }
 
-type fooMemory struct {
+type MemoryState struct {
 	Data     []byte
 	NumPages int
 	MaxPages int
 }
 
-type fooTables = memory.Table
+type TableState = memory.Table
 
-type fooCallFrame struct {
+type CallFrame struct {
 	FunctionIndex int
-	Context       fooCallContext
+	Context       CallContext
 }
 
-type fooBlockFrame struct {
+type BlockFrame struct {
 	StartPos int
 }
 
-type fooCallContext struct {
+type CallContext struct {
 	Stack  []any
 	Locals []any
 
@@ -51,25 +51,25 @@ type fooCallContext struct {
 	TailCall            bool
 
 	Condition  bool
-	BlockStack []fooBlockFrame
+	BlockStack []BlockFrame
 }
 
-type fooState struct {
-	Store     fooStore
-	CallStack []fooCallFrame
+type ExecutionState struct {
+	Store     StateStore
+	CallStack []CallFrame
 }
 
-func Foo(dest io.Writer, store *Store, instance *Instance) error {
-	fooStore, err := toFooStore(store)
+func SerializeState(dest io.Writer, store *Store, instance *Instance) error {
+	stateStore, err := toStateStore(store)
 	if err != nil {
 		return err
 	}
-	callStack, err := toFooCallStack(instance)
+	callStack, err := toCallStack(instance)
 	if err != nil {
 		return err
 	}
-	state := fooState{
-		Store:     fooStore,
+	state := ExecutionState{
+		Store:     stateStore,
 		CallStack: callStack,
 	}
 
@@ -81,8 +81,8 @@ func Foo(dest io.Writer, store *Store, instance *Instance) error {
 	return nil
 }
 
-func Bar(src io.Reader) error {
-	var state fooState
+func DeserializeState(src io.Reader) error {
+	var state ExecutionState
 
 	dec := gob.NewDecoder(src)
 	if err := dec.Decode(&state); err != nil {
@@ -92,29 +92,29 @@ func Bar(src io.Reader) error {
 	return nil
 }
 
-func toFooStore(store *Store) (fooStore, error) {
-	globals, err := toFooGlobals(store.Globals)
+func toStateStore(store *Store) (StateStore, error) {
+	globals, err := toGlobalItems(store.Globals)
 	if err != nil {
-		return fooStore{}, err
+		return StateStore{}, err
 	}
-	memories := toFooMemories(store.Memories)
-	tables := toFooTables(store.Tables)
-	return fooStore{
+	memories := toMemoryStates(store.Memories)
+	tables := toTableStates(store.Tables)
+	return StateStore{
 		Globals:  globals,
 		Memories: memories,
 		Tables:   tables,
 	}, nil
 }
 
-func toFooGlobals(globals *memory.Global) ([]fooGlobalItem, error) {
+func toGlobalItems(globals *memory.Global) ([]GlobalItem, error) {
 	size := globals.Size()
-	items := make([]fooGlobalItem, size)
+	items := make([]GlobalItem, size)
 	for i := 0; i < size; i++ {
 		value, mutable, err := globals.Get(i)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get global at index %d: %v", i, err)
 		}
-		items[i] = fooGlobalItem{
+		items[i] = GlobalItem{
 			Value:   value,
 			Mutable: mutable,
 		}
@@ -122,41 +122,41 @@ func toFooGlobals(globals *memory.Global) ([]fooGlobalItem, error) {
 	return items, nil
 }
 
-func toFooMemories(memories []*memory.Memory) []fooMemory {
-	items := make([]fooMemory, len(memories))
+func toMemoryStates(memories []*memory.Memory) []MemoryState {
+	items := make([]MemoryState, len(memories))
 	for i, mem := range memories {
-		items[i] = toFooMemory(mem)
+		items[i] = toMemoryState(mem)
 	}
 	return items
 }
 
-func toFooMemory(mem *memory.Memory) fooMemory {
-	return fooMemory{
+func toMemoryState(mem *memory.Memory) MemoryState {
+	return MemoryState{
 		Data:     mem.Data(),
 		NumPages: mem.NumPages(),
 		MaxPages: mem.MaxPages(),
 	}
 }
 
-func toFooTables(tables []*memory.Table) []fooTables {
-	items := make([]fooTables, len(tables))
+func toTableStates(tables []*memory.Table) []TableState {
+	items := make([]TableState, len(tables))
 	for i, table := range tables {
 		items[i] = *table
 	}
 	return items
 }
 
-func toFooCallStack(instance *Instance) ([]fooCallFrame, error) {
+func toCallStack(instance *Instance) ([]CallFrame, error) {
 	size := instance.callStack.Size()
-	frames := make([]fooCallFrame, size)
+	frames := make([]CallFrame, size)
 	for i := 0; i < size; i++ {
 		frame := instance.callStack.At(i)
-		frames[i] = toFooCallFrame(frame)
+		frames[i] = toCallFrame(frame)
 	}
 	return frames, nil
 }
 
-func toFooCallFrame(frame *execution.CallFrame) fooCallFrame {
+func toCallFrame(frame *execution.CallFrame) CallFrame {
 	stack := make([]any, frame.Context.Stack.Size())
 	for i := 0; i < frame.Context.Stack.Size(); i++ {
 		stack[i] = frame.Context.Stack.At(i)
@@ -167,17 +167,17 @@ func toFooCallFrame(frame *execution.CallFrame) fooCallFrame {
 		locals[i] = frame.Context.Locals.At(i)
 	}
 
-	blockStack := make([]fooBlockFrame, frame.Context.BlockStack.Size())
+	blockStack := make([]BlockFrame, frame.Context.BlockStack.Size())
 	for i := 0; i < frame.Context.BlockStack.Size(); i++ {
 		blockFrame := frame.Context.BlockStack.At(i)
-		blockStack[i] = fooBlockFrame{
+		blockStack[i] = BlockFrame{
 			StartPos: blockFrame.StartPos,
 		}
 	}
 
-	return fooCallFrame{
+	return CallFrame{
 		FunctionIndex: frame.FunctionIndex,
-		Context: fooCallContext{
+		Context: CallContext{
 			Stack:  stack,
 			Locals: locals,
 

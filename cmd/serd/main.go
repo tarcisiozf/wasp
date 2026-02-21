@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
 	"os"
 	"time"
 	"wasp/wasi"
@@ -56,25 +54,14 @@ func main() {
 		panic(err)
 	}
 
-	//file, err := os.Create("dump.bin")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//defer file.Close()
-
-	file := &bytes.Buffer{}
-
-	err = wasp.Foo(file, store, instance)
+	file, err := os.Create("dump.bin")
 	if err != nil {
 		panic(err)
 	}
+	defer file.Close()
 
-	fmt.Println(file.Len())
-
-	err = wasp.Bar(file)
+	err = wasp.SerializeState(file, store, instance)
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Println("@ END", file.Len())
 }
