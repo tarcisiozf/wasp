@@ -98,6 +98,7 @@ type Instance struct {
 	indexedImportedFunctions []*external.Function
 	debug                    DebugData
 	ignoreUnreachable        bool
+	paused                   bool
 
 	callStack *memory.Stack[*execution.CallFrame]
 }
@@ -194,7 +195,11 @@ func (instance *Instance) Run() error {
 	// Keep track of the original/root frame for tail calls
 	var rootFrame *execution.CallFrame
 
-	for !instance.callStack.IsEmpty() {
+	if instance.paused {
+		instance.paused = false
+	}
+
+	for !instance.callStack.IsEmpty() && !instance.paused {
 		callFrame := instance.callStack.Top()
 
 		if callFrame.Done() {
@@ -388,6 +393,10 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 			Debug: debugEnabled,
 		},
 	}, nil
+}
+
+func (instance *Instance) Pause() {
+	instance.paused = true
 }
 
 func formatArgs(list []any) string {
