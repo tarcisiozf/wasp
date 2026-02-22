@@ -49,10 +49,12 @@ func main() {
 	var hasDump bool
 	dump, err := os.Open(dumpFileName)
 	if err == nil {
+		start := time.Now()
 		store, instance, err = wasp.DeserializeState(dump, module, linker)
 		if err != nil {
 			panic(err)
 		}
+		fmt.Printf("Deserialization took: %v\n", time.Since(start))
 		hasDump = true
 	} else {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -101,9 +103,11 @@ func main() {
 		}
 		defer file.Close()
 
+		start := time.Now()
 		err = wasp.SerializeState(file, store, instance)
 		if err != nil {
 			panic(err)
 		}
+		fmt.Printf("Serialization took: %v\n", time.Since(start))
 	}
 }
