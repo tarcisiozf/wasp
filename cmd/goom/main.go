@@ -113,31 +113,31 @@ type Game struct {
 var _ ebiten.Game = (*Game)(nil)
 
 const (
-	KEY_RIGHTARROW = 0xae
-	KEY_LEFTARROW  = 0xac
-	KEY_UPARROW    = 0xad
-	KEY_DOWNARROW  = 0xaf
-	KEY_STRAFE_L   = 0xa0
-	KEY_STRAFE_R   = 0xa1
-	KEY_USE        = 0xa2
-	KEY_FIRE       = 0xa3
-	KEY_ESCAPE     = 27
-	KEY_ENTER      = 13
-	KEY_TAB        = 9
+	keyRightArrow = 0xae
+	keyLeftArrow  = 0xac
+	keyUpArrow    = 0xad
+	keyDownArrow  = 0xaf
+	keyStrafeL    = 0xa0
+	keyStrafeR    = 0xa1
+	keyUse        = 0xa2
+	keyFire       = 0xa3
+	keyEscape     = 27
+	keyEnter      = 13
+	keyTab        = 9
 )
 
 var keyMap = map[byte]ebiten.Key{
-	KEY_RIGHTARROW: ebiten.KeyRight,
-	KEY_LEFTARROW:  ebiten.KeyLeft,
-	KEY_UPARROW:    ebiten.KeyUp,
-	KEY_DOWNARROW:  ebiten.KeyDown,
-	KEY_STRAFE_L:   ebiten.KeyA,
-	KEY_STRAFE_R:   ebiten.KeyD,
-	KEY_USE:        ebiten.KeyE,
-	KEY_FIRE:       ebiten.KeySpace,
-	KEY_ESCAPE:     ebiten.KeyEscape,
-	KEY_ENTER:      ebiten.KeyEnter,
-	KEY_TAB:        ebiten.KeyTab,
+	keyRightArrow: ebiten.KeyRight,
+	keyLeftArrow:  ebiten.KeyLeft,
+	keyUpArrow:    ebiten.KeyUp,
+	keyDownArrow:  ebiten.KeyDown,
+	keyStrafeL:    ebiten.KeyA,
+	keyStrafeR:    ebiten.KeyD,
+	keyUse:        ebiten.KeyE,
+	keyFire:       ebiten.KeySpace,
+	keyEscape:     ebiten.KeyEscape,
+	keyEnter:      ebiten.KeyEnter,
+	keyTab:        ebiten.KeyTab,
 }
 
 func (g *Game) Update() error {
