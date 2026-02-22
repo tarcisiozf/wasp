@@ -200,6 +200,8 @@ func dg(linker *wasp.Linker, store *wasp.Store) {
 		})
 	})
 
+	frameCount := 0
+	startTime := time.Now()
 	linker.Define("dg", "draw_frame", func(ptr int32) {
 		if game == nil {
 			return
@@ -218,6 +220,13 @@ func dg(linker *wasp.Linker, store *wasp.Store) {
 			pixels[offset+3] = 0xFF           // A
 		}
 		copy(game.pixels, pixels)
+
+		frameCount++
+		elapsedTime := time.Since(startTime).Seconds()
+		if elapsedTime > 0 {
+			fps := float64(frameCount) / elapsedTime
+			fmt.Printf("Frame Count: %d, FPS: %.2f\n", frameCount, fps)
+		}
 	})
 
 	linker.Define("dg", "sleep_ms", func(ms int32) {
