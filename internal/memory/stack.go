@@ -1,5 +1,7 @@
 package memory
 
+import "iter"
+
 type Stack[T any] struct {
 	items []T
 }
@@ -88,4 +90,14 @@ func (s *Stack[T]) PopN(n int) []T {
 	}
 	s.items = s.items[:size-n]
 	return items
+}
+
+func (s *Stack[T]) Iter() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for i := len(s.items) - 1; i >= 0; i-- {
+			if !yield(s.items[i]) {
+				return
+			}
+		}
+	}
 }

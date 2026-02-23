@@ -399,6 +399,9 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 
 func (instance *Instance) Pause() {
 	instance.paused = true
+	for callFrame := range instance.callStack.Iter() {
+		callFrame.Context.Paused = true
+	}
 }
 
 func formatArgs(list []any) string {

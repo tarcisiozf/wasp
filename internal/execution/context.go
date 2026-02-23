@@ -30,6 +30,7 @@ type Context struct {
 	FunctionCallRequest int
 	Done                bool
 	TailCall            bool
+	Paused              bool
 
 	Condition bool
 	// BlockStack tracks nested fnblock for branching (just the start positions)

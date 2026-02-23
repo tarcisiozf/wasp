@@ -2,6 +2,7 @@ package funcs
 
 import (
 	"fmt"
+
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/funcs/fnblock"
 	"github.com/tarcisiozf/wasp/internal/funcs/fnsig"
@@ -32,7 +33,7 @@ func (f *Function) String() string {
 func (f *Function) Call(ctx *execution.Context) error {
 	var opcode opcodes.Opcode
 
-	for ctx.Body.HasNext() {
+	for ctx.Body.HasNext() && !ctx.Paused {
 		ctx.Body.SetCheckpoint()
 		opcode = ctx.Body.Opcode()
 		ix := instructions.Instruction(opcode)
