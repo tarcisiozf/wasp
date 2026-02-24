@@ -261,7 +261,10 @@ func parseGlobalSection(module *Module, iter *binary.Iterator) error {
 	for i := 0; i < numGlobals; i++ {
 		globalType := types.ForCode(iter.Byte())
 		isMutable := iter.BoolByte()
-		assertOpcode(iter, opcodes.I32Const)
+		constType := iter.Opcode()
+		if constType != globalType.Const {
+			return fmt.Errorf("unexpected global initializer type: expected 0x%x, got 0x%x", globalType.Const, constType)
+		}
 		value := globalType.Read(iter)
 
 		module.globals.Push(value, isMutable)
