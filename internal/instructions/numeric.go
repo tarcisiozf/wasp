@@ -2,10 +2,11 @@ package instructions
 
 import (
 	"fmt"
-	"github.com/tarcisiozf/wasp/internal/execution"
-	"github.com/tarcisiozf/wasp/internal/opcodes"
 	"math"
 	"math/bits"
+
+	"github.com/tarcisiozf/wasp/internal/execution"
+	"github.com/tarcisiozf/wasp/internal/opcodes"
 )
 
 type ints interface {
@@ -930,6 +931,15 @@ var (
 			return err
 		}
 		ctx.Stack.Push(int64(math.Float64bits(a)))
+		return nil
+	})
+
+	F64ConvertI64S = addInstruction(opcodes.F64ConvertI64S, func(ctx *execution.Context) error {
+		a, err := castNumber[int64](ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		ctx.Stack.Push(float64(a))
 		return nil
 	})
 

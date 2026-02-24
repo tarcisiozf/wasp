@@ -1,9 +1,10 @@
 package instructions_test
 
 import (
-	"github.com/tarcisiozf/wasp/internal/instructions"
 	"math"
 	"testing"
+
+	"github.com/tarcisiozf/wasp/internal/instructions"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -499,5 +500,57 @@ func TestF64Abs(t *testing.T) {
 		// Result should be positive zero
 		result := ctx.Stack.Top().(float64)
 		assert.False(t, math.Signbit(result))
+	})
+}
+
+func TestF64ConvertI64S(t *testing.T) {
+	t.Run("positive", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(42))
+
+		err := instructions.F64ConvertI64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, float64(42), ctx.Stack.Top())
+	})
+
+	t.Run("negative", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(-100))
+
+		err := instructions.F64ConvertI64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, float64(-100), ctx.Stack.Top())
+	})
+
+	t.Run("zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(0))
+
+		err := instructions.F64ConvertI64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, float64(0), ctx.Stack.Top())
+	})
+
+	t.Run("max int64", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(math.MaxInt64))
+
+		err := instructions.F64ConvertI64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, float64(math.MaxInt64), ctx.Stack.Top())
+	})
+
+	t.Run("min int64", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(math.MinInt64))
+
+		err := instructions.F64ConvertI64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, float64(math.MinInt64), ctx.Stack.Top())
 	})
 }
