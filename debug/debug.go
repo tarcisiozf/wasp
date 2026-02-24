@@ -167,9 +167,12 @@ func sectionGlobalToString(writer io.StringWriter, iter *binary.Iterator) (err e
 		mutability := iter.Byte()
 		f(writer, pos, "global mutability", mutability)
 
+		pos = iter.Position()
+		initOpcode := iter.Opcode()
+		g(writer, pos, initOpcode)
 		switch contentType {
-		case 0x7F: // i32
-			err = k(writer, iter, iter.Opcode())
+		case 0x7F, 0x7E, 0x7D, 0x7C: // i32, i64, f32, f64
+			err = k(writer, iter, initOpcode)
 		default:
 			return fmt.Errorf("unsupported global content type: %02x", contentType)
 		}
@@ -177,9 +180,9 @@ func sectionGlobalToString(writer io.StringWriter, iter *binary.Iterator) (err e
 		if err != nil {
 			return fmt.Errorf("failed to parse global initializer: %v", err)
 		}
-	}
 
-	f(writer, iter.Position(), "global section end opcode", iter.Opcode())
+		f(writer, iter.Position(), "end", iter.Opcode())
+	}
 
 	return nil
 }
@@ -542,7 +545,7 @@ func k(writer io.StringWriter, iter *binary.Iterator, opcode opcodes.Opcode) (er
 	case opcodes.Call, opcodes.ReturnCall:
 		f(writer, iter.Position(), "function index", iter.Varint())
 
-	case opcodes.CallIndirect:
+	case opcodes.CallIndirect, opcodes.ReturnCallIndirect:
 		f(writer, iter.Position(), "signature index", iter.Varint())
 		f(writer, iter.Position(), "table index", iter.Varint())
 
@@ -614,8 +617,16 @@ func k(writer io.StringWriter, iter *binary.Iterator, opcode opcodes.Opcode) (er
 		// no immediate arguments
 		return
 
-	case opcodes.End, opcodes.Drop, opcodes.Select,
-		opcodes.Unreachable, opcodes.Return, opcodes.Else:
+	case opcodes.End, opcodes.Drop, opcodes.Select, opcodes.SelectT,
+		opcodes.Unreachable, opcodes.Return, opcodes.Else, opcodes.Nop,
+		opcodes.I32Ctz, opcodes.I32Popcnt, opcodes.I64Popcnt,
+		opcodes.I32TruncF32S, opcodes.I32TruncF32U,
+		opcodes.I32TruncF64S, opcodes.I32TruncF64U,
+		opcodes.I64TruncF32S, opcodes.I64TruncF32U,
+		opcodes.I64TruncF64S, opcodes.I64TruncF64U,
+		opcodes.I64TruncSatF32S, opcodes.I64TruncSatF32U,
+		opcodes.I64TruncSatF64S, opcodes.I64TruncSatF64U,
+		opcodes.F32Neg:
 		// no immediate arguments
 		return
 
@@ -640,7 +651,7 @@ func typeToString(b byte) string {
 	case 0x60:
 		return "func"
 	default:
-		panic(fmt.Sprintf("unknown type: %02x", b))
+		panic(fmt.Sprintf("unknown type: 0x%02x", b))
 	}
 }
 
