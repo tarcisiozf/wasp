@@ -987,4 +987,19 @@ var (
 		}
 		return nil
 	})
+
+	I64TruncF64S = addInstruction(opcodes.I64TruncF64S, func(ctx *execution.Context) error {
+		a, err := castNumber[float64](ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		if math.IsNaN(a) {
+			return execution.ErrInvalidConversionToInteger
+		}
+		if math.IsInf(a, 0) || a >= 9.223372036854776e+18 || a < -9.223372036854776e+18 {
+			return execution.ErrIntegerOverflow
+		}
+		ctx.Stack.Push(int64(a))
+		return nil
+	})
 )

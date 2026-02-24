@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/instructions"
 
 	"github.com/stretchr/testify/assert"
@@ -607,5 +608,87 @@ func TestF64ConvertI64U(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 1, ctx.Stack.Size())
 		assert.Equal(t, float64(uint64(v)), ctx.Stack.Top())
+	})
+}
+
+func TestI64TruncF64S(t *testing.T) {
+	t.Run("positive", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(42.9))
+
+		err := instructions.I64TruncF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(42), ctx.Stack.Top())
+	})
+
+	t.Run("negative", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(-42.9))
+
+		err := instructions.I64TruncF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(-42), ctx.Stack.Top())
+	})
+
+	t.Run("zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(0.0))
+
+		err := instructions.I64TruncF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("negative zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.Copysign(0, -1))
+
+		err := instructions.I64TruncF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("NaN traps", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.NaN())
+
+		err := instructions.I64TruncF64S.Handler(ctx)
+		assert.ErrorIs(t, err, execution.ErrInvalidConversionToInteger)
+	})
+
+	t.Run("+Inf traps", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.Inf(1))
+
+		err := instructions.I64TruncF64S.Handler(ctx)
+		assert.ErrorIs(t, err, execution.ErrIntegerOverflow)
+	})
+
+	t.Run("-Inf traps", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.Inf(-1))
+
+		err := instructions.I64TruncF64S.Handler(ctx)
+		assert.ErrorIs(t, err, execution.ErrIntegerOverflow)
+	})
+
+	t.Run("out of range positive traps", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(math.MaxInt64) * 2)
+
+		err := instructions.I64TruncF64S.Handler(ctx)
+		assert.ErrorIs(t, err, execution.ErrIntegerOverflow)
+	})
+
+	t.Run("out of range negative traps", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(math.MinInt64) * 2)
+
+		err := instructions.I64TruncF64S.Handler(ctx)
+		assert.ErrorIs(t, err, execution.ErrIntegerOverflow)
 	})
 }
