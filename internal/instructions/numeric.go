@@ -943,6 +943,15 @@ var (
 		return nil
 	})
 
+	F64ConvertI64U = addInstruction(opcodes.F64ConvertI64U, func(ctx *execution.Context) error {
+		a, err := castNumber[int64](ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		ctx.Stack.Push(float64(uint64(a)))
+		return nil
+	})
+
 	F64ConvertI32U = addInstruction(opcodes.F64ConvertI32U, func(ctx *execution.Context) error {
 		aVal, err := castNumber[int32](ctx.Stack.Pop())
 		if err != nil {

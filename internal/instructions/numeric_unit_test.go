@@ -554,3 +554,58 @@ func TestF64ConvertI64S(t *testing.T) {
 		assert.Equal(t, float64(math.MinInt64), ctx.Stack.Top())
 	})
 }
+
+func TestF64ConvertI64U(t *testing.T) {
+	t.Run("positive", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(42))
+
+		err := instructions.F64ConvertI64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, float64(42), ctx.Stack.Top())
+	})
+
+	t.Run("zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(0))
+
+		err := instructions.F64ConvertI64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, float64(0), ctx.Stack.Top())
+	})
+
+	t.Run("max int64 interpreted as unsigned", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(math.MaxInt64))
+
+		err := instructions.F64ConvertI64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, float64(uint64(math.MaxInt64)), ctx.Stack.Top())
+	})
+
+	t.Run("negative int64 treated as large unsigned", func(t *testing.T) {
+		ctx := createTestContext()
+		v := int64(-1)
+		ctx.Stack.Push(v)
+
+		err := instructions.F64ConvertI64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		// -1 as uint64 is math.MaxUint64
+		assert.Equal(t, float64(uint64(v)), ctx.Stack.Top())
+	})
+
+	t.Run("min int64 treated as large unsigned", func(t *testing.T) {
+		ctx := createTestContext()
+		v := int64(math.MinInt64)
+		ctx.Stack.Push(v)
+
+		err := instructions.F64ConvertI64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, float64(uint64(v)), ctx.Stack.Top())
+	})
+}
