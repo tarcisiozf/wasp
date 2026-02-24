@@ -63,6 +63,10 @@ const (
 	WhenceEnd int32 = 2
 )
 
+const (
+	moduleName = "wasi_snapshot_preview1"
+)
+
 // Memory interface for WASI to read/write WebAssembly linear memory
 type Memory interface {
 	Load(offset int, size int) []byte
@@ -1105,43 +1109,50 @@ func (sp *WasiSnapshotPreview1) EnvironSizesGet(environCount int32, environBufSi
 	return ErrnoSuccess
 }
 
+func (sp *WasiSnapshotPreview1) SchedYield() int32 {
+	return ErrnoSuccess
+}
+
 func (sp *WasiSnapshotPreview1) Register(linker *wasp.Linker) error {
-	var linkerErrors = []error{
-		linker.Define("wasi_snapshot_preview1", "args_get", sp.ArgsGet),
-		linker.Define("wasi_snapshot_preview1", "args_sizes_get", sp.ArgsSizeGet),
-		linker.Define("wasi_snapshot_preview1", "clock_res_get", sp.ClockResGet),
-		linker.Define("wasi_snapshot_preview1", "clock_time_get", sp.ClockTimeGet),
-		linker.Define("wasi_snapshot_preview1", "fd_close", sp.FdClose),
-		linker.Define("wasi_snapshot_preview1", "fd_fdstat_get", sp.FdStatGet),
-		linker.Define("wasi_snapshot_preview1", "fd_fdstat_set_flags", sp.FdStatSetFlags),
-		linker.Define("wasi_snapshot_preview1", "fd_filestat_get", sp.FdFilestatGet),
-		linker.Define("wasi_snapshot_preview1", "fd_filestat_set_size", sp.FdFilestatSetSize),
-		linker.Define("wasi_snapshot_preview1", "fd_filestat_set_times", sp.FdFilestatSetTimes),
-		linker.Define("wasi_snapshot_preview1", "fd_pread", sp.FdPRead),
-		linker.Define("wasi_snapshot_preview1", "fd_prestat_get", sp.FdPrestatGet),
-		linker.Define("wasi_snapshot_preview1", "fd_prestat_dir_name", sp.FdPrestatDirName),
-		linker.Define("wasi_snapshot_preview1", "fd_pwrite", sp.FdPWrite),
-		linker.Define("wasi_snapshot_preview1", "fd_read", sp.FdRead),
-		linker.Define("wasi_snapshot_preview1", "fd_seek", sp.FdSeek),
-		linker.Define("wasi_snapshot_preview1", "fd_write", sp.FdWrite),
-		linker.Define("wasi_snapshot_preview1", "path_create_directory", sp.PathCreateDirectory),
-		linker.Define("wasi_snapshot_preview1", "path_filestat_get", sp.PathFilestatGet),
-		linker.Define("wasi_snapshot_preview1", "path_filestat_set_times", sp.PathFilestatSetTimes),
-		linker.Define("wasi_snapshot_preview1", "path_link", sp.PathLink),
-		linker.Define("wasi_snapshot_preview1", "path_open", sp.PathOpen),
-		linker.Define("wasi_snapshot_preview1", "path_readlink", sp.PathReadLink),
-		linker.Define("wasi_snapshot_preview1", "path_remove_directory", sp.PathRemoveDirectory),
-		linker.Define("wasi_snapshot_preview1", "path_rename", sp.PathRename),
-		linker.Define("wasi_snapshot_preview1", "path_symlink", sp.PathSymlink),
-		linker.Define("wasi_snapshot_preview1", "path_unlink_file", sp.PathUnlinkFile),
-		linker.Define("wasi_snapshot_preview1", "proc_exit", sp.ProcExit),
-		linker.Define("wasi_snapshot_preview1", "random_get", sp.RandomGet),
-		linker.Define("wasi_snapshot_preview1", "fd_readdir", sp.FdReadDir),
-		linker.Define("wasi_snapshot_preview1", "fd_sync", sp.FdSync),
-		linker.Define("wasi_snapshot_preview1", "poll_oneoff", sp.PollOneOf),
+	var fields = map[string]any{
+		"args_get":                sp.ArgsGet,
+		"args_sizes_get":          sp.ArgsSizeGet,
+		"clock_res_get":           sp.ClockResGet,
+		"clock_time_get":          sp.ClockTimeGet,
+		"fd_close":                sp.FdClose,
+		"fd_fdstat_get":           sp.FdStatGet,
+		"fd_fdstat_set_flags":     sp.FdStatSetFlags,
+		"fd_filestat_get":         sp.FdFilestatGet,
+		"fd_filestat_set_size":    sp.FdFilestatSetSize,
+		"fd_filestat_set_times":   sp.FdFilestatSetTimes,
+		"fd_pread":                sp.FdPRead,
+		"fd_prestat_get":          sp.FdPrestatGet,
+		"fd_prestat_dir_name":     sp.FdPrestatDirName,
+		"fd_pwrite":               sp.FdPWrite,
+		"fd_read":                 sp.FdRead,
+		"fd_seek":                 sp.FdSeek,
+		"fd_write":                sp.FdWrite,
+		"path_create_directory":   sp.PathCreateDirectory,
+		"path_filestat_get":       sp.PathFilestatGet,
+		"path_filestat_set_times": sp.PathFilestatSetTimes,
+		"path_link":               sp.PathLink,
+		"path_open":               sp.PathOpen,
+		"path_readlink":           sp.PathReadLink,
+		"path_remove_directory":   sp.PathRemoveDirectory,
+		"path_rename":             sp.PathRename,
+		"path_symlink":            sp.PathSymlink,
+		"path_unlink_file":        sp.PathUnlinkFile,
+		"proc_exit":               sp.ProcExit,
+		"random_get":              sp.RandomGet,
+		"fd_readdir":              sp.FdReadDir,
+		"fd_sync":                 sp.FdSync,
+		"poll_oneoff":             sp.PollOneOf,
+		"sched_yield":             sp.SchedYield,
+		"environ_get":             sp.EnvironGet,
+		"environ_sizes_get":       sp.EnvironSizesGet,
 	}
-	for _, err := range linkerErrors {
-		if err != nil {
+	for name, fn := range fields {
+		if err := linker.Define(moduleName, name, fn); err != nil {
 			return err
 		}
 	}

@@ -37,15 +37,14 @@ func main() {
 
 	store := wasp.NewStore(module)
 	defaultMem := store.Memories[0]
-	defaultMem.Grow(200)
 
 	linker := wasp.NewLinker()
 
 	if requiresWasi {
 		sp := wasi.NewWasiSnapshotPreview1()
-		sp.SetArgs(args)                // Pass remaining args to WASI
-		sp.AddPreopen(3, ".")           // Preopen current directory as fd 3
-		sp.SetMemory(store.Memories[0]) // Set the memory for WASI to use
+		sp.SetArgs(args)         // Pass remaining args to WASI
+		sp.AddPreopen(3, ".")    // Preopen current directory as fd 3
+		sp.SetMemory(defaultMem) // Set the memory for WASI to use
 		if err := sp.Register(linker); err != nil {
 			println("Error registering WASI snapshot preview 1:", err.Error())
 			os.Exit(1)
