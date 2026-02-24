@@ -523,6 +523,15 @@ func ctz64(ctx *execution.Context) error {
 	return nil
 }
 
+func popcnt64(ctx *execution.Context) error {
+	aVal, err := castNumber[int64](ctx.Stack.Pop())
+	if err != nil {
+		return err
+	}
+	ctx.Stack.Push(int64(bits.OnesCount64(uint64(aVal))))
+	return nil
+}
+
 func shl32(ctx *execution.Context) error {
 	bVal, err := castNumber[int32](ctx.Stack.Pop())
 	if err != nil {
@@ -715,33 +724,34 @@ var (
 	I32Rotl = addInstruction(opcodes.I32Rotl, rotl32)
 
 	// I64Const is defined earlier with SignedVarint64
-	I64Add  = addInstruction(opcodes.I64Add, add[int64])
-	I64Sub  = addInstruction(opcodes.I64Sub, sub[int64])
-	I64Mul  = addInstruction(opcodes.I64Mul, mul[int64])
-	I64Eqz  = addInstruction(opcodes.I64Eqz, eqz[int64])
-	I64Eq   = addInstruction(opcodes.I64Eq, eq[int64])
-	I64Ne   = addInstruction(opcodes.I64Ne, ne[int64])
-	I64And  = addInstruction(opcodes.I64And, and[int64])
-	I64Xor  = addInstruction(opcodes.I64Xor, xor[int64])
-	I64Or   = addInstruction(opcodes.I64Or, or[int64])
-	I64Div  = addInstruction(opcodes.I64DivS, div[int64])
-	I64DivU = addInstruction(opcodes.I64DivU, divU64)
-	I64RemS = addInstruction(opcodes.I64RemS, remS64)
-	I64RemU = addInstruction(opcodes.I64RemU, remU64)
-	I64LtS  = addInstruction(opcodes.I64LtS, lt[int64])
-	I64LtU  = addInstruction(opcodes.I64LtU, ltU64)
-	I64GtS  = addInstruction(opcodes.I64GtS, gt[int64])
-	I64GtU  = addInstruction(opcodes.I64GtU, gtU64)
-	I64LeS  = addInstruction(opcodes.I64LeS, le[int64])
-	I64LeU  = addInstruction(opcodes.I64LeU, leU64)
-	I64GeS  = addInstruction(opcodes.I64GeS, ge[int64])
-	I64GeU  = addInstruction(opcodes.I64GeU, geU64)
-	I64Clz  = addInstruction(opcodes.I64Clz, clz64)
-	I64Ctz  = addInstruction(opcodes.I64Ctz, ctz64)
-	I64Shl  = addInstruction(opcodes.I64Shl, shl64)
-	I64ShrS = addInstruction(opcodes.I64ShrS, shrS64)
-	I64ShrU = addInstruction(opcodes.I64ShrU, shrU64)
-	I64Rotl = addInstruction(opcodes.I64Rotl, rotl64)
+	I64Add    = addInstruction(opcodes.I64Add, add[int64])
+	I64Sub    = addInstruction(opcodes.I64Sub, sub[int64])
+	I64Mul    = addInstruction(opcodes.I64Mul, mul[int64])
+	I64Eqz    = addInstruction(opcodes.I64Eqz, eqz[int64])
+	I64Eq     = addInstruction(opcodes.I64Eq, eq[int64])
+	I64Ne     = addInstruction(opcodes.I64Ne, ne[int64])
+	I64And    = addInstruction(opcodes.I64And, and[int64])
+	I64Xor    = addInstruction(opcodes.I64Xor, xor[int64])
+	I64Or     = addInstruction(opcodes.I64Or, or[int64])
+	I64Div    = addInstruction(opcodes.I64DivS, div[int64])
+	I64DivU   = addInstruction(opcodes.I64DivU, divU64)
+	I64RemS   = addInstruction(opcodes.I64RemS, remS64)
+	I64RemU   = addInstruction(opcodes.I64RemU, remU64)
+	I64LtS    = addInstruction(opcodes.I64LtS, lt[int64])
+	I64LtU    = addInstruction(opcodes.I64LtU, ltU64)
+	I64GtS    = addInstruction(opcodes.I64GtS, gt[int64])
+	I64GtU    = addInstruction(opcodes.I64GtU, gtU64)
+	I64LeS    = addInstruction(opcodes.I64LeS, le[int64])
+	I64LeU    = addInstruction(opcodes.I64LeU, leU64)
+	I64GeS    = addInstruction(opcodes.I64GeS, ge[int64])
+	I64GeU    = addInstruction(opcodes.I64GeU, geU64)
+	I64Clz    = addInstruction(opcodes.I64Clz, clz64)
+	I64Ctz    = addInstruction(opcodes.I64Ctz, ctz64)
+	I64Popcnt = addInstruction(opcodes.I64Popcnt, popcnt64)
+	I64Shl    = addInstruction(opcodes.I64Shl, shl64)
+	I64ShrS   = addInstruction(opcodes.I64ShrS, shrS64)
+	I64ShrU   = addInstruction(opcodes.I64ShrU, shrU64)
+	I64Rotl   = addInstruction(opcodes.I64Rotl, rotl64)
 
 	F32Add = addInstruction(opcodes.F32Add, add[float32])
 	F32Sub = addInstruction(opcodes.F32Sub, sub[float32])
@@ -1000,6 +1010,21 @@ var (
 			return execution.ErrIntegerOverflow
 		}
 		ctx.Stack.Push(int64(a))
+		return nil
+	})
+
+	I64TruncF64U = addInstruction(opcodes.I64TruncF64U, func(ctx *execution.Context) error {
+		a, err := castNumber[float64](ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		if math.IsNaN(a) {
+			return execution.ErrInvalidConversionToInteger
+		}
+		if math.IsInf(a, 0) || a < 0 || a >= 1.8446744073709552e+19 {
+			return execution.ErrIntegerOverflow
+		}
+		ctx.Stack.Push(int64(uint64(a)))
 		return nil
 	})
 )

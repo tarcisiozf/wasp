@@ -692,3 +692,128 @@ func TestI64TruncF64S(t *testing.T) {
 		assert.ErrorIs(t, err, execution.ErrIntegerOverflow)
 	})
 }
+
+func TestI64Popcnt(t *testing.T) {
+	t.Run("zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(0))
+
+		err := instructions.I64Popcnt.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("all ones", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(-1)) // all 64 bits set
+
+		err := instructions.I64Popcnt.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(64), ctx.Stack.Top())
+	})
+
+	t.Run("one bit set", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(1))
+
+		err := instructions.I64Popcnt.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(1), ctx.Stack.Top())
+	})
+
+	t.Run("alternating bits", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(0x5555555555555555)) // 32 bits set
+
+		err := instructions.I64Popcnt.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(32), ctx.Stack.Top())
+	})
+
+	t.Run("min int64", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(math.MinInt64)) // only the sign bit set
+
+		err := instructions.I64Popcnt.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(1), ctx.Stack.Top())
+	})
+}
+
+func TestI64TruncF64U(t *testing.T) {
+	t.Run("positive", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(42.9))
+
+		err := instructions.I64TruncF64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(42), ctx.Stack.Top())
+	})
+
+	t.Run("zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(0.0))
+
+		err := instructions.I64TruncF64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("large value fitting in uint64", func(t *testing.T) {
+		ctx := createTestContext()
+		v := float64(1<<63) * 1.5 // ~1.38e19, fits in uint64
+		ctx.Stack.Push(v)
+
+		err := instructions.I64TruncF64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(uint64(v)), ctx.Stack.Top())
+	})
+
+	t.Run("NaN traps", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.NaN())
+
+		err := instructions.I64TruncF64U.Handler(ctx)
+		assert.ErrorIs(t, err, execution.ErrInvalidConversionToInteger)
+	})
+
+	t.Run("+Inf traps", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.Inf(1))
+
+		err := instructions.I64TruncF64U.Handler(ctx)
+		assert.ErrorIs(t, err, execution.ErrIntegerOverflow)
+	})
+
+	t.Run("-Inf traps", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.Inf(-1))
+
+		err := instructions.I64TruncF64U.Handler(ctx)
+		assert.ErrorIs(t, err, execution.ErrIntegerOverflow)
+	})
+
+	t.Run("negative traps", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(-1.0))
+
+		err := instructions.I64TruncF64U.Handler(ctx)
+		assert.ErrorIs(t, err, execution.ErrIntegerOverflow)
+	})
+
+	t.Run("out of range positive traps", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(math.MaxUint64) * 2)
+
+		err := instructions.I64TruncF64U.Handler(ctx)
+		assert.ErrorIs(t, err, execution.ErrIntegerOverflow)
+	})
+}
