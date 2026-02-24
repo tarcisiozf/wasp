@@ -2,6 +2,7 @@ package module
 
 import (
 	"fmt"
+
 	"github.com/tarcisiozf/wasp/internal/binary"
 	"github.com/tarcisiozf/wasp/internal/funcs"
 	"github.com/tarcisiozf/wasp/internal/funcs/fnblock"
@@ -70,8 +71,8 @@ func addFunctionNamesFromCustomData(module *Module) {
 	if !ok {
 		return
 	}
-	_, functions := parseCustomSectionName(nameSection)
 	numImports := len(module.imports)
+	_, functions := parseCustomSectionName(nameSection, numImports)
 	for i := 0; i < len(module.functions); i++ {
 		module.functions[i].Name = functions[numImports+i]
 	}
@@ -611,7 +612,7 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) error {
 	return nil
 }
 
-func parseCustomSectionName(section []byte) (modules, funcs []string) {
+func parseCustomSectionName(section []byte, numImports int) (modules, funcs []string) {
 	iter := binary.NewIterator(section)
 	for iter.HasNext() {
 		subID := iter.Byte()
@@ -623,7 +624,7 @@ func parseCustomSectionName(section []byte) (modules, funcs []string) {
 			modules = append(modules, name)
 		case 0x01: // function names
 			count := iter.Varint()
-			funcs = make([]string, count)
+			funcs = make([]string, count+numImports)
 			for i := 0; i < count; i++ {
 				index := iter.Varint()
 				name := iter.String(iter.Varint())
