@@ -572,7 +572,8 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) error {
 		opcodes.I64Rotl, opcodes.I64Rotr, opcodes.I64GeS, opcodes.I64LeS,
 		opcodes.I64ReinterpretF64, opcodes.I64Extend8S, opcodes.I64Extend16S,
 		opcodes.I64Extend32S, opcodes.I64TruncSatF32S, opcodes.I64TruncSatF32U,
-		opcodes.I64TruncSatF64S, opcodes.I64TruncSatF64U:
+		opcodes.I64TruncSatF64S, opcodes.I64TruncSatF64U, opcodes.I64Popcnt,
+		opcodes.I64TruncF64S, opcodes.I64TruncF64U:
 		// no immediate arguments
 		return nil
 	case opcodes.F64Mul, opcodes.F64Add, opcodes.F64Sub,
@@ -598,7 +599,7 @@ func skipParseImmediates(iter *binary.Iterator, opcode opcodes.Opcode) error {
 		// no immediate arguments
 		return nil
 	case opcodes.End, opcodes.Drop, opcodes.Select,
-		opcodes.Unreachable, opcodes.Return:
+		opcodes.Unreachable, opcodes.Return, opcodes.Nop:
 		// no immediate arguments
 		return nil
 	default:
