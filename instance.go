@@ -199,7 +199,7 @@ func (instance *Instance) Run() error {
 		instance.setPauseState(false)
 	}
 
-	for !instance.callStack.IsEmpty() && !instance.paused {
+	for !instance.Done() && !instance.paused {
 		if err := instance.Tick(); err != nil {
 			return fmt.Errorf("error during execution: %w", err)
 		}
@@ -414,6 +414,10 @@ func (instance *Instance) setPauseState(paused bool) {
 	for callFrame := range instance.callStack.Iter() {
 		callFrame.Context.Paused = paused
 	}
+}
+
+func (instance *Instance) Done() bool {
+	return instance.callStack.IsEmpty()
 }
 
 func formatArgs(list []any) string {
