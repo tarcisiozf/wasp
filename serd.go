@@ -3,10 +3,11 @@ package wasp
 import (
 	"encoding/gob"
 	"fmt"
+	"io"
+
 	"github.com/tarcisiozf/wasp/internal/binary"
 	execution "github.com/tarcisiozf/wasp/internal/execution"
 	memory "github.com/tarcisiozf/wasp/internal/memory"
-	"io"
 )
 
 type StateStore struct {
@@ -241,22 +242,37 @@ func toCallStack(instance *Instance) ([]CallFrame, error) {
 }
 
 func toCallFrame(frame *execution.CallFrame) CallFrame {
-	stack := make([]any, frame.Context.Stack.Size())
-	for i := 0; i < frame.Context.Stack.Size(); i++ {
-		stack[i] = frame.Context.Stack.At(i)
-	}
-
-	locals := make([]any, frame.Context.Locals.Size())
-	for i := 0; i < frame.Context.Locals.Size(); i++ {
-		locals[i] = frame.Context.Locals.At(i)
-	}
-
-	blockStack := make([]BlockFrame, frame.Context.BlockStack.Size())
-	for i := 0; i < frame.Context.BlockStack.Size(); i++ {
-		blockFrame := frame.Context.BlockStack.At(i)
-		blockStack[i] = BlockFrame{
-			StartPos: blockFrame.StartPos,
+	var stack []any
+	if frame.Context.Stack != nil {
+		stack = make([]any, frame.Context.Stack.Size())
+		for i := 0; i < frame.Context.Stack.Size(); i++ {
+			stack[i] = frame.Context.Stack.At(i)
 		}
+	}
+
+	var locals []any
+	if frame.Context.Locals != nil {
+		locals = make([]any, frame.Context.Locals.Size())
+		for i := 0; i < frame.Context.Locals.Size(); i++ {
+			locals[i] = frame.Context.Locals.At(i)
+		}
+	}
+
+	var blockStack []BlockFrame
+	if frame.Context.BlockStack != nil {
+		blockStack = make([]BlockFrame, frame.Context.BlockStack.Size())
+		for i := 0; i < frame.Context.BlockStack.Size(); i++ {
+			blockFrame := frame.Context.BlockStack.At(i)
+			blockStack[i] = BlockFrame{
+				StartPos: blockFrame.StartPos,
+			}
+		}
+	}
+
+	var bodyPos, bodyCheckpoint int
+	if frame.Context.Body != nil {
+		bodyPos = frame.Context.Body.Position()
+		bodyCheckpoint = frame.Context.Body.Checkpoint()
 	}
 
 	return CallFrame{
@@ -269,8 +285,8 @@ func toCallFrame(frame *execution.CallFrame) CallFrame {
 			NumResults: frame.Context.NumResults,
 			Params:     frame.Context.Params,
 
-			BodyPos:             frame.Context.Body.Position(),
-			BodyCheckpoint:      frame.Context.Body.Checkpoint(),
+			BodyPos:             bodyPos,
+			BodyCheckpoint:      bodyCheckpoint,
 			FunctionCallRequest: frame.Context.FunctionCallRequest,
 			Done:                frame.Context.Done,
 			TailCall:            frame.Context.TailCall,
