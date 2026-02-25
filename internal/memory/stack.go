@@ -101,3 +101,10 @@ func (s *Stack[T]) Iter() iter.Seq[T] {
 		}
 	}
 }
+
+func (s *Stack[T]) PeekLast(n int) []T {
+	if n > len(s.items) {
+		panic("stack underflow")
+	}
+	return s.items[len(s.items)-n:]
+}
