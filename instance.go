@@ -196,7 +196,7 @@ func (instance *Instance) enqueueCall(fnIndex int, stack *memory.Stack[any]) (*e
 
 func (instance *Instance) Run() error {
 	if instance.paused {
-		instance.paused = false
+		instance.setPauseState(false)
 	}
 
 	for !instance.callStack.IsEmpty() && !instance.paused {
@@ -406,9 +406,13 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 }
 
 func (instance *Instance) Pause() {
-	instance.paused = true
+	instance.setPauseState(true)
+}
+
+func (instance *Instance) setPauseState(paused bool) {
+	instance.paused = paused
 	for callFrame := range instance.callStack.Iter() {
-		callFrame.Context.Paused = true
+		callFrame.Context.Paused = paused
 	}
 }
 
