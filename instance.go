@@ -101,6 +101,8 @@ type Instance struct {
 	ignoreUnreachable        bool
 	paused                   bool
 
+	// Keep track of the original/root frame for tail calls
+	rootFrame *execution.CallFrame
 	callStack *memory.Stack[*execution.CallFrame]
 }
 
@@ -193,82 +195,88 @@ func (instance *Instance) enqueueCall(fnIndex int, stack *memory.Stack[any]) (*e
 }
 
 func (instance *Instance) Run() error {
-	// Keep track of the original/root frame for tail calls
-	var rootFrame *execution.CallFrame
-
 	if instance.paused {
 		instance.paused = false
 	}
 
 	for !instance.callStack.IsEmpty() && !instance.paused {
-		callFrame := instance.callStack.Top()
-
-		if callFrame.Done() {
-			instance.callStack.Pop()
-
-			// forward call results to previous frame if it exists
-			prev := instance.callStack.Top()
-			if prev == nil && rootFrame != nil {
-				// No previous frame but we have a root frame from a tail call chain
-				// Copy results to the root frame
-				rootFrame.Context.Done = true
-				prev = rootFrame
-			}
-
-			if prev != nil {
-				results := callFrame.Context.Results()
-
-				if instance.debug.showFunctionCallsFlag {
-					fmt.Printf("\tresults: [%s]\n\n", formatArgs(results))
-				}
-
-				prev.Context.Stack.Push(results...)
-			}
-
-			continue
-		}
-
-		if instance.debug.showFunctionCallsFlag {
-			fnindex := callFrame.FunctionIndex
-			fntype := '@'
-			if fnindex >= len(instance.indexedImportedFunctions) {
-				fntype = '$'
-				fnindex = fnindex - len(instance.indexedImportedFunctions)
-			}
-			fnname := callFrame.Function.String()
-			fmt.Printf("%c%s ( %s ) - %d (0x%x)\n", fntype, fnname, formatArgs(callFrame.Context.Params), fnindex, fnindex)
-		}
-
-		if err := callFrame.Call(); err != nil {
-			// Check if this is an unreachable error and we're configured to ignore it
-			if instance.ignoreUnreachable && errors.Is(err, execution.ErrUnreachable) {
-				// Mark frame as done and continue - this will pop it and return to caller
-				callFrame.Context.Done = true
-				continue
-			}
-			return fmt.Errorf("error enqueueing call frame: %w", err)
-		}
-
-		if callFrame.Context.FunctionCallRequest >= 0 {
-			fnIndex := callFrame.Context.FunctionCallRequest
-			callFrame.Context.FunctionCallRequest = -1
-
-			if callFrame.Context.TailCall {
-				// For tail calls, remember the root frame if this is the first in the chain
-				if rootFrame == nil {
-					rootFrame = callFrame
-				}
-				instance.callStack.Pop()
-				callFrame.Context.TailCall = false
-			}
-
-			stack := callFrame.Context.Stack
-
-			if _, err := instance.enqueueCall(fnIndex, stack); err != nil {
-				return fmt.Errorf("failed to enqueue call function at index %d: %w", fnIndex, err)
-			}
+		if err := instance.Tick(); err != nil {
+			return fmt.Errorf("error during execution: %w", err)
 		}
 	}
+
+	return nil
+}
+
+func (instance *Instance) Tick() error {
+	callFrame := instance.callStack.Top()
+
+	if callFrame.Done() {
+		instance.callStack.Pop()
+
+		// forward call results to previous frame if it exists
+		prev := instance.callStack.Top()
+		if prev == nil && instance.rootFrame != nil {
+			// No previous frame but we have a root frame from a tail call chain
+			// Copy results to the root frame
+			instance.rootFrame.Context.Done = true
+			prev = instance.rootFrame
+		}
+
+		if prev != nil {
+			results := callFrame.Context.Results()
+
+			if instance.debug.showFunctionCallsFlag {
+				fmt.Printf("\tresults: [%s]\n\n", formatArgs(results))
+			}
+
+			prev.Context.Stack.Push(results...)
+		}
+
+		return nil
+	}
+
+	if instance.debug.showFunctionCallsFlag {
+		fnindex := callFrame.FunctionIndex
+		fntype := '@'
+		if fnindex >= len(instance.indexedImportedFunctions) {
+			fntype = '$'
+			fnindex = fnindex - len(instance.indexedImportedFunctions)
+		}
+		fnname := callFrame.Function.String()
+		fmt.Printf("%c%s ( %s ) - %d (0x%x)\n", fntype, fnname, formatArgs(callFrame.Context.Params), fnindex, fnindex)
+	}
+
+	if err := callFrame.Call(); err != nil {
+		// Check if this is an unreachable error and we're configured to ignore it
+		if instance.ignoreUnreachable && errors.Is(err, execution.ErrUnreachable) {
+			// Mark frame as done and continue - this will pop it and return to caller
+			callFrame.Context.Done = true
+			return nil
+		}
+		return fmt.Errorf("error enqueueing call frame: %w", err)
+	}
+
+	if callFrame.Context.FunctionCallRequest >= 0 {
+		fnIndex := callFrame.Context.FunctionCallRequest
+		callFrame.Context.FunctionCallRequest = -1
+
+		if callFrame.Context.TailCall {
+			// For tail calls, remember the root frame if this is the first in the chain
+			if instance.rootFrame == nil {
+				instance.rootFrame = callFrame
+			}
+			instance.callStack.Pop()
+			callFrame.Context.TailCall = false
+		}
+
+		stack := callFrame.Context.Stack
+
+		if _, err := instance.enqueueCall(fnIndex, stack); err != nil {
+			return fmt.Errorf("failed to enqueue call function at index %d: %w", fnIndex, err)
+		}
+	}
+
 	return nil
 }
 
