@@ -36,9 +36,7 @@ func (linker *Linker) Define(moduleName, fieldName string, asExtern any) error {
 	if _, exists := linker.modules[moduleName]; !exists {
 		linker.modules[moduleName] = make(map[string]*external.Function)
 	}
-	if _, exists := linker.modules[moduleName][fieldName]; exists {
-		fmt.Printf("[WARN] function %s.%s is already defined, overwriting...\n", moduleName, fieldName)
-	}
+	
 	linker.modules[moduleName][fieldName] = extFunc
 
 	return nil
