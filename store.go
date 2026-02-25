@@ -14,8 +14,9 @@ type Store struct {
 func NewStore(module *module.Module) *Store {
 	globals := module.Globals().Clone()
 
-	memories := module.Memories()
-	for i, mem := range memories {
+	moduleMemories := module.Memories()
+	var memories = make([]*memory.Memory, len(moduleMemories))
+	for i, mem := range moduleMemories {
 		memories[i] = mem.Clone()
 	}
 
