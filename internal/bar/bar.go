@@ -49,7 +49,13 @@ func (mem *SegmentedMemory) Store(offset int, data []byte) {
 			continue
 		}
 
-		seg := mem.mergeSegments(segments)
+		var seg *Segment
+		if len(segments) == 1 {
+			seg = segments[0]
+		} else {
+			seg = mem.mergeSegments(segments)
+		}
+		
 		seg.set(chunkOffset, data[start:end])
 	}
 }
