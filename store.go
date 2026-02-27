@@ -32,6 +32,15 @@ func WithFragmentedMemory(sparse bool, zeroThreshold int) StoreOptions {
 	}
 }
 
+func WithMemories(memories []iface.Memory) StoreOptions {
+	return func(store *Store, module *module.Module) {
+		store.Memories = make([]iface.Memory, len(memories))
+		for i, mem := range memories {
+			store.Memories[i] = mem.Clone()
+		}
+	}
+}
+
 func NewStore(module *module.Module, opts ...StoreOptions) *Store {
 	store := &Store{}
 	for _, opt := range opts {
