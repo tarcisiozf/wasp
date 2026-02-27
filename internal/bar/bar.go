@@ -7,6 +7,7 @@ import (
 type Segment struct {
 	offset, end int
 	size        int
+	height      int
 	parent      *Segment
 	left, right *Segment
 	data        []byte
@@ -169,9 +170,17 @@ func (foo *Foo) removeSegment(s *Segment) {
 	} else {
 		s.parent.right = replacement
 	}
+
+	// rebalance from the replacement (or the parent if no replacement)
+	rebalanceStart := replacement
+	if rebalanceStart == nil {
+		rebalanceStart = s.parent
+	}
+	foo.rebalanceUp(rebalanceStart)
 }
 
 func (foo *Foo) insertSegmentNode(seg *Segment) {
+	seg.height = 1
 	if foo.root == nil {
 		foo.root = seg
 		return
@@ -182,6 +191,7 @@ func (foo *Foo) insertSegmentNode(seg *Segment) {
 			if current.left == nil {
 				current.left = seg
 				seg.parent = current
+				foo.rebalanceUp(current)
 				return
 			}
 			current = current.left
@@ -189,9 +199,105 @@ func (foo *Foo) insertSegmentNode(seg *Segment) {
 			if current.right == nil {
 				current.right = seg
 				seg.parent = current
+				foo.rebalanceUp(current)
 				return
 			}
 			current = current.right
 		}
+	}
+}
+
+func height(s *Segment) int {
+	if s == nil {
+		return 0
+	}
+	return s.height
+}
+
+func updateHeight(s *Segment) {
+	lh := height(s.left)
+	rh := height(s.right)
+	if lh > rh {
+		s.height = lh + 1
+	} else {
+		s.height = rh + 1
+	}
+}
+
+func balanceFactor(s *Segment) int {
+	return height(s.left) - height(s.right)
+}
+
+// rotateRight performs a right rotation around n, updating parent links.
+func (foo *Foo) rotateRight(n *Segment) *Segment {
+	l := n.left
+	n.left = l.right
+	if l.right != nil {
+		l.right.parent = n
+	}
+	l.parent = n.parent
+	if n.parent == nil {
+		foo.root = l
+	} else if n.parent.left == n {
+		n.parent.left = l
+	} else {
+		n.parent.right = l
+	}
+	l.right = n
+	n.parent = l
+	updateHeight(n)
+	updateHeight(l)
+	return l
+}
+
+// rotateLeft performs a left rotation around n, updating parent links.
+func (foo *Foo) rotateLeft(n *Segment) *Segment {
+	r := n.right
+	n.right = r.left
+	if r.left != nil {
+		r.left.parent = n
+	}
+	r.parent = n.parent
+	if n.parent == nil {
+		foo.root = r
+	} else if n.parent.left == n {
+		n.parent.left = r
+	} else {
+		n.parent.right = r
+	}
+	r.left = n
+	n.parent = r
+	updateHeight(n)
+	updateHeight(r)
+	return r
+}
+
+// rebalance fixes AVL invariant at n and returns the new subtree root.
+func (foo *Foo) rebalance(n *Segment) *Segment {
+	updateHeight(n)
+	bf := balanceFactor(n)
+	if bf > 1 {
+		// left-heavy
+		if balanceFactor(n.left) < 0 {
+			foo.rotateLeft(n.left) // left-right case
+		}
+		return foo.rotateRight(n)
+	}
+	if bf < -1 {
+		// right-heavy
+		if balanceFactor(n.right) > 0 {
+			foo.rotateRight(n.right) // right-left case
+		}
+		return foo.rotateLeft(n)
+	}
+	return n
+}
+
+// rebalanceUp walks from n toward the root, rebalancing at each ancestor.
+func (foo *Foo) rebalanceUp(n *Segment) {
+	for n != nil {
+		parent := n.parent
+		foo.rebalance(n)
+		n = parent
 	}
 }

@@ -177,6 +177,95 @@ func TestMergeSegments(t *testing.T) {
 	})
 }
 
+func treeHeight(s *Segment) int {
+	if s == nil {
+		return 0
+	}
+	l := treeHeight(s.left)
+	r := treeHeight(s.right)
+	if l > r {
+		return l + 1
+	}
+	return r + 1
+}
+
+func isBalanced(s *Segment) bool {
+	if s == nil {
+		return true
+	}
+	bf := treeHeight(s.left) - treeHeight(s.right)
+	if bf < -1 || bf > 1 {
+		return false
+	}
+	return isBalanced(s.left) && isBalanced(s.right)
+}
+
+func TestAVLBalance(t *testing.T) {
+	t.Run("right-skewed inserts trigger left rotation", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.insertSegment(0, []byte{1})
+		foo.insertSegment(10, []byte{1})
+		foo.insertSegment(20, []byte{1})
+		// without balancing root would be 0 with a right-skewed chain
+		assert.Equal(t, 10, foo.root.offset)
+		assert.Equal(t, 0, foo.root.left.offset)
+		assert.Equal(t, 20, foo.root.right.offset)
+		assert.True(t, isBalanced(foo.root))
+	})
+
+	t.Run("left-skewed inserts trigger right rotation", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.insertSegment(20, []byte{1})
+		foo.insertSegment(10, []byte{1})
+		foo.insertSegment(0, []byte{1})
+		assert.Equal(t, 10, foo.root.offset)
+		assert.Equal(t, 0, foo.root.left.offset)
+		assert.Equal(t, 20, foo.root.right.offset)
+		assert.True(t, isBalanced(foo.root))
+	})
+
+	t.Run("left-right case triggers double rotation", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.insertSegment(20, []byte{1})
+		foo.insertSegment(0, []byte{1})
+		foo.insertSegment(10, []byte{1})
+		assert.Equal(t, 10, foo.root.offset)
+		assert.True(t, isBalanced(foo.root))
+	})
+
+	t.Run("right-left case triggers double rotation", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.insertSegment(0, []byte{1})
+		foo.insertSegment(20, []byte{1})
+		foo.insertSegment(10, []byte{1})
+		assert.Equal(t, 10, foo.root.offset)
+		assert.True(t, isBalanced(foo.root))
+	})
+
+	t.Run("many sequential inserts stay balanced", func(t *testing.T) {
+		foo := NewFoo(8)
+		for i := 0; i < 20; i++ {
+			foo.insertSegment(i*10, []byte{1})
+		}
+		assert.True(t, isBalanced(foo.root))
+	})
+
+	t.Run("tree stays balanced after removes", func(t *testing.T) {
+		foo := NewFoo(8)
+		for i := 0; i < 10; i++ {
+			foo.insertSegment(i*10, []byte{1})
+		}
+		// remove every other segment
+		for i := 0; i < 10; i += 2 {
+			segs := foo.segmentsForRange(i * 10)
+			if len(segs) > 0 {
+				foo.removeSegment(segs[0])
+			}
+		}
+		assert.True(t, isBalanced(foo.root))
+	})
+}
+
 func TestInsertSegment(t *testing.T) {
 	t.Run("root segment", func(t *testing.T) {
 		foo := NewFoo(8)
