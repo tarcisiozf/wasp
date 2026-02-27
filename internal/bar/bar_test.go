@@ -17,90 +17,90 @@ func toList(iter iter.Seq2[int, int]) [][2]int {
 }
 
 func TestChunkify(t *testing.T) {
-	foo := NewFoo(8)
+	mem := NewSegmentedMemory(8)
 
 	t.Run("starts with zero", func(t *testing.T) {
 		input := []byte{0, 0, 1, 2, 3, 4, 5, 6, 7, 8}
 		expected := [][2]int{{2, 10}}
-		result := toList(foo.chunkify(input))
+		result := toList(mem.chunkify(input))
 		assert.Equal(t, expected, result)
 	})
 
 	t.Run("ends with zero", func(t *testing.T) {
 		input := []byte{1, 2, 3, 4, 5, 6, 7, 8, 0, 0}
 		expected := [][2]int{{0, 8}}
-		result := toList(foo.chunkify(input))
+		result := toList(mem.chunkify(input))
 		assert.Equal(t, expected, result)
 	})
 
 	t.Run("chunk threshold", func(t *testing.T) {
 		input := []byte{1, 2, 0, 0, 3, 4, 0, 0, 5, 6, 7, 8}
 		expected := [][2]int{{0, 12}}
-		result := toList(foo.chunkify(input))
+		result := toList(mem.chunkify(input))
 		assert.Equal(t, expected, result)
 	})
 }
 
 func TestSegmentsForRange(t *testing.T) {
 	t.Run("nil root returns nil", func(t *testing.T) {
-		foo := NewFoo(8)
-		result := foo.segmentsForRange(0, 1)
+		mem := NewSegmentedMemory(8)
+		result := mem.segmentsForRange(0, 1)
 		assert.Nil(t, result)
 	})
 
 	t.Run("offset before segment returns nil", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(10, []byte{1, 2, 3, 4})
-		result := foo.segmentsForRange(5, 6)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(10, []byte{1, 2, 3, 4})
+		result := mem.segmentsForRange(5, 6)
 		assert.Nil(t, result)
 	})
 
 	t.Run("offset after segment returns nil", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4})
-		result := foo.segmentsForRange(10, 11)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4})
+		result := mem.segmentsForRange(10, 11)
 		assert.Nil(t, result)
 	})
 
 	t.Run("offset within segment returns segment", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4})
-		result := foo.segmentsForRange(2, 3)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4})
+		result := mem.segmentsForRange(2, 3)
 		assert.Len(t, result, 1)
 		assert.Equal(t, 0, result[0].offset)
 		assert.Equal(t, 4, result[0].end)
 	})
 
 	t.Run("offset at segment start is within segment", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(5, []byte{1, 2, 3, 4})
-		result := foo.segmentsForRange(5, 6)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(5, []byte{1, 2, 3, 4})
+		result := mem.segmentsForRange(5, 6)
 		assert.Len(t, result, 1)
 		assert.Equal(t, 5, result[0].offset)
 	})
 
 	t.Run("offset at segment end is not within segment", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4})
-		result := foo.segmentsForRange(4, 5)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4})
+		result := mem.segmentsForRange(4, 5)
 		assert.Nil(t, result)
 	})
 
 	t.Run("returns multiple overlapping segments", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		foo.insertSegment(4, []byte{9, 10, 11, 12})
-		result := foo.segmentsForRange(4, 5)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+		mem.insertSegment(4, []byte{9, 10, 11, 12})
+		result := mem.segmentsForRange(4, 5)
 		assert.Len(t, result, 2)
 		assert.Equal(t, 0, result[0].offset)
 		assert.Equal(t, 4, result[1].offset)
 	})
 
 	t.Run("range spanning two separate segments returns both", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4})
-		foo.insertSegment(8, []byte{5, 6, 7, 8})
-		result := foo.segmentsForRange(2, 10)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4})
+		mem.insertSegment(8, []byte{5, 6, 7, 8})
+		result := mem.segmentsForRange(2, 10)
 		assert.Len(t, result, 2)
 		assert.Equal(t, 0, result[0].offset)
 		assert.Equal(t, 8, result[1].offset)
@@ -109,25 +109,25 @@ func TestSegmentsForRange(t *testing.T) {
 
 func TestMergeSegments(t *testing.T) {
 	t.Run("single segment is a no-op", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4})
-		segments := foo.segmentsForRange(2, 3)
-		merged := foo.mergeSegments(segments)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4})
+		segments := mem.segmentsForRange(2, 3)
+		merged := mem.mergeSegments(segments)
 
 		assert.Equal(t, 0, merged.offset)
 		assert.Equal(t, 4, merged.end)
 		assert.Equal(t, []byte{1, 2, 3, 4}, merged.data)
-		assert.Same(t, foo.root, merged)
+		assert.Same(t, mem.root, merged)
 	})
 
 	t.Run("two overlapping segments are merged into one", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		foo.insertSegment(4, []byte{9, 10, 11, 12})
-		segments := foo.segmentsForRange(4, 5)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+		mem.insertSegment(4, []byte{9, 10, 11, 12})
+		segments := mem.segmentsForRange(4, 5)
 		assert.Len(t, segments, 2)
 
-		merged := foo.mergeSegments(segments)
+		merged := mem.mergeSegments(segments)
 
 		assert.Equal(t, 0, merged.offset)
 		assert.Equal(t, 8, merged.end)
@@ -135,12 +135,12 @@ func TestMergeSegments(t *testing.T) {
 	})
 
 	t.Run("earlier segment data is preserved in merged buffer", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		foo.insertSegment(4, []byte{9, 10, 11, 12})
-		segments := foo.segmentsForRange(4, 5)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+		mem.insertSegment(4, []byte{9, 10, 11, 12})
+		segments := mem.segmentsForRange(4, 5)
 
-		merged := foo.mergeSegments(segments)
+		merged := mem.mergeSegments(segments)
 
 		// first segment's data at positions 0-3 should be intact
 		assert.Equal(t, byte(1), merged.data[0])
@@ -148,12 +148,12 @@ func TestMergeSegments(t *testing.T) {
 	})
 
 	t.Run("later segment data overwrites earlier in the merged buffer", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		foo.insertSegment(4, []byte{9, 10, 11, 12})
-		segments := foo.segmentsForRange(4, 5)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+		mem.insertSegment(4, []byte{9, 10, 11, 12})
+		segments := mem.segmentsForRange(4, 5)
 
-		merged := foo.mergeSegments(segments)
+		merged := mem.mergeSegments(segments)
 
 		// second segment starts at offset 4, so data[4..8] should be from it
 		assert.Equal(t, byte(9), merged.data[4])
@@ -161,27 +161,27 @@ func TestMergeSegments(t *testing.T) {
 	})
 
 	t.Run("old segments are removed from BST", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		foo.insertSegment(4, []byte{9, 10, 11, 12})
-		segments := foo.segmentsForRange(4, 5)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+		mem.insertSegment(4, []byte{9, 10, 11, 12})
+		segments := mem.segmentsForRange(4, 5)
 
-		foo.mergeSegments(segments)
+		mem.mergeSegments(segments)
 
 		// only one segment should remain in the tree
-		assert.Nil(t, foo.root.left)
-		assert.Nil(t, foo.root.right)
+		assert.Nil(t, mem.root.left)
+		assert.Nil(t, mem.root.right)
 	})
 
 	t.Run("merged segment is accessible via segmentsForRange", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		foo.insertSegment(4, []byte{9, 10, 11, 12})
-		segments := foo.segmentsForRange(4, 5)
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+		mem.insertSegment(4, []byte{9, 10, 11, 12})
+		segments := mem.segmentsForRange(4, 5)
 
-		merged := foo.mergeSegments(segments)
+		merged := mem.mergeSegments(segments)
 
-		found := foo.segmentsForRange(6, 7)
+		found := mem.segmentsForRange(6, 7)
 		assert.Len(t, found, 1)
 		assert.Same(t, merged, found[0])
 	})
@@ -212,76 +212,76 @@ func isBalanced(s *Segment) bool {
 
 func TestAVLBalance(t *testing.T) {
 	t.Run("right-skewed inserts trigger left rotation", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1})
-		foo.insertSegment(10, []byte{1})
-		foo.insertSegment(20, []byte{1})
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1})
+		mem.insertSegment(10, []byte{1})
+		mem.insertSegment(20, []byte{1})
 		// without balancing root would be 0 with a right-skewed chain
-		assert.Equal(t, 10, foo.root.offset)
-		assert.Equal(t, 0, foo.root.left.offset)
-		assert.Equal(t, 20, foo.root.right.offset)
-		assert.True(t, isBalanced(foo.root))
+		assert.Equal(t, 10, mem.root.offset)
+		assert.Equal(t, 0, mem.root.left.offset)
+		assert.Equal(t, 20, mem.root.right.offset)
+		assert.True(t, isBalanced(mem.root))
 	})
 
 	t.Run("left-skewed inserts trigger right rotation", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(20, []byte{1})
-		foo.insertSegment(10, []byte{1})
-		foo.insertSegment(0, []byte{1})
-		assert.Equal(t, 10, foo.root.offset)
-		assert.Equal(t, 0, foo.root.left.offset)
-		assert.Equal(t, 20, foo.root.right.offset)
-		assert.True(t, isBalanced(foo.root))
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(20, []byte{1})
+		mem.insertSegment(10, []byte{1})
+		mem.insertSegment(0, []byte{1})
+		assert.Equal(t, 10, mem.root.offset)
+		assert.Equal(t, 0, mem.root.left.offset)
+		assert.Equal(t, 20, mem.root.right.offset)
+		assert.True(t, isBalanced(mem.root))
 	})
 
 	t.Run("left-right case triggers double rotation", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(20, []byte{1})
-		foo.insertSegment(0, []byte{1})
-		foo.insertSegment(10, []byte{1})
-		assert.Equal(t, 10, foo.root.offset)
-		assert.True(t, isBalanced(foo.root))
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(20, []byte{1})
+		mem.insertSegment(0, []byte{1})
+		mem.insertSegment(10, []byte{1})
+		assert.Equal(t, 10, mem.root.offset)
+		assert.True(t, isBalanced(mem.root))
 	})
 
 	t.Run("right-left case triggers double rotation", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1})
-		foo.insertSegment(20, []byte{1})
-		foo.insertSegment(10, []byte{1})
-		assert.Equal(t, 10, foo.root.offset)
-		assert.True(t, isBalanced(foo.root))
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1})
+		mem.insertSegment(20, []byte{1})
+		mem.insertSegment(10, []byte{1})
+		assert.Equal(t, 10, mem.root.offset)
+		assert.True(t, isBalanced(mem.root))
 	})
 
 	t.Run("many sequential inserts stay balanced", func(t *testing.T) {
-		foo := NewFoo(8)
+		mem := NewSegmentedMemory(8)
 		for i := 0; i < 20; i++ {
-			foo.insertSegment(i*10, []byte{1})
+			mem.insertSegment(i*10, []byte{1})
 		}
-		assert.True(t, isBalanced(foo.root))
+		assert.True(t, isBalanced(mem.root))
 	})
 
 	t.Run("tree stays balanced after removes", func(t *testing.T) {
-		foo := NewFoo(8)
+		mem := NewSegmentedMemory(8)
 		for i := 0; i < 10; i++ {
-			foo.insertSegment(i*10, []byte{1})
+			mem.insertSegment(i*10, []byte{1})
 		}
 		// remove every other segment
 		for i := 0; i < 10; i += 2 {
-			segs := foo.segmentsForRange(i*10, i*10+1)
+			segs := mem.segmentsForRange(i*10, i*10+1)
 			if len(segs) > 0 {
-				foo.removeSegment(segs[0])
+				mem.removeSegment(segs[0])
 			}
 		}
-		assert.True(t, isBalanced(foo.root))
+		assert.True(t, isBalanced(mem.root))
 	})
 }
 
 // read returns all bytes stored in the tree for [offset, offset+size).
 // Bytes with no backing segment are returned as zero.
-func read(foo *Foo, offset, size int) []byte {
+func read(mem *SegmentedMemory, offset, size int) []byte {
 	out := make([]byte, size)
 	for i := 0; i < size; i++ {
-		segs := foo.segmentsForRange(offset+i, offset+i+1)
+		segs := mem.segmentsForRange(offset+i, offset+i+1)
 		if len(segs) == 0 {
 			continue
 		}
@@ -293,156 +293,156 @@ func read(foo *Foo, offset, size int) []byte {
 
 func TestStore(t *testing.T) {
 	t.Run("all-zero data creates no segment", func(t *testing.T) {
-		foo := NewFoo(4)
-		foo.Store(0, []byte{0, 0, 0, 0, 0, 0, 0, 0})
-		assert.Nil(t, foo.root)
+		mem := NewSegmentedMemory(4)
+		mem.Store(0, []byte{0, 0, 0, 0, 0, 0, 0, 0})
+		assert.Nil(t, mem.root)
 	})
 
 	t.Run("single non-overlapping store creates one segment", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(0, []byte{1, 2, 3, 4})
-		assert.NotNil(t, foo.root)
-		assert.Equal(t, 0, foo.root.offset)
-		assert.Equal(t, 4, foo.root.end)
-		assert.Equal(t, []byte{1, 2, 3, 4}, read(foo, 0, 4))
+		mem := NewSegmentedMemory(8)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		assert.NotNil(t, mem.root)
+		assert.Equal(t, 0, mem.root.offset)
+		assert.Equal(t, 4, mem.root.end)
+		assert.Equal(t, []byte{1, 2, 3, 4}, read(mem, 0, 4))
 	})
 
 	t.Run("store at non-zero offset records correct data", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(10, []byte{5, 6, 7, 8})
-		assert.Equal(t, 10, foo.root.offset)
-		assert.Equal(t, 14, foo.root.end)
-		assert.Equal(t, []byte{5, 6, 7, 8}, read(foo, 10, 4))
+		mem := NewSegmentedMemory(8)
+		mem.Store(10, []byte{5, 6, 7, 8})
+		assert.Equal(t, 10, mem.root.offset)
+		assert.Equal(t, 14, mem.root.end)
+		assert.Equal(t, []byte{5, 6, 7, 8}, read(mem, 10, 4))
 	})
 
 	t.Run("two non-overlapping stores create two segments", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(0, []byte{1, 2, 3, 4})
-		foo.Store(100, []byte{5, 6, 7, 8})
-		assert.Equal(t, []byte{1, 2, 3, 4}, read(foo, 0, 4))
-		assert.Equal(t, []byte{5, 6, 7, 8}, read(foo, 100, 4))
+		mem := NewSegmentedMemory(8)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		mem.Store(100, []byte{5, 6, 7, 8})
+		assert.Equal(t, []byte{1, 2, 3, 4}, read(mem, 0, 4))
+		assert.Equal(t, []byte{5, 6, 7, 8}, read(mem, 100, 4))
 	})
 
 	t.Run("store extending an existing segment merges into one", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		foo.Store(4, []byte{9, 10, 11, 12})
-		assert.Nil(t, foo.root.left)
-		assert.Nil(t, foo.root.right)
-		assert.Equal(t, 0, foo.root.offset)
-		assert.Equal(t, 8, foo.root.end)
+		mem := NewSegmentedMemory(8)
+		mem.Store(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+		mem.Store(4, []byte{9, 10, 11, 12})
+		assert.Nil(t, mem.root.left)
+		assert.Nil(t, mem.root.right)
+		assert.Equal(t, 0, mem.root.offset)
+		assert.Equal(t, 8, mem.root.end)
 		// original bytes before overlap are intact
-		assert.Equal(t, []byte{1, 2, 3, 4}, read(foo, 0, 4))
+		assert.Equal(t, []byte{1, 2, 3, 4}, read(mem, 0, 4))
 		// overlapping region is overwritten by the second store
-		assert.Equal(t, []byte{9, 10, 11, 12}, read(foo, 4, 4))
+		assert.Equal(t, []byte{9, 10, 11, 12}, read(mem, 4, 4))
 	})
 
 	t.Run("store spanning two existing segments merges all three", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(0, []byte{1, 2, 3, 4})
-		foo.Store(8, []byte{5, 6, 7, 8})
-		foo.Store(2, []byte{10, 11, 12, 13, 14, 15, 16, 17})
-		segs := foo.segmentsForRange(0, 1)
+		mem := NewSegmentedMemory(8)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		mem.Store(8, []byte{5, 6, 7, 8})
+		mem.Store(2, []byte{10, 11, 12, 13, 14, 15, 16, 17})
+		segs := mem.segmentsForRange(0, 1)
 		assert.Len(t, segs, 1)
-		assert.Equal(t, []byte{10, 11, 12, 13, 14, 15, 16, 17}, read(foo, 2, 8))
+		assert.Equal(t, []byte{10, 11, 12, 13, 14, 15, 16, 17}, read(mem, 2, 8))
 	})
 
 	t.Run("zero gap above threshold splits into two segments", func(t *testing.T) {
-		foo := NewFoo(4)
-		foo.Store(0, []byte{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8})
-		left := foo.segmentsForRange(0, 1)
-		right := foo.segmentsForRange(8, 9)
+		mem := NewSegmentedMemory(4)
+		mem.Store(0, []byte{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8})
+		left := mem.segmentsForRange(0, 1)
+		right := mem.segmentsForRange(8, 9)
 		assert.Len(t, left, 1)
 		assert.Len(t, right, 1)
 		assert.NotSame(t, left[0], right[0])
-		assert.Equal(t, []byte{1, 2, 3, 4}, read(foo, 0, 4))
-		assert.Equal(t, []byte{5, 6, 7, 8}, read(foo, 8, 4))
+		assert.Equal(t, []byte{1, 2, 3, 4}, read(mem, 0, 4))
+		assert.Equal(t, []byte{5, 6, 7, 8}, read(mem, 8, 4))
 	})
 
 	t.Run("zero gap below threshold does not split", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(0, []byte{1, 2, 3, 0, 0, 0, 4, 5, 6})
-		assert.NotNil(t, foo.root)
-		segs := foo.segmentsForRange(0, 1)
+		mem := NewSegmentedMemory(8)
+		mem.Store(0, []byte{1, 2, 3, 0, 0, 0, 4, 5, 6})
+		assert.NotNil(t, mem.root)
+		segs := mem.segmentsForRange(0, 1)
 		assert.Len(t, segs, 1)
 		assert.Equal(t, 0, segs[0].offset)
 		assert.Equal(t, 9, segs[0].end)
 	})
 
 	t.Run("overwriting same offset updates data in place", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(0, []byte{1, 2, 3, 4})
-		foo.Store(0, []byte{9, 8, 7, 6})
-		assert.Equal(t, []byte{9, 8, 7, 6}, read(foo, 0, 4))
+		mem := NewSegmentedMemory(8)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		mem.Store(0, []byte{9, 8, 7, 6})
+		assert.Equal(t, []byte{9, 8, 7, 6}, read(mem, 0, 4))
 	})
 }
 
 func TestLoad(t *testing.T) {
 	t.Run("range with no segments returns zeroes", func(t *testing.T) {
-		foo := NewFoo(8)
-		result := foo.Load(0, 4)
+		mem := NewSegmentedMemory(8)
+		result := mem.Load(0, 4)
 		assert.Equal(t, []byte{0, 0, 0, 0}, result)
 	})
 
 	t.Run("load exact segment range", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(0, []byte{1, 2, 3, 4})
-		assert.Equal(t, []byte{1, 2, 3, 4}, foo.Load(0, 4))
+		mem := NewSegmentedMemory(8)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		assert.Equal(t, []byte{1, 2, 3, 4}, mem.Load(0, 4))
 	})
 
 	t.Run("load subset of a segment", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		assert.Equal(t, []byte{3, 4, 5}, foo.Load(2, 3))
+		mem := NewSegmentedMemory(8)
+		mem.Store(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+		assert.Equal(t, []byte{3, 4, 5}, mem.Load(2, 3))
 	})
 
 	t.Run("load at non-zero offset", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(10, []byte{1, 2, 3, 4})
-		assert.Equal(t, []byte{1, 2, 3, 4}, foo.Load(10, 4))
+		mem := NewSegmentedMemory(8)
+		mem.Store(10, []byte{1, 2, 3, 4})
+		assert.Equal(t, []byte{1, 2, 3, 4}, mem.Load(10, 4))
 	})
 
 	t.Run("load spanning a segment and an empty gap returns zeroes in gap", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(0, []byte{1, 2, 3, 4})
-		result := foo.Load(0, 8)
+		mem := NewSegmentedMemory(8)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		result := mem.Load(0, 8)
 		assert.Equal(t, []byte{1, 2, 3, 4, 0, 0, 0, 0}, result)
 	})
 
 	t.Run("load spanning two segments stitches both", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(0, []byte{1, 2, 3, 4})
-		foo.Store(4, []byte{5, 6, 7, 8})
-		assert.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, foo.Load(0, 8))
+		mem := NewSegmentedMemory(8)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		mem.Store(4, []byte{5, 6, 7, 8})
+		assert.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, mem.Load(0, 8))
 	})
 
 	t.Run("load spanning two segments with a gap returns zeroes in between", func(t *testing.T) {
-		foo := NewFoo(4)
+		mem := NewSegmentedMemory(4)
 		// threshold=4: the 4 zeros split into two segments at [0,4) and [8,12)
-		foo.Store(0, []byte{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8})
-		result := foo.Load(0, 12)
+		mem.Store(0, []byte{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8})
+		result := mem.Load(0, 12)
 		assert.Equal(t, []byte{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8}, result)
 	})
 
 	t.Run("load partially overlapping segment start", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(4, []byte{10, 20, 30, 40})
+		mem := NewSegmentedMemory(8)
+		mem.Store(4, []byte{10, 20, 30, 40})
 		// load starts before the segment
-		result := foo.Load(2, 6)
+		result := mem.Load(2, 6)
 		assert.Equal(t, []byte{0, 0, 10, 20, 30, 40}, result)
 	})
 
 	t.Run("load partially overlapping segment end", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.Store(0, []byte{10, 20, 30, 40})
+		mem := NewSegmentedMemory(8)
+		mem.Store(0, []byte{10, 20, 30, 40})
 		// load ends after the segment
-		result := foo.Load(2, 6)
+		result := mem.Load(2, 6)
 		assert.Equal(t, []byte{30, 40, 0, 0, 0, 0}, result)
 	})
 
 	t.Run("load returns size-length slice even with no data", func(t *testing.T) {
-		foo := NewFoo(8)
-		result := foo.Load(100, 8)
+		mem := NewSegmentedMemory(8)
+		result := mem.Load(100, 8)
 		assert.Len(t, result, 8)
 		assert.Equal(t, make([]byte, 8), result)
 	})
@@ -450,28 +450,28 @@ func TestLoad(t *testing.T) {
 
 func TestInsertSegment(t *testing.T) {
 	t.Run("root segment", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4})
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4})
 
-		assert.NotNil(t, foo.root)
-		assert.Equal(t, 0, foo.root.offset)
-		assert.Equal(t, 4, foo.root.end)
-		assert.Equal(t, []byte{1, 2, 3, 4}, foo.root.data)
+		assert.NotNil(t, mem.root)
+		assert.Equal(t, 0, mem.root.offset)
+		assert.Equal(t, 4, mem.root.end)
+		assert.Equal(t, []byte{1, 2, 3, 4}, mem.root.data)
 	})
 
 	t.Run("non-overlapping segment", func(t *testing.T) {
-		foo := NewFoo(8)
-		foo.insertSegment(0, []byte{1, 2, 3, 4})
-		foo.insertSegment(10, []byte{5, 6, 7, 8})
+		mem := NewSegmentedMemory(8)
+		mem.insertSegment(0, []byte{1, 2, 3, 4})
+		mem.insertSegment(10, []byte{5, 6, 7, 8})
 
-		assert.NotNil(t, foo.root)
-		assert.Equal(t, 0, foo.root.offset)
-		assert.Equal(t, 4, foo.root.end)
-		assert.Equal(t, []byte{1, 2, 3, 4}, foo.root.data)
+		assert.NotNil(t, mem.root)
+		assert.Equal(t, 0, mem.root.offset)
+		assert.Equal(t, 4, mem.root.end)
+		assert.Equal(t, []byte{1, 2, 3, 4}, mem.root.data)
 
-		assert.NotNil(t, foo.root.right)
-		assert.Equal(t, 10, foo.root.right.offset)
-		assert.Equal(t, 14, foo.root.right.end)
-		assert.Equal(t, []byte{5, 6, 7, 8}, foo.root.right.data)
+		assert.NotNil(t, mem.root.right)
+		assert.Equal(t, 10, mem.root.right.offset)
+		assert.Equal(t, 14, mem.root.right.end)
+		assert.Equal(t, []byte{5, 6, 7, 8}, mem.root.right.data)
 	})
 }

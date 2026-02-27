@@ -18,38 +18,38 @@ func (s Segment) set(offset int, data []byte) {
 	copy(s.data[start:], data)
 }
 
-type Foo struct {
+type SegmentedMemory struct {
 	root           *Segment
 	chunkThreshold int
 }
 
-func NewFoo(chunkThreshold int) *Foo {
-	return &Foo{
+func NewSegmentedMemory(chunkThreshold int) *SegmentedMemory {
+	return &SegmentedMemory{
 		chunkThreshold: chunkThreshold,
 	}
 }
 
-func (foo *Foo) Store(offset int, data []byte) {
-	for start, end := range foo.chunkify(data) {
+func (mem *SegmentedMemory) Store(offset int, data []byte) {
+	for start, end := range mem.chunkify(data) {
 		chunkOffset := offset + start
 		chunkEnd := offset + end
 
-		segments := foo.segmentsForRange(chunkOffset, chunkEnd)
+		segments := mem.segmentsForRange(chunkOffset, chunkEnd)
 
 		if len(segments) == 0 {
-			foo.insertSegment(chunkOffset, data[start:end])
+			mem.insertSegment(chunkOffset, data[start:end])
 			continue
 		}
 
-		seg := foo.mergeSegments(segments)
+		seg := mem.mergeSegments(segments)
 		seg.set(chunkOffset, data[start:end])
 	}
 }
 
-func (foo *Foo) Load(offset int, size int) []byte {
+func (mem *SegmentedMemory) Load(offset int, size int) []byte {
 	data := make([]byte, size)
 
-	for _, seg := range foo.segmentsForRange(offset, offset+size) {
+	for _, seg := range mem.segmentsForRange(offset, offset+size) {
 		segStart := max(seg.offset, offset)
 		segEnd := min(seg.end, offset+size)
 		copy(data[segStart-offset:segEnd-offset], seg.data[segStart-seg.offset:segEnd-seg.offset])
@@ -58,14 +58,14 @@ func (foo *Foo) Load(offset int, size int) []byte {
 	return data
 }
 
-func (foo *Foo) chunkify(data []byte) iter.Seq2[int, int] {
+func (mem *SegmentedMemory) chunkify(data []byte) iter.Seq2[int, int] {
 	return func(yield func(int, int) bool) {
 		size := len(data)
 		start := -1
 
 		for i := 0; i < size; i++ {
 			if data[i] == 0 {
-				if start >= 0 && i-start >= foo.chunkThreshold {
+				if start >= 0 && i-start >= mem.chunkThreshold {
 					yield(start, i)
 					start = -1
 				}
@@ -81,12 +81,12 @@ func (foo *Foo) chunkify(data []byte) iter.Seq2[int, int] {
 }
 
 // segmentsForRange returns all segments that overlap the range [offset, end).
-func (foo *Foo) segmentsForRange(offset, end int) (segments []*Segment) {
-	if foo.root == nil {
+func (mem *SegmentedMemory) segmentsForRange(offset, end int) (segments []*Segment) {
+	if mem.root == nil {
 		return nil
 	}
 
-	current := foo.root
+	current := mem.root
 	for current != nil {
 		if end <= current.offset {
 			// range is entirely to the left of this node
@@ -104,7 +104,7 @@ func (foo *Foo) segmentsForRange(offset, end int) (segments []*Segment) {
 	return segments
 }
 
-func (foo *Foo) insertSegment(offset int, data []byte) {
+func (mem *SegmentedMemory) insertSegment(offset int, data []byte) {
 	size := len(data)
 	seg := &Segment{
 		offset: offset,
@@ -113,10 +113,10 @@ func (foo *Foo) insertSegment(offset int, data []byte) {
 		data:   make([]byte, size),
 	}
 	seg.set(offset, data)
-	foo.insertSegmentNode(seg)
+	mem.insertSegmentNode(seg)
 }
 
-func (foo *Foo) mergeSegments(segments []*Segment) *Segment {
+func (mem *SegmentedMemory) mergeSegments(segments []*Segment) *Segment {
 	minOffset := segments[0].offset
 	maxEnd := segments[0].end
 	for _, s := range segments[1:] {
@@ -136,7 +136,7 @@ func (foo *Foo) mergeSegments(segments []*Segment) *Segment {
 	}
 
 	for _, s := range segments {
-		foo.removeSegment(s)
+		mem.removeSegment(s)
 	}
 
 	merged := &Segment{
@@ -145,11 +145,11 @@ func (foo *Foo) mergeSegments(segments []*Segment) *Segment {
 		size:   size,
 		data:   data,
 	}
-	foo.insertSegmentNode(merged)
+	mem.insertSegmentNode(merged)
 	return merged
 }
 
-func (foo *Foo) removeSegment(s *Segment) {
+func (mem *SegmentedMemory) removeSegment(s *Segment) {
 	var replacement *Segment
 
 	if s.left == nil {
@@ -163,7 +163,7 @@ func (foo *Foo) removeSegment(s *Segment) {
 			successor = successor.left
 		}
 		// detach successor from its current position
-		foo.removeSegment(successor)
+		mem.removeSegment(successor)
 		// put successor in place of s
 		successor.left = s.left
 		successor.right = s.right
@@ -180,7 +180,7 @@ func (foo *Foo) removeSegment(s *Segment) {
 		replacement.parent = s.parent
 	}
 	if s.parent == nil {
-		foo.root = replacement
+		mem.root = replacement
 	} else if s.parent.left == s {
 		s.parent.left = replacement
 	} else {
@@ -192,22 +192,22 @@ func (foo *Foo) removeSegment(s *Segment) {
 	if rebalanceStart == nil {
 		rebalanceStart = s.parent
 	}
-	foo.rebalanceUp(rebalanceStart)
+	mem.rebalanceUp(rebalanceStart)
 }
 
-func (foo *Foo) insertSegmentNode(seg *Segment) {
+func (mem *SegmentedMemory) insertSegmentNode(seg *Segment) {
 	seg.height = 1
-	if foo.root == nil {
-		foo.root = seg
+	if mem.root == nil {
+		mem.root = seg
 		return
 	}
-	current := foo.root
+	current := mem.root
 	for current != nil {
 		if seg.offset < current.offset {
 			if current.left == nil {
 				current.left = seg
 				seg.parent = current
-				foo.rebalanceUp(current)
+				mem.rebalanceUp(current)
 				return
 			}
 			current = current.left
@@ -215,7 +215,7 @@ func (foo *Foo) insertSegmentNode(seg *Segment) {
 			if current.right == nil {
 				current.right = seg
 				seg.parent = current
-				foo.rebalanceUp(current)
+				mem.rebalanceUp(current)
 				return
 			}
 			current = current.right
@@ -245,7 +245,7 @@ func balanceFactor(s *Segment) int {
 }
 
 // rotateRight performs a right rotation around n, updating parent links.
-func (foo *Foo) rotateRight(n *Segment) *Segment {
+func (mem *SegmentedMemory) rotateRight(n *Segment) *Segment {
 	l := n.left
 	n.left = l.right
 	if l.right != nil {
@@ -253,7 +253,7 @@ func (foo *Foo) rotateRight(n *Segment) *Segment {
 	}
 	l.parent = n.parent
 	if n.parent == nil {
-		foo.root = l
+		mem.root = l
 	} else if n.parent.left == n {
 		n.parent.left = l
 	} else {
@@ -267,7 +267,7 @@ func (foo *Foo) rotateRight(n *Segment) *Segment {
 }
 
 // rotateLeft performs a left rotation around n, updating parent links.
-func (foo *Foo) rotateLeft(n *Segment) *Segment {
+func (mem *SegmentedMemory) rotateLeft(n *Segment) *Segment {
 	r := n.right
 	n.right = r.left
 	if r.left != nil {
@@ -275,7 +275,7 @@ func (foo *Foo) rotateLeft(n *Segment) *Segment {
 	}
 	r.parent = n.parent
 	if n.parent == nil {
-		foo.root = r
+		mem.root = r
 	} else if n.parent.left == n {
 		n.parent.left = r
 	} else {
@@ -289,31 +289,31 @@ func (foo *Foo) rotateLeft(n *Segment) *Segment {
 }
 
 // rebalance fixes AVL invariant at n and returns the new subtree root.
-func (foo *Foo) rebalance(n *Segment) *Segment {
+func (mem *SegmentedMemory) rebalance(n *Segment) *Segment {
 	updateHeight(n)
 	bf := balanceFactor(n)
 	if bf > 1 {
 		// left-heavy
 		if balanceFactor(n.left) < 0 {
-			foo.rotateLeft(n.left) // left-right case
+			mem.rotateLeft(n.left) // left-right case
 		}
-		return foo.rotateRight(n)
+		return mem.rotateRight(n)
 	}
 	if bf < -1 {
 		// right-heavy
 		if balanceFactor(n.right) > 0 {
-			foo.rotateRight(n.right) // right-left case
+			mem.rotateRight(n.right) // right-left case
 		}
-		return foo.rotateLeft(n)
+		return mem.rotateLeft(n)
 	}
 	return n
 }
 
 // rebalanceUp walks from n toward the root, rebalancing at each ancestor.
-func (foo *Foo) rebalanceUp(n *Segment) {
+func (mem *SegmentedMemory) rebalanceUp(n *Segment) {
 	for n != nil {
 		parent := n.parent
-		foo.rebalance(n)
+		mem.rebalance(n)
 		n = parent
 	}
 }
