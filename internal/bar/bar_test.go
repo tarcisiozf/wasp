@@ -454,6 +454,86 @@ func TestLoad(t *testing.T) {
 	})
 }
 
+func TestClone(t *testing.T) {
+	t.Run("clone of empty memory is empty", func(t *testing.T) {
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
+		clone := mem.Clone().(*SegmentedMemory)
+		assert.Nil(t, clone.root)
+		assert.Equal(t, mem.numPages, clone.numPages)
+		assert.Equal(t, mem.maxPages, clone.maxPages)
+		assert.Equal(t, mem.chunkThreshold, clone.chunkThreshold)
+	})
+
+	t.Run("clone preserves stored data", func(t *testing.T) {
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		clone := mem.Clone().(*SegmentedMemory)
+		assert.Equal(t, []byte{1, 2, 3, 4}, clone.Load(0, 4))
+	})
+
+	t.Run("clone preserves multiple segments", func(t *testing.T) {
+		mem := NewSegmentedMemory(numPages, maxPages, 4)
+		mem.Store(0, []byte{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8})
+		clone := mem.Clone().(*SegmentedMemory)
+		assert.Equal(t, []byte{1, 2, 3, 4}, clone.Load(0, 4))
+		assert.Equal(t, []byte{5, 6, 7, 8}, clone.Load(8, 4))
+	})
+
+	t.Run("clone preserves numPages and maxPages", func(t *testing.T) {
+		mem := NewSegmentedMemory(3, 10, chunkThreshold)
+		clone := mem.Clone().(*SegmentedMemory)
+		assert.Equal(t, 3, clone.NumPages())
+		assert.Equal(t, 10, clone.MaxPages())
+	})
+
+	t.Run("writes to clone do not affect original", func(t *testing.T) {
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		clone := mem.Clone().(*SegmentedMemory)
+		clone.Store(0, []byte{9, 8, 7, 6})
+		assert.Equal(t, []byte{1, 2, 3, 4}, mem.Load(0, 4))
+		assert.Equal(t, []byte{9, 8, 7, 6}, clone.Load(0, 4))
+	})
+
+	t.Run("writes to original do not affect clone", func(t *testing.T) {
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		clone := mem.Clone().(*SegmentedMemory)
+		mem.Store(0, []byte{9, 8, 7, 6})
+		assert.Equal(t, []byte{1, 2, 3, 4}, clone.Load(0, 4))
+		assert.Equal(t, []byte{9, 8, 7, 6}, mem.Load(0, 4))
+	})
+
+	t.Run("clone tree is independently balanced", func(t *testing.T) {
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
+		for i := 0; i < 10; i++ {
+			mem.insertSegment(i*10, []byte{1})
+		}
+		clone := mem.Clone().(*SegmentedMemory)
+		assert.True(t, isBalanced(clone.root))
+	})
+
+	t.Run("clone parent pointers are correct", func(t *testing.T) {
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
+		mem.insertSegment(0, []byte{1})
+		mem.insertSegment(10, []byte{1})
+		mem.insertSegment(20, []byte{1})
+		clone := mem.Clone().(*SegmentedMemory)
+		assert.Nil(t, clone.root.parent)
+		assert.Same(t, clone.root, clone.root.left.parent)
+		assert.Same(t, clone.root, clone.root.right.parent)
+	})
+
+	t.Run("clone segment data is a deep copy", func(t *testing.T) {
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
+		mem.insertSegment(0, []byte{1, 2, 3, 4})
+		clone := mem.Clone().(*SegmentedMemory)
+		// mutate original segment's backing array directly
+		mem.root.data[0] = 99
+		assert.Equal(t, byte(1), clone.root.data[0])
+	})
+}
+
 func TestInsertSegment(t *testing.T) {
 	t.Run("root segment", func(t *testing.T) {
 		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)

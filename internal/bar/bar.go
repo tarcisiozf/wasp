@@ -94,8 +94,32 @@ func (mem *SegmentedMemory) Data() []byte {
 }
 
 func (mem *SegmentedMemory) Clone() iface.Memory {
-	//TODO implement me
-	panic("implement me")
+	clone := &SegmentedMemory{
+		numPages:       mem.numPages,
+		maxPages:       mem.maxPages,
+		chunkThreshold: mem.chunkThreshold,
+		root:           cloneSegment(mem.root, nil),
+	}
+	return clone
+}
+
+func cloneSegment(s *Segment, parent *Segment) *Segment {
+	if s == nil {
+		return nil
+	}
+	data := make([]byte, len(s.data))
+	copy(data, s.data)
+	node := &Segment{
+		offset: s.offset,
+		end:    s.end,
+		size:   s.size,
+		height: s.height,
+		parent: parent,
+		data:   data,
+	}
+	node.left = cloneSegment(s.left, node)
+	node.right = cloneSegment(s.right, node)
+	return node
 }
 
 func (mem *SegmentedMemory) chunkify(data []byte) iter.Seq2[int, int] {
