@@ -9,6 +9,7 @@ type Segment struct {
 	size        int
 	data        []byte
 	left, right *Segment
+	owner       bool // copy-on-write
 }
 
 type FragmentedMemory struct {
@@ -19,9 +20,49 @@ type FragmentedMemory struct {
 	zeroThreshold int
 }
 
+func (memory *FragmentedMemory) Clone() iface.Memory {
+	// mark every segment in the original as non-owner so both sides COW
+	markNonOwner(memory.root)
+	clone := &FragmentedMemory{
+		numPages:      memory.numPages,
+		maxPages:      memory.maxPages,
+		sparse:        memory.sparse,
+		zeroThreshold: memory.zeroThreshold,
+		root:          shallowCloneTree(memory.root),
+	}
+	return clone
+}
+
+// markNonOwner clears the owner flag on every segment in the tree so that
+// both the original and the clone will copy-on-write before mutating.
+func markNonOwner(seg *Segment) {
+	if seg == nil {
+		return
+	}
+	seg.owner = false
+	markNonOwner(seg.left)
+	markNonOwner(seg.right)
+}
+
+// shallowCloneTree duplicates the BST nodes but shares the underlying data slices.
+// All cloned segments start as non-owners.
+func shallowCloneTree(seg *Segment) *Segment {
+	if seg == nil {
+		return nil
+	}
+	return &Segment{
+		offset: seg.offset,
+		end:    seg.end,
+		size:   seg.size,
+		data:   seg.data, // shared — COW will copy on first write
+		owner:  false,
+		left:   shallowCloneTree(seg.left),
+		right:  shallowCloneTree(seg.right),
+	}
+}
+
 func (memory *FragmentedMemory) Data() []byte {
-	//TODO implement me
-	panic("implement me")
+	return memory.Load(0, memory.numPages*pageSize)
 }
 
 var _ iface.Memory = (*FragmentedMemory)(nil)
@@ -121,6 +162,13 @@ func (memory *FragmentedMemory) storeRaw(offset int, bytes []byte) {
 		if seg == nil {
 			break
 		}
+		// copy-on-write: unshare before mutating
+		if !seg.owner {
+			cp := make([]byte, len(seg.data))
+			copy(cp, seg.data)
+			seg.data = cp
+			seg.owner = true
+		}
 		chunk := min(rem, seg.end-off)
 		copy(seg.data[off-seg.offset:off-seg.offset+chunk], src[:chunk])
 		off += chunk
@@ -138,6 +186,7 @@ func (memory *FragmentedMemory) storeRaw(offset int, bytes []byte) {
 		end:    end,
 		size:   rem,
 		data:   make([]byte, rem),
+		owner:  true,
 	}
 	copy(newSeg.data, src)
 	memory.insertSegment(newSeg)
@@ -170,10 +219,11 @@ func (memory *FragmentedMemory) coalesce() {
 		last := merged[len(merged)-1]
 		cur := segs[i]
 		if last.end == cur.offset {
-			// glue: extend last
+			// glue: extend last — append gives us a new backing array we own
 			last.data = append(last.data, cur.data...)
 			last.end = cur.end
 			last.size = last.end - last.offset
+			last.owner = true
 		} else {
 			merged = append(merged, cur)
 		}

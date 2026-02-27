@@ -111,6 +111,77 @@ func TestLoad_NegativeOffset_Panics(t *testing.T) {
 	mem.Load(-1, 1)
 }
 
+// ---- clone / copy-on-write tests ----
+
+func TestClone_ReadsMatchOriginal(t *testing.T) {
+	orig := newMem(1)
+	orig.Store(0, []byte{1, 2, 3, 4})
+	clone := orig.Clone().(*FragmentedMemory)
+
+	got := clone.Load(0, 4)
+	want := []byte{1, 2, 3, 4}
+	for i, b := range want {
+		if got[i] != b {
+			t.Errorf("clone byte %d: want %d, got %d", i, b, got[i])
+		}
+	}
+}
+
+func TestClone_WriteToCloneDoesNotAffectOriginal(t *testing.T) {
+	orig := newMem(1)
+	orig.Store(0, []byte{1, 2, 3, 4})
+	clone := orig.Clone().(*FragmentedMemory)
+
+	clone.Store(0, []byte{99, 99, 99, 99})
+
+	got := orig.Load(0, 4)
+	want := []byte{1, 2, 3, 4}
+	for i, b := range want {
+		if got[i] != b {
+			t.Errorf("original byte %d: want %d, got %d (clone write leaked)", i, b, got[i])
+		}
+	}
+}
+
+func TestClone_WriteToOriginalDoesNotAffectClone(t *testing.T) {
+	orig := newMem(1)
+	orig.Store(0, []byte{1, 2, 3, 4})
+	clone := orig.Clone().(*FragmentedMemory)
+
+	orig.Store(0, []byte{99, 99, 99, 99})
+
+	got := clone.Load(0, 4)
+	want := []byte{1, 2, 3, 4}
+	for i, b := range want {
+		if got[i] != b {
+			t.Errorf("clone byte %d: want %d, got %d (original write leaked)", i, b, got[i])
+		}
+	}
+}
+
+func TestClone_SharedDataBeforeWrite(t *testing.T) {
+	orig := newMem(1)
+	orig.Store(0, []byte{1, 2, 3, 4})
+	clone := orig.Clone().(*FragmentedMemory)
+
+	// before any write, both trees should share the same underlying slice
+	if orig.root == nil || clone.root == nil {
+		t.Fatal("expected both to have a root segment")
+	}
+	origPtr := &orig.root.data[0]
+	clonePtr := &clone.root.data[0]
+	if origPtr != clonePtr {
+		t.Error("expected shared backing array before any COW write")
+	}
+
+	// after a write to the clone, slices must diverge
+	clone.Store(0, []byte{99})
+	clonePtr = &clone.root.data[0]
+	if origPtr == clonePtr {
+		t.Error("expected separate backing array after COW write")
+	}
+}
+
 // ---- sparse correctness tests ----
 
 func TestSparse_SkipsLeadingAndTrailingZeros(t *testing.T) {

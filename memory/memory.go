@@ -8,4 +8,5 @@ type Memory interface {
 	PageSize() int
 	MaxPages() int
 	Data() []byte
+	Clone() Memory
 }
