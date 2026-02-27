@@ -46,6 +46,18 @@ func (foo *Foo) Store(offset int, data []byte) {
 	}
 }
 
+func (foo *Foo) Load(offset int, size int) []byte {
+	data := make([]byte, size)
+
+	for _, seg := range foo.segmentsForRange(offset, offset+size) {
+		segStart := max(seg.offset, offset)
+		segEnd := min(seg.end, offset+size)
+		copy(data[segStart-offset:segEnd-offset], seg.data[segStart-seg.offset:segEnd-seg.offset])
+	}
+
+	return data
+}
+
 func (foo *Foo) chunkify(data []byte) iter.Seq2[int, int] {
 	return func(yield func(int, int) bool) {
 		size := len(data)

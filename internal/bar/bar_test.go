@@ -377,6 +377,77 @@ func TestStore(t *testing.T) {
 	})
 }
 
+func TestLoad(t *testing.T) {
+	t.Run("range with no segments returns zeroes", func(t *testing.T) {
+		foo := NewFoo(8)
+		result := foo.Load(0, 4)
+		assert.Equal(t, []byte{0, 0, 0, 0}, result)
+	})
+
+	t.Run("load exact segment range", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.Store(0, []byte{1, 2, 3, 4})
+		assert.Equal(t, []byte{1, 2, 3, 4}, foo.Load(0, 4))
+	})
+
+	t.Run("load subset of a segment", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.Store(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+		assert.Equal(t, []byte{3, 4, 5}, foo.Load(2, 3))
+	})
+
+	t.Run("load at non-zero offset", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.Store(10, []byte{1, 2, 3, 4})
+		assert.Equal(t, []byte{1, 2, 3, 4}, foo.Load(10, 4))
+	})
+
+	t.Run("load spanning a segment and an empty gap returns zeroes in gap", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.Store(0, []byte{1, 2, 3, 4})
+		result := foo.Load(0, 8)
+		assert.Equal(t, []byte{1, 2, 3, 4, 0, 0, 0, 0}, result)
+	})
+
+	t.Run("load spanning two segments stitches both", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.Store(0, []byte{1, 2, 3, 4})
+		foo.Store(4, []byte{5, 6, 7, 8})
+		assert.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, foo.Load(0, 8))
+	})
+
+	t.Run("load spanning two segments with a gap returns zeroes in between", func(t *testing.T) {
+		foo := NewFoo(4)
+		// threshold=4: the 4 zeros split into two segments at [0,4) and [8,12)
+		foo.Store(0, []byte{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8})
+		result := foo.Load(0, 12)
+		assert.Equal(t, []byte{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8}, result)
+	})
+
+	t.Run("load partially overlapping segment start", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.Store(4, []byte{10, 20, 30, 40})
+		// load starts before the segment
+		result := foo.Load(2, 6)
+		assert.Equal(t, []byte{0, 0, 10, 20, 30, 40}, result)
+	})
+
+	t.Run("load partially overlapping segment end", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.Store(0, []byte{10, 20, 30, 40})
+		// load ends after the segment
+		result := foo.Load(2, 6)
+		assert.Equal(t, []byte{30, 40, 0, 0, 0, 0}, result)
+	})
+
+	t.Run("load returns size-length slice even with no data", func(t *testing.T) {
+		foo := NewFoo(8)
+		result := foo.Load(100, 8)
+		assert.Len(t, result, 8)
+		assert.Equal(t, make([]byte, 8), result)
+	})
+}
+
 func TestInsertSegment(t *testing.T) {
 	t.Run("root segment", func(t *testing.T) {
 		foo := NewFoo(8)
