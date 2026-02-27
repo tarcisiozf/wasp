@@ -111,6 +111,112 @@ func TestLoad_NegativeOffset_Panics(t *testing.T) {
 	mem.Load(-1, 1)
 }
 
+// ---- sparse correctness tests ----
+
+func TestSparse_SkipsLeadingAndTrailingZeros(t *testing.T) {
+	mem := NewSparseMemory(1, 0, 4)
+	mem.Store(0, []byte{0, 0, 1, 2, 3, 0, 0})
+	got := mem.Load(0, 7)
+	want := []byte{0, 0, 1, 2, 3, 0, 0}
+	for i, b := range want {
+		if got[i] != b {
+			t.Errorf("byte %d: want %d, got %d", i, b, got[i])
+		}
+	}
+}
+
+func TestSparse_BridgesSmallZeroGap(t *testing.T) {
+	// gap of 3 zeros ≤ threshold of 4 → single segment
+	mem := NewSparseMemory(1, 0, 4)
+	mem.Store(0, []byte{1, 2, 0, 0, 0, 3, 4})
+	got := mem.Load(0, 7)
+	want := []byte{1, 2, 0, 0, 0, 3, 4}
+	for i, b := range want {
+		if got[i] != b {
+			t.Errorf("byte %d: want %d, got %d", i, b, got[i])
+		}
+	}
+}
+
+func TestSparse_SplitsLargeZeroGap(t *testing.T) {
+	// gap of 5 zeros > threshold of 4 → two separate segments; zeros read back as 0
+	mem := NewSparseMemory(1, 0, 4)
+	mem.Store(0, []byte{1, 2, 0, 0, 0, 0, 0, 3, 4})
+	got := mem.Load(0, 9)
+	want := []byte{1, 2, 0, 0, 0, 0, 0, 3, 4}
+	for i, b := range want {
+		if got[i] != b {
+			t.Errorf("byte %d: want %d, got %d", i, b, got[i])
+		}
+	}
+}
+
+func TestSparse_AllZeros_StoresNothing(t *testing.T) {
+	mem := NewSparseMemory(1, 0, 4)
+	mem.Store(0, make([]byte, 64))
+	if mem.root != nil {
+		t.Error("expected no segments for all-zero payload")
+	}
+}
+
+func TestSparse_NonSparseUnchanged(t *testing.T) {
+	mem := NewFragmentedMemory(1, 0)
+	mem.Store(0, []byte{1, 0, 0, 0, 0, 0, 2})
+	got := mem.Load(0, 7)
+	want := []byte{1, 0, 0, 0, 0, 0, 2}
+	for i, b := range want {
+		if got[i] != b {
+			t.Errorf("byte %d: want %d, got %d", i, b, got[i])
+		}
+	}
+}
+
+// ---- memory usage ----
+
+// segmentBytes returns the total number of bytes held across all segments in the tree.
+func segmentBytes(root *Segment) int {
+	if root == nil {
+		return 0
+	}
+	return len(root.data) + segmentBytes(root.left) + segmentBytes(root.right)
+}
+
+// segmentCount returns the number of segments in the tree.
+func segmentCount(root *Segment) int {
+	if root == nil {
+		return 0
+	}
+	return 1 + segmentCount(root.left) + segmentCount(root.right)
+}
+
+func TestSparse_MemoryUsage(t *testing.T) {
+	payload := sparsePayload(sparseNonZeroChunks, sparseNonZeroSize, sparseGapSize)
+	totalPayload := len(payload)
+
+	without := NewFragmentedMemory(1, 0)
+	without.Store(0, payload)
+
+	with := NewSparseMemory(1, 0, sparseThreshold)
+	with.Store(0, payload)
+
+	bytesWithout := segmentBytes(without.root)
+	bytesWith := segmentBytes(with.root)
+	segsWithout := segmentCount(without.root)
+	segsWith := segmentCount(with.root)
+	saved := bytesWithout - bytesWith
+	pct := float64(saved) / float64(bytesWithout) * 100
+
+	t.Logf("payload size:       %d bytes", totalPayload)
+	t.Logf("without flag:       %d bytes in %d segment(s)", bytesWithout, segsWithout)
+	t.Logf("with flag:          %d bytes in %d segment(s)", bytesWith, segsWith)
+	t.Logf("saved:              %d bytes (%.1f%%)", saved, pct)
+
+	nonZeroBytes := sparseNonZeroChunks * sparseNonZeroSize
+	if bytesWith > nonZeroBytes {
+		t.Errorf("sparse stored more than the non-zero content (%d > %d)", bytesWith, nonZeroBytes)
+	}
+}
+
 // ---- helpers ----
 
 func sequentialStores(mem interface {
@@ -125,11 +231,33 @@ func sequentialStores(mem interface {
 	}
 }
 
+// sparsePayload builds a realistic sparse payload:
+// numChunks non-zero regions of chunkSize bytes, each separated by gapSize zero bytes.
+func sparsePayload(numChunks, chunkSize, gapSize int) []byte {
+	total := numChunks*chunkSize + (numChunks-1)*gapSize
+	buf := make([]byte, total)
+	pos := 0
+	for i := 0; i < numChunks; i++ {
+		for j := 0; j < chunkSize; j++ {
+			buf[pos] = byte(i*chunkSize + j + 1)
+			pos++
+		}
+		pos += gapSize // leave zeros
+	}
+	return buf
+}
+
 // ---- benchmarks ----
 
 const (
 	benchChunkSize = 4
 	benchChunks    = 256 // 256 * 4 = 1 KiB total
+
+	// sparse benchmark: 64 non-zero chunks of 8 bytes, separated by 64 zero bytes
+	sparseNonZeroChunks = 64
+	sparseNonZeroSize   = 8
+	sparseGapSize       = 64
+	sparseThreshold     = 4
 )
 
 func BenchmarkStore(b *testing.B) {
@@ -154,6 +282,66 @@ func BenchmarkStoreAndLoad(b *testing.B) {
 	for b.Loop() {
 		mem := NewFragmentedMemory(1, 0)
 		sequentialStores(mem, benchChunks, benchChunkSize)
+		_ = mem.Load(0, total)
+	}
+}
+
+func BenchmarkSparse_Store_WithoutFlag(b *testing.B) {
+	payload := sparsePayload(sparseNonZeroChunks, sparseNonZeroSize, sparseGapSize)
+	b.ResetTimer()
+	for b.Loop() {
+		mem := NewFragmentedMemory(1, 0)
+		mem.Store(0, payload)
+	}
+}
+
+func BenchmarkSparse_Store_WithFlag(b *testing.B) {
+	payload := sparsePayload(sparseNonZeroChunks, sparseNonZeroSize, sparseGapSize)
+	b.ResetTimer()
+	for b.Loop() {
+		mem := NewSparseMemory(1, 0, sparseThreshold)
+		mem.Store(0, payload)
+	}
+}
+
+func BenchmarkSparse_Load_WithoutFlag(b *testing.B) {
+	payload := sparsePayload(sparseNonZeroChunks, sparseNonZeroSize, sparseGapSize)
+	mem := NewFragmentedMemory(1, 0)
+	mem.Store(0, payload)
+	b.ResetTimer()
+	for b.Loop() {
+		_ = mem.Load(0, len(payload))
+	}
+}
+
+func BenchmarkSparse_Load_WithFlag(b *testing.B) {
+	payload := sparsePayload(sparseNonZeroChunks, sparseNonZeroSize, sparseGapSize)
+	mem := NewSparseMemory(1, 0, sparseThreshold)
+	mem.Store(0, payload)
+	b.ResetTimer()
+	for b.Loop() {
+		_ = mem.Load(0, len(payload))
+	}
+}
+
+func BenchmarkSparse_StoreAndLoad_WithoutFlag(b *testing.B) {
+	payload := sparsePayload(sparseNonZeroChunks, sparseNonZeroSize, sparseGapSize)
+	total := len(payload)
+	b.ResetTimer()
+	for b.Loop() {
+		mem := NewFragmentedMemory(1, 0)
+		mem.Store(0, payload)
+		_ = mem.Load(0, total)
+	}
+}
+
+func BenchmarkSparse_StoreAndLoad_WithFlag(b *testing.B) {
+	payload := sparsePayload(sparseNonZeroChunks, sparseNonZeroSize, sparseGapSize)
+	total := len(payload)
+	b.ResetTimer()
+	for b.Loop() {
+		mem := NewSparseMemory(1, 0, sparseThreshold)
+		mem.Store(0, payload)
 		_ = mem.Load(0, total)
 	}
 }

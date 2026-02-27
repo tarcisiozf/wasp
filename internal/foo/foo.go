@@ -12,9 +12,11 @@ type Segment struct {
 }
 
 type FragmentedMemory struct {
-	numPages int
-	maxPages int
-	root     *Segment
+	numPages      int
+	maxPages      int
+	root          *Segment
+	sparse        bool
+	zeroThreshold int
 }
 
 var _ iface.Memory = (*FragmentedMemory)(nil)
@@ -23,12 +25,87 @@ func NewFragmentedMemory(numPages, maxPages int) *FragmentedMemory {
 	return &FragmentedMemory{numPages: numPages, maxPages: maxPages}
 }
 
+func NewSparseMemory(numPages, maxPages, zeroThreshold int) *FragmentedMemory {
+	return &FragmentedMemory{
+		numPages:      numPages,
+		maxPages:      maxPages,
+		sparse:        true,
+		zeroThreshold: zeroThreshold,
+	}
+}
+
+// sparseChunks splits bytes into sub-slices that are worth storing,
+// skipping leading/trailing zeros and splitting on zero runs longer than zeroThreshold.
+// Returns [start, end) index pairs (relative to the start of bytes).
+func sparseChunks(bytes []byte, zeroThreshold int) [][2]int {
+	var result [][2]int
+	n := len(bytes)
+	i := 0
+
+	for i < n {
+		// skip leading zeros
+		for i < n && bytes[i] == 0 {
+			i++
+		}
+		if i == n {
+			break
+		}
+
+		start := i
+		lastNonZero := i
+		zeroRun := 0
+
+		for i < n {
+			if bytes[i] != 0 {
+				zeroRun = 0
+				lastNonZero = i + 1
+			} else {
+				zeroRun++
+				if zeroRun > zeroThreshold {
+					// zero run too long — close this span at the last non-zero byte
+					// and skip ahead past the entire zero run
+					result = append(result, [2]int{start, lastNonZero})
+					i++ // move past current zero
+					for i < n && bytes[i] == 0 {
+						i++
+					}
+					start = -1 // signal that we closed the span
+					break
+				}
+			}
+			i++
+		}
+
+		if start != -1 {
+			// reached end of bytes — close the span, trimming trailing zeros
+			result = append(result, [2]int{start, lastNonZero})
+		}
+	}
+
+	return result
+}
+
 func (memory *FragmentedMemory) Store(offset int, bytes []byte) {
 	size := len(bytes)
 	if offset < 0 || offset+size > memory.numPages*pageSize {
 		panic("memory access out of bounds")
 	}
 
+	if memory.sparse {
+		for _, chunk := range sparseChunks(bytes, memory.zeroThreshold) {
+			memory.storeRaw(offset+chunk[0], bytes[chunk[0]:chunk[1]])
+		}
+		return
+	}
+
+	memory.storeRaw(offset, bytes)
+}
+
+func (memory *FragmentedMemory) storeRaw(offset int, bytes []byte) {
+	size := len(bytes)
+	if size == 0 {
+		return
+	}
 	end := offset + size
 	rem := size
 	off := offset
@@ -130,7 +207,16 @@ func (memory *FragmentedMemory) Load(offset int, size int) []byte {
 	for size > 0 {
 		seg := memory.findSegment(offset)
 		if seg == nil {
-			break
+			// no segment at this offset — find the next one ahead, if any
+			next := memory.findNextSegment(offset)
+			if next == nil || next.offset >= offset+size {
+				break // nothing more to copy
+			}
+			// advance to where the next segment starts; the gap stays zero
+			skip := next.offset - offset
+			size -= skip
+			offset = next.offset
+			continue
 		}
 		chunk := min(size, seg.end-offset)
 		copy(data[originalSize-size:], seg.data[offset-seg.offset:offset-seg.offset+chunk])
@@ -138,6 +224,21 @@ func (memory *FragmentedMemory) Load(offset int, size int) []byte {
 		size -= chunk
 	}
 	return data
+}
+
+// findNextSegment returns the segment with the smallest offset > given offset.
+func (memory *FragmentedMemory) findNextSegment(offset int) *Segment {
+	var best *Segment
+	current := memory.root
+	for current != nil {
+		if current.offset > offset {
+			best = current
+			current = current.left
+		} else {
+			current = current.right
+		}
+	}
+	return best
 }
 
 func (memory *FragmentedMemory) Grow(delta int) bool {
