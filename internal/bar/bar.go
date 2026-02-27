@@ -96,12 +96,86 @@ func (foo *Foo) insertSegment(offset int, data []byte) {
 		data:   make([]byte, size),
 	}
 	seg.set(offset, data)
+	foo.insertSegmentNode(seg)
+}
 
+func (foo *Foo) mergeSegments(segments []*Segment) *Segment {
+	minOffset := segments[0].offset
+	maxEnd := segments[0].end
+	for _, s := range segments[1:] {
+		if s.offset < minOffset {
+			minOffset = s.offset
+		}
+		if s.end > maxEnd {
+			maxEnd = s.end
+		}
+	}
+
+	size := maxEnd - minOffset
+	data := make([]byte, size)
+	for _, s := range segments {
+		start := s.offset - minOffset
+		copy(data[start:], s.data)
+	}
+
+	for _, s := range segments {
+		foo.removeSegment(s)
+	}
+
+	merged := &Segment{
+		offset: minOffset,
+		end:    maxEnd,
+		size:   size,
+		data:   data,
+	}
+	foo.insertSegmentNode(merged)
+	return merged
+}
+
+func (foo *Foo) removeSegment(s *Segment) {
+	var replacement *Segment
+
+	if s.left == nil {
+		replacement = s.right
+	} else if s.right == nil {
+		replacement = s.left
+	} else {
+		// find in-order successor (leftmost node in right subtree)
+		successor := s.right
+		for successor.left != nil {
+			successor = successor.left
+		}
+		// detach successor from its current position
+		foo.removeSegment(successor)
+		// put successor in place of s
+		successor.left = s.left
+		successor.right = s.right
+		if s.left != nil {
+			s.left.parent = successor
+		}
+		if s.right != nil {
+			s.right.parent = successor
+		}
+		replacement = successor
+	}
+
+	if replacement != nil {
+		replacement.parent = s.parent
+	}
+	if s.parent == nil {
+		foo.root = replacement
+	} else if s.parent.left == s {
+		s.parent.left = replacement
+	} else {
+		s.parent.right = replacement
+	}
+}
+
+func (foo *Foo) insertSegmentNode(seg *Segment) {
 	if foo.root == nil {
 		foo.root = seg
 		return
 	}
-
 	current := foo.root
 	for current != nil {
 		if seg.offset < current.offset {
@@ -120,8 +194,4 @@ func (foo *Foo) insertSegment(offset int, data []byte) {
 			current = current.right
 		}
 	}
-}
-
-func (foo *Foo) mergeSegments(segments []*Segment) *Segment {
-	panic("not implemented")
 }
