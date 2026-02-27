@@ -16,9 +16,6 @@ func NewMemory(numPages, maxPages int) *Memory {
 		maxPages: maxPages,
 	}
 }
-func (memory *Memory) Size() int {
-	return len(memory.data)
-}
 
 func (memory *Memory) Clone() *Memory {
 	data := make([]byte, len(memory.data))
