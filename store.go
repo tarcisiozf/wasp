@@ -1,7 +1,7 @@
 package wasp
 
 import (
-	"github.com/tarcisiozf/wasp/internal/foo"
+	"github.com/tarcisiozf/wasp/internal/bar"
 	"github.com/tarcisiozf/wasp/internal/memory"
 	"github.com/tarcisiozf/wasp/internal/module"
 	iface "github.com/tarcisiozf/wasp/memory"
@@ -15,19 +15,14 @@ type Store struct {
 	Tables   []*memory.Table
 }
 
-func WithFragmentedMemory(sparse bool, zeroThreshold, chunkThreshold int) StoreOptions {
+func WithSegmentedMemory(chunkThreshold int) StoreOptions {
 	return func(store *Store, module *module.Module) {
 		moduleMemories := module.Memories()
 		store.Memories = make([]iface.Memory, len(moduleMemories))
 		for i, mem := range moduleMemories {
-			var fmem *foo.FragmentedMemory
-			if sparse {
-				fmem = foo.NewSparseMemory(mem.NumPages(), mem.MaxPages(), zeroThreshold, chunkThreshold)
-			} else {
-				fmem = foo.NewFragmentedMemory(mem.NumPages(), mem.MaxPages())
-			}
-			fmem.Store(0, mem.Data())
-			store.Memories[i] = fmem
+			segMem := bar.NewSegmentedMemory(mem.NumPages(), mem.MaxPages(), chunkThreshold)
+			segMem.Store(0, mem.Data())
+			store.Memories[i] = segMem
 		}
 	}
 }

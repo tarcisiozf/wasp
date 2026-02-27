@@ -2,7 +2,11 @@ package bar
 
 import (
 	"iter"
+
+	iface "github.com/tarcisiozf/wasp/memory"
 )
+
+const pageSize = 65536 // 64KiB
 
 type Segment struct {
 	offset, end int
@@ -20,11 +24,15 @@ func (s Segment) set(offset int, data []byte) {
 
 type SegmentedMemory struct {
 	root           *Segment
+	numPages       int
+	maxPages       int
 	chunkThreshold int
 }
 
-func NewSegmentedMemory(chunkThreshold int) *SegmentedMemory {
+func NewSegmentedMemory(numPages, maxPages, chunkThreshold int) *SegmentedMemory {
 	return &SegmentedMemory{
+		numPages:       numPages,
+		maxPages:       maxPages,
 		chunkThreshold: chunkThreshold,
 	}
 }
@@ -56,6 +64,38 @@ func (mem *SegmentedMemory) Load(offset int, size int) []byte {
 	}
 
 	return data
+}
+
+func (mem *SegmentedMemory) Grow(delta int) bool {
+	if delta < 0 {
+		return false
+	}
+	if mem.maxPages > 0 && mem.numPages+delta > mem.maxPages {
+		return false
+	}
+	mem.numPages += delta
+	return true
+}
+
+func (mem *SegmentedMemory) NumPages() int {
+	return mem.numPages
+}
+
+func (mem *SegmentedMemory) PageSize() int {
+	return pageSize
+}
+
+func (mem *SegmentedMemory) MaxPages() int {
+	return mem.maxPages
+}
+
+func (mem *SegmentedMemory) Data() []byte {
+	return mem.Load(0, mem.NumPages()*mem.PageSize())
+}
+
+func (mem *SegmentedMemory) Clone() iface.Memory {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (mem *SegmentedMemory) chunkify(data []byte) iter.Seq2[int, int] {

@@ -7,6 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	numPages       = 0
+	maxPages       = 10
+	chunkThreshold = 8
+)
+
 func toList(iter iter.Seq2[int, int]) [][2]int {
 	var result [][2]int
 	iter(func(a, b int) bool {
@@ -17,7 +23,7 @@ func toList(iter iter.Seq2[int, int]) [][2]int {
 }
 
 func TestChunkify(t *testing.T) {
-	mem := NewSegmentedMemory(8)
+	mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 
 	t.Run("starts with zero", func(t *testing.T) {
 		input := []byte{0, 0, 1, 2, 3, 4, 5, 6, 7, 8}
@@ -43,27 +49,27 @@ func TestChunkify(t *testing.T) {
 
 func TestSegmentsForRange(t *testing.T) {
 	t.Run("nil root returns nil", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		result := mem.segmentsForRange(0, 1)
 		assert.Nil(t, result)
 	})
 
 	t.Run("offset before segment returns nil", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(10, []byte{1, 2, 3, 4})
 		result := mem.segmentsForRange(5, 6)
 		assert.Nil(t, result)
 	})
 
 	t.Run("offset after segment returns nil", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4})
 		result := mem.segmentsForRange(10, 11)
 		assert.Nil(t, result)
 	})
 
 	t.Run("offset within segment returns segment", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4})
 		result := mem.segmentsForRange(2, 3)
 		assert.Len(t, result, 1)
@@ -72,7 +78,7 @@ func TestSegmentsForRange(t *testing.T) {
 	})
 
 	t.Run("offset at segment start is within segment", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(5, []byte{1, 2, 3, 4})
 		result := mem.segmentsForRange(5, 6)
 		assert.Len(t, result, 1)
@@ -80,14 +86,14 @@ func TestSegmentsForRange(t *testing.T) {
 	})
 
 	t.Run("offset at segment end is not within segment", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4})
 		result := mem.segmentsForRange(4, 5)
 		assert.Nil(t, result)
 	})
 
 	t.Run("returns multiple overlapping segments", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
 		mem.insertSegment(4, []byte{9, 10, 11, 12})
 		result := mem.segmentsForRange(4, 5)
@@ -97,7 +103,7 @@ func TestSegmentsForRange(t *testing.T) {
 	})
 
 	t.Run("range spanning two separate segments returns both", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4})
 		mem.insertSegment(8, []byte{5, 6, 7, 8})
 		result := mem.segmentsForRange(2, 10)
@@ -109,7 +115,7 @@ func TestSegmentsForRange(t *testing.T) {
 
 func TestMergeSegments(t *testing.T) {
 	t.Run("single segment is a no-op", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4})
 		segments := mem.segmentsForRange(2, 3)
 		merged := mem.mergeSegments(segments)
@@ -121,7 +127,7 @@ func TestMergeSegments(t *testing.T) {
 	})
 
 	t.Run("two overlapping segments are merged into one", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
 		mem.insertSegment(4, []byte{9, 10, 11, 12})
 		segments := mem.segmentsForRange(4, 5)
@@ -135,7 +141,7 @@ func TestMergeSegments(t *testing.T) {
 	})
 
 	t.Run("earlier segment data is preserved in merged buffer", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
 		mem.insertSegment(4, []byte{9, 10, 11, 12})
 		segments := mem.segmentsForRange(4, 5)
@@ -148,7 +154,7 @@ func TestMergeSegments(t *testing.T) {
 	})
 
 	t.Run("later segment data overwrites earlier in the merged buffer", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
 		mem.insertSegment(4, []byte{9, 10, 11, 12})
 		segments := mem.segmentsForRange(4, 5)
@@ -161,7 +167,7 @@ func TestMergeSegments(t *testing.T) {
 	})
 
 	t.Run("old segments are removed from BST", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
 		mem.insertSegment(4, []byte{9, 10, 11, 12})
 		segments := mem.segmentsForRange(4, 5)
@@ -174,7 +180,7 @@ func TestMergeSegments(t *testing.T) {
 	})
 
 	t.Run("merged segment is accessible via segmentsForRange", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
 		mem.insertSegment(4, []byte{9, 10, 11, 12})
 		segments := mem.segmentsForRange(4, 5)
@@ -212,7 +218,7 @@ func isBalanced(s *Segment) bool {
 
 func TestAVLBalance(t *testing.T) {
 	t.Run("right-skewed inserts trigger left rotation", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1})
 		mem.insertSegment(10, []byte{1})
 		mem.insertSegment(20, []byte{1})
@@ -224,7 +230,7 @@ func TestAVLBalance(t *testing.T) {
 	})
 
 	t.Run("left-skewed inserts trigger right rotation", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(20, []byte{1})
 		mem.insertSegment(10, []byte{1})
 		mem.insertSegment(0, []byte{1})
@@ -235,7 +241,7 @@ func TestAVLBalance(t *testing.T) {
 	})
 
 	t.Run("left-right case triggers double rotation", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(20, []byte{1})
 		mem.insertSegment(0, []byte{1})
 		mem.insertSegment(10, []byte{1})
@@ -244,7 +250,7 @@ func TestAVLBalance(t *testing.T) {
 	})
 
 	t.Run("right-left case triggers double rotation", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1})
 		mem.insertSegment(20, []byte{1})
 		mem.insertSegment(10, []byte{1})
@@ -253,7 +259,7 @@ func TestAVLBalance(t *testing.T) {
 	})
 
 	t.Run("many sequential inserts stay balanced", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		for i := 0; i < 20; i++ {
 			mem.insertSegment(i*10, []byte{1})
 		}
@@ -261,7 +267,7 @@ func TestAVLBalance(t *testing.T) {
 	})
 
 	t.Run("tree stays balanced after removes", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		for i := 0; i < 10; i++ {
 			mem.insertSegment(i*10, []byte{1})
 		}
@@ -293,13 +299,13 @@ func read(mem *SegmentedMemory, offset, size int) []byte {
 
 func TestStore(t *testing.T) {
 	t.Run("all-zero data creates no segment", func(t *testing.T) {
-		mem := NewSegmentedMemory(4)
+		mem := NewSegmentedMemory(numPages, maxPages, 4)
 		mem.Store(0, []byte{0, 0, 0, 0, 0, 0, 0, 0})
 		assert.Nil(t, mem.root)
 	})
 
 	t.Run("single non-overlapping store creates one segment", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{1, 2, 3, 4})
 		assert.NotNil(t, mem.root)
 		assert.Equal(t, 0, mem.root.offset)
@@ -308,7 +314,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("store at non-zero offset records correct data", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(10, []byte{5, 6, 7, 8})
 		assert.Equal(t, 10, mem.root.offset)
 		assert.Equal(t, 14, mem.root.end)
@@ -316,7 +322,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("two non-overlapping stores create two segments", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{1, 2, 3, 4})
 		mem.Store(100, []byte{5, 6, 7, 8})
 		assert.Equal(t, []byte{1, 2, 3, 4}, read(mem, 0, 4))
@@ -324,7 +330,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("store extending an existing segment merges into one", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
 		mem.Store(4, []byte{9, 10, 11, 12})
 		assert.Nil(t, mem.root.left)
@@ -338,7 +344,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("store spanning two existing segments merges all three", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{1, 2, 3, 4})
 		mem.Store(8, []byte{5, 6, 7, 8})
 		mem.Store(2, []byte{10, 11, 12, 13, 14, 15, 16, 17})
@@ -348,7 +354,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("zero gap above threshold splits into two segments", func(t *testing.T) {
-		mem := NewSegmentedMemory(4)
+		mem := NewSegmentedMemory(numPages, maxPages, 4)
 		mem.Store(0, []byte{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8})
 		left := mem.segmentsForRange(0, 1)
 		right := mem.segmentsForRange(8, 9)
@@ -360,7 +366,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("zero gap below threshold does not split", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{1, 2, 3, 0, 0, 0, 4, 5, 6})
 		assert.NotNil(t, mem.root)
 		segs := mem.segmentsForRange(0, 1)
@@ -370,7 +376,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("overwriting same offset updates data in place", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{1, 2, 3, 4})
 		mem.Store(0, []byte{9, 8, 7, 6})
 		assert.Equal(t, []byte{9, 8, 7, 6}, read(mem, 0, 4))
@@ -379,45 +385,45 @@ func TestStore(t *testing.T) {
 
 func TestLoad(t *testing.T) {
 	t.Run("range with no segments returns zeroes", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		result := mem.Load(0, 4)
 		assert.Equal(t, []byte{0, 0, 0, 0}, result)
 	})
 
 	t.Run("load exact segment range", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{1, 2, 3, 4})
 		assert.Equal(t, []byte{1, 2, 3, 4}, mem.Load(0, 4))
 	})
 
 	t.Run("load subset of a segment", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
 		assert.Equal(t, []byte{3, 4, 5}, mem.Load(2, 3))
 	})
 
 	t.Run("load at non-zero offset", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(10, []byte{1, 2, 3, 4})
 		assert.Equal(t, []byte{1, 2, 3, 4}, mem.Load(10, 4))
 	})
 
 	t.Run("load spanning a segment and an empty gap returns zeroes in gap", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{1, 2, 3, 4})
 		result := mem.Load(0, 8)
 		assert.Equal(t, []byte{1, 2, 3, 4, 0, 0, 0, 0}, result)
 	})
 
 	t.Run("load spanning two segments stitches both", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{1, 2, 3, 4})
 		mem.Store(4, []byte{5, 6, 7, 8})
 		assert.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, mem.Load(0, 8))
 	})
 
 	t.Run("load spanning two segments with a gap returns zeroes in between", func(t *testing.T) {
-		mem := NewSegmentedMemory(4)
+		mem := NewSegmentedMemory(numPages, maxPages, 4)
 		// threshold=4: the 4 zeros split into two segments at [0,4) and [8,12)
 		mem.Store(0, []byte{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8})
 		result := mem.Load(0, 12)
@@ -425,7 +431,7 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("load partially overlapping segment start", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(4, []byte{10, 20, 30, 40})
 		// load starts before the segment
 		result := mem.Load(2, 6)
@@ -433,7 +439,7 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("load partially overlapping segment end", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{10, 20, 30, 40})
 		// load ends after the segment
 		result := mem.Load(2, 6)
@@ -441,7 +447,7 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("load returns size-length slice even with no data", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		result := mem.Load(100, 8)
 		assert.Len(t, result, 8)
 		assert.Equal(t, make([]byte, 8), result)
@@ -450,7 +456,7 @@ func TestLoad(t *testing.T) {
 
 func TestInsertSegment(t *testing.T) {
 	t.Run("root segment", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4})
 
 		assert.NotNil(t, mem.root)
@@ -460,7 +466,7 @@ func TestInsertSegment(t *testing.T) {
 	})
 
 	t.Run("non-overlapping segment", func(t *testing.T) {
-		mem := NewSegmentedMemory(8)
+		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		mem.insertSegment(0, []byte{1, 2, 3, 4})
 		mem.insertSegment(10, []byte{5, 6, 7, 8})
 
