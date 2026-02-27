@@ -32,9 +32,9 @@ func NewFoo(chunkThreshold int) *Foo {
 func (foo *Foo) Store(offset int, data []byte) {
 	for start, end := range foo.chunkify(data) {
 		chunkOffset := offset + start
-		//chunkSize := end - start
+		chunkEnd := offset + end
 
-		segments := foo.segmentsForRange(chunkOffset)
+		segments := foo.segmentsForRange(chunkOffset, chunkEnd)
 
 		if len(segments) == 0 {
 			foo.insertSegment(chunkOffset, data[start:end])
@@ -68,18 +68,22 @@ func (foo *Foo) chunkify(data []byte) iter.Seq2[int, int] {
 	}
 }
 
-func (foo *Foo) segmentsForRange(offset int) (segments []*Segment) {
+// segmentsForRange returns all segments that overlap the range [offset, end).
+func (foo *Foo) segmentsForRange(offset, end int) (segments []*Segment) {
 	if foo.root == nil {
 		return nil
 	}
 
 	current := foo.root
 	for current != nil {
-		if offset < current.offset {
+		if end <= current.offset {
+			// range is entirely to the left of this node
 			current = current.left
 		} else if offset >= current.end {
+			// range is entirely to the right of this node
 			current = current.right
 		} else {
+			// overlap: collect and continue right for further overlapping segments
 			segments = append(segments, current)
 			current = current.right
 		}
