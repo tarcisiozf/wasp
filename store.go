@@ -15,12 +15,17 @@ type Store struct {
 	Tables   []*memory.Table
 }
 
-func WithFragmentedMemory() StoreOptions {
+func WithFragmentedMemory(sparse bool, zeroThreshold int) StoreOptions {
 	return func(store *Store, module *module.Module) {
 		moduleMemories := module.Memories()
 		store.Memories = make([]iface.Memory, len(moduleMemories))
 		for i, mem := range moduleMemories {
-			fmem := foo.NewSparseMemory(mem.NumPages(), mem.MaxPages(), 8)
+			var fmem *foo.FragmentedMemory
+			if sparse {
+				fmem = foo.NewSparseMemory(mem.NumPages(), mem.MaxPages(), zeroThreshold)
+			} else {
+				fmem = foo.NewFragmentedMemory(mem.NumPages(), mem.MaxPages())
+			}
 			fmem.Store(0, mem.Data())
 			store.Memories[i] = fmem
 		}
