@@ -113,86 +113,6 @@ func TestSegmentsForRange(t *testing.T) {
 	})
 }
 
-func TestMergeSegments(t *testing.T) {
-	t.Run("single segment is a no-op", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		mem.insertSegment(0, []byte{1, 2, 3, 4})
-		segments := mem.segmentsForRange(2, 3)
-		merged := mem.mergeSegments(segments)
-
-		assert.Equal(t, 0, merged.offset)
-		assert.Equal(t, 4, merged.end)
-		assert.Equal(t, []byte{1, 2, 3, 4}, merged.data)
-		assert.Same(t, mem.root, merged)
-	})
-
-	t.Run("two overlapping segments are merged into one", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		mem.insertSegment(4, []byte{9, 10, 11, 12})
-		segments := mem.segmentsForRange(4, 5)
-		assert.Len(t, segments, 2)
-
-		merged := mem.mergeSegments(segments)
-
-		assert.Equal(t, 0, merged.offset)
-		assert.Equal(t, 8, merged.end)
-		assert.Equal(t, 8, merged.size)
-	})
-
-	t.Run("earlier segment data is preserved in merged buffer", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		mem.insertSegment(4, []byte{9, 10, 11, 12})
-		segments := mem.segmentsForRange(4, 5)
-
-		merged := mem.mergeSegments(segments)
-
-		// first segment's data at positions 0-3 should be intact
-		assert.Equal(t, byte(1), merged.data[0])
-		assert.Equal(t, byte(4), merged.data[3])
-	})
-
-	t.Run("later segment data overwrites earlier in the merged buffer", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		mem.insertSegment(4, []byte{9, 10, 11, 12})
-		segments := mem.segmentsForRange(4, 5)
-
-		merged := mem.mergeSegments(segments)
-
-		// second segment starts at offset 4, so data[4..8] should be from it
-		assert.Equal(t, byte(9), merged.data[4])
-		assert.Equal(t, byte(12), merged.data[7])
-	})
-
-	t.Run("old segments are removed from BST", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		mem.insertSegment(4, []byte{9, 10, 11, 12})
-		segments := mem.segmentsForRange(4, 5)
-
-		mem.mergeSegments(segments)
-
-		// only one segment should remain in the tree
-		assert.Nil(t, mem.root.left)
-		assert.Nil(t, mem.root.right)
-	})
-
-	t.Run("merged segment is accessible via segmentsForRange", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		mem.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-		mem.insertSegment(4, []byte{9, 10, 11, 12})
-		segments := mem.segmentsForRange(4, 5)
-
-		merged := mem.mergeSegments(segments)
-
-		found := mem.segmentsForRange(6, 7)
-		assert.Len(t, found, 1)
-		assert.Same(t, merged, found[0])
-	})
-}
-
 func treeHeight(s *Segment) int {
 	if s == nil {
 		return 0
@@ -262,21 +182,6 @@ func TestAVLBalance(t *testing.T) {
 		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
 		for i := 0; i < 20; i++ {
 			mem.insertSegment(i*10, []byte{1})
-		}
-		assert.True(t, isBalanced(mem.root))
-	})
-
-	t.Run("tree stays balanced after removes", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		for i := 0; i < 10; i++ {
-			mem.insertSegment(i*10, []byte{1})
-		}
-		// remove every other segment
-		for i := 0; i < 10; i += 2 {
-			segs := mem.segmentsForRange(i*10, i*10+1)
-			if len(segs) > 0 {
-				mem.removeSegment(segs[0])
-			}
 		}
 		assert.True(t, isBalanced(mem.root))
 	})
@@ -531,74 +436,6 @@ func TestClone(t *testing.T) {
 		// mutate original segment's backing array directly
 		mem.root.data[0] = 99
 		assert.Equal(t, byte(1), clone.root.data[0])
-	})
-}
-
-func TestExtendSegment(t *testing.T) {
-	t.Run("no-op when range already fits inside segment", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		mem.insertSegment(0, []byte{1, 2, 3, 4})
-		seg := mem.root
-		mem.extendSegment(seg, 1, 3)
-		assert.Equal(t, 0, mem.root.offset)
-		assert.Equal(t, 4, mem.root.end)
-		assert.Equal(t, []byte{1, 2, 3, 4}, mem.root.data)
-	})
-
-	t.Run("extends right side only", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		mem.insertSegment(0, []byte{1, 2, 3, 4})
-		seg := mem.root
-		mem.extendSegment(seg, 0, 8)
-		assert.Equal(t, 0, seg.offset)
-		assert.Equal(t, 8, seg.end)
-		assert.Equal(t, 8, seg.size)
-		// original data preserved at start
-		assert.Equal(t, []byte{1, 2, 3, 4, 0, 0, 0, 0}, seg.data)
-	})
-
-	t.Run("extends left side only", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		mem.insertSegment(4, []byte{1, 2, 3, 4})
-		seg := mem.root
-		mem.extendSegment(seg, 0, 8)
-		assert.Equal(t, 0, seg.offset)
-		assert.Equal(t, 8, seg.end)
-		assert.Equal(t, 8, seg.size)
-		// original data preserved at correct position in new buffer
-		assert.Equal(t, []byte{0, 0, 0, 0, 1, 2, 3, 4}, seg.data)
-	})
-
-	t.Run("extends both sides", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		mem.insertSegment(4, []byte{1, 2, 3, 4})
-		seg := mem.root
-		mem.extendSegment(seg, 2, 10)
-		assert.Equal(t, 2, seg.offset)
-		assert.Equal(t, 10, seg.end)
-		assert.Equal(t, 8, seg.size)
-		// original data sits at offset 4, which is index 2 in the new buffer
-		assert.Equal(t, []byte{0, 0, 1, 2, 3, 4, 0, 0}, seg.data)
-	})
-
-	t.Run("segment remains findable in BST after left extension", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		mem.insertSegment(4, []byte{1, 2, 3, 4})
-		seg := mem.root
-		mem.extendSegment(seg, 0, 8)
-		found := mem.segmentsForRange(0, 8)
-		assert.Len(t, found, 1)
-		assert.Same(t, seg, found[0])
-	})
-
-	t.Run("tree stays balanced after left extension triggers re-insert", func(t *testing.T) {
-		mem := NewSegmentedMemory(numPages, maxPages, chunkThreshold)
-		for i := 0; i < 7; i++ {
-			mem.insertSegment(i*10+5, []byte{1})
-		}
-		seg := mem.segmentsForRange(5, 6)[0]
-		mem.extendSegment(seg, 0, 6)
-		assert.True(t, isBalanced(mem.root))
 	})
 }
 

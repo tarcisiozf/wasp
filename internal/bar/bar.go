@@ -2,6 +2,7 @@ package bar
 
 import (
 	"iter"
+	"sort"
 
 	iface "github.com/tarcisiozf/wasp/memory"
 )
@@ -49,17 +50,41 @@ func (mem *SegmentedMemory) Store(offset int, data []byte) {
 			continue
 		}
 
-		var seg *Segment
-		if len(segments) == 1 {
-			seg = segments[0]
-		} else {
-			seg = mem.mergeSegments(segments)
+		// sort segments by offset so we process them left-to-right
+		sortSegments(segments)
+
+		for _, seg := range segments {
+			if chunkOffset >= chunkEnd {
+				break
+			}
+
+			if chunkOffset < seg.offset {
+				// gap before this segment: insert new segment for the gap
+				gapEnd := min(seg.offset, chunkEnd)
+				gapSize := gapEnd - chunkOffset
+				mem.insertSegment(chunkOffset, data[start:start+gapSize])
+				chunkOffset += gapSize
+				start += gapSize
+			}
+
+			if chunkOffset >= chunkEnd {
+				break
+			}
+
+			// write the overlapping portion into this segment
+			if chunkOffset >= seg.offset && chunkOffset < seg.end {
+				writeEnd := min(seg.end, chunkEnd)
+				writeSize := writeEnd - chunkOffset
+				seg.set(chunkOffset, data[start:start+writeSize])
+				chunkOffset += writeSize
+				start += writeSize
+			}
 		}
 
-		if chunkOffset < seg.offset || chunkEnd > seg.end {
-			mem.extendSegment(seg, chunkOffset, chunkEnd)
+		// gap after the last segment: insert remaining data
+		if chunkOffset < chunkEnd {
+			mem.insertSegment(chunkOffset, data[start:end])
 		}
-		seg.set(chunkOffset, data[start:end])
 	}
 }
 
@@ -153,6 +178,12 @@ func (mem *SegmentedMemory) chunkify(data []byte) iter.Seq2[int, int] {
 	}
 }
 
+func sortSegments(segments []*Segment) {
+	sort.Slice(segments, func(i, j int) bool {
+		return segments[i].offset < segments[j].offset
+	})
+}
+
 // segmentsForRange returns all segments that overlap the range [offset, end).
 func (mem *SegmentedMemory) segmentsForRange(offset, end int) (segments []*Segment) {
 	if mem.root == nil {
@@ -199,110 +230,6 @@ func (mem *SegmentedMemory) insertSegment(offset int, data []byte) {
 	}
 	seg.set(offset, data)
 	mem.insertSegmentNode(seg)
-}
-
-func (mem *SegmentedMemory) mergeSegments(segments []*Segment) *Segment {
-	minOffset := segments[0].offset
-	maxEnd := segments[0].end
-	for _, s := range segments[1:] {
-		if s.offset < minOffset {
-			minOffset = s.offset
-		}
-		if s.end > maxEnd {
-			maxEnd = s.end
-		}
-	}
-
-	size := maxEnd - minOffset
-	data := make([]byte, size)
-	for _, s := range segments {
-		start := s.offset - minOffset
-		copy(data[start:], s.data)
-	}
-
-	for _, s := range segments {
-		mem.removeSegment(s)
-	}
-
-	merged := &Segment{
-		offset: minOffset,
-		end:    maxEnd,
-		size:   size,
-		data:   data,
-	}
-	mem.insertSegmentNode(merged)
-	return merged
-}
-
-func (mem *SegmentedMemory) removeSegment(s *Segment) {
-	var replacement *Segment
-	var extraRebalanceFrom *Segment
-
-	if s.left == nil {
-		replacement = s.right
-	} else if s.right == nil {
-		replacement = s.left
-	} else {
-		// find in-order successor (leftmost node in right subtree)
-		successor := s.right
-		for successor.left != nil {
-			successor = successor.left
-		}
-
-		// splice successor out of its current position
-		succParent := successor.parent
-		succRight := successor.right
-
-		if succParent == s {
-			// successor is s's direct right child
-			// just leave successor.right as-is
-		} else {
-			// successor is deeper in the right subtree
-			succParent.left = succRight
-			if succRight != nil {
-				succRight.parent = succParent
-			}
-			successor.right = s.right
-			s.right.parent = successor
-			extraRebalanceFrom = succParent
-		}
-
-		successor.left = s.left
-		s.left.parent = successor
-		replacement = successor
-	}
-
-	sParent := s.parent
-
-	if replacement != nil {
-		replacement.parent = sParent
-	}
-	if sParent == nil {
-		mem.root = replacement
-	} else if sParent.left == s {
-		sParent.left = replacement
-	} else {
-		sParent.right = replacement
-	}
-
-	// clear removed node's links
-	s.left = nil
-	s.right = nil
-	s.parent = nil
-
-	// rebalance from where successor was spliced out (if applicable)
-	if extraRebalanceFrom != nil {
-		mem.rebalanceUp(extraRebalanceFrom)
-	}
-
-	// rebalance from the replacement (or the parent if no replacement)
-	rebalanceStart := replacement
-	if rebalanceStart == nil {
-		rebalanceStart = sParent
-	}
-	if rebalanceStart != nil {
-		mem.rebalanceUp(rebalanceStart)
-	}
 }
 
 func (mem *SegmentedMemory) insertSegmentNode(seg *Segment) {
@@ -425,34 +352,5 @@ func (mem *SegmentedMemory) rebalanceUp(n *Segment) {
 		parent := n.parent
 		mem.rebalance(n)
 		n = parent
-	}
-}
-
-func (mem *SegmentedMemory) extendSegment(seg *Segment, newOffset int, newEnd int) {
-	if newOffset >= seg.offset && newEnd <= seg.end {
-		return // already fits, nothing to do
-	}
-
-	minOffset := min(seg.offset, newOffset)
-	maxEnd := max(seg.end, newEnd)
-	newSize := maxEnd - minOffset
-
-	newData := make([]byte, newSize)
-	copy(newData[seg.offset-minOffset:], seg.data)
-
-	offsetChanged := minOffset != seg.offset
-
-	if offsetChanged {
-		// BST is keyed on offset — remove before mutating the key
-		mem.removeSegment(seg)
-	}
-
-	seg.offset = minOffset
-	seg.end = maxEnd
-	seg.size = newSize
-	seg.data = newData
-
-	if offsetChanged {
-		mem.insertSegmentNode(seg)
 	}
 }
