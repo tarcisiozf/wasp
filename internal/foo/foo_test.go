@@ -110,3 +110,50 @@ func TestLoad_NegativeOffset_Panics(t *testing.T) {
 	}()
 	mem.Load(-1, 1)
 }
+
+// ---- helpers ----
+
+func sequentialStores(mem interface {
+	Store(int, []byte)
+}, n, chunkSize int) {
+	chunk := make([]byte, chunkSize)
+	for i := range chunk {
+		chunk[i] = byte(i)
+	}
+	for i := 0; i < n; i++ {
+		mem.Store(i*chunkSize, chunk)
+	}
+}
+
+// ---- benchmarks ----
+
+const (
+	benchChunkSize = 4
+	benchChunks    = 256 // 256 * 4 = 1 KiB total
+)
+
+func BenchmarkStore(b *testing.B) {
+	for b.Loop() {
+		mem := NewFragmentedMemory(1, 0)
+		sequentialStores(mem, benchChunks, benchChunkSize)
+	}
+}
+
+func BenchmarkLoad(b *testing.B) {
+	mem := NewFragmentedMemory(1, 0)
+	sequentialStores(mem, benchChunks, benchChunkSize)
+	total := benchChunks * benchChunkSize
+	b.ResetTimer()
+	for b.Loop() {
+		_ = mem.Load(0, total)
+	}
+}
+
+func BenchmarkStoreAndLoad(b *testing.B) {
+	total := benchChunks * benchChunkSize
+	for b.Loop() {
+		mem := NewFragmentedMemory(1, 0)
+		sequentialStores(mem, benchChunks, benchChunkSize)
+		_ = mem.Load(0, total)
+	}
+}
