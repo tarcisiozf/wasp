@@ -55,7 +55,10 @@ func (mem *SegmentedMemory) Store(offset int, data []byte) {
 		} else {
 			seg = mem.mergeSegments(segments)
 		}
-		
+
+		if chunkOffset < seg.offset || chunkEnd > seg.end {
+			mem.extendSegment(seg, chunkOffset, chunkEnd)
+		}
 		seg.set(chunkOffset, data[start:end])
 	}
 }
@@ -385,5 +388,34 @@ func (mem *SegmentedMemory) rebalanceUp(n *Segment) {
 		parent := n.parent
 		mem.rebalance(n)
 		n = parent
+	}
+}
+
+func (mem *SegmentedMemory) extendSegment(seg *Segment, newOffset int, newEnd int) {
+	if newOffset >= seg.offset && newEnd <= seg.end {
+		return // already fits, nothing to do
+	}
+
+	minOffset := min(seg.offset, newOffset)
+	maxEnd := max(seg.end, newEnd)
+	newSize := maxEnd - minOffset
+
+	newData := make([]byte, newSize)
+	copy(newData[seg.offset-minOffset:], seg.data)
+
+	offsetChanged := minOffset != seg.offset
+
+	if offsetChanged {
+		// BST is keyed on offset — remove before mutating the key
+		mem.removeSegment(seg)
+	}
+
+	seg.offset = minOffset
+	seg.end = maxEnd
+	seg.size = newSize
+	seg.data = newData
+
+	if offsetChanged {
+		mem.insertSegmentNode(seg)
 	}
 }
