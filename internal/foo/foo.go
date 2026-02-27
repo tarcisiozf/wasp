@@ -13,22 +13,23 @@ type Segment struct {
 }
 
 type FragmentedMemory struct {
-	numPages      int
-	maxPages      int
-	root          *Segment
-	sparse        bool
-	zeroThreshold int
+	numPages       int
+	maxPages       int
+	root           *Segment
+	sparse         bool
+	zeroThreshold  int
+	chunkThreshold int
 }
 
 func (memory *FragmentedMemory) Clone() iface.Memory {
-	// mark every segment in the original as non-owner so both sides COW
 	markNonOwner(memory.root)
 	clone := &FragmentedMemory{
-		numPages:      memory.numPages,
-		maxPages:      memory.maxPages,
-		sparse:        memory.sparse,
-		zeroThreshold: memory.zeroThreshold,
-		root:          shallowCloneTree(memory.root),
+		numPages:       memory.numPages,
+		maxPages:       memory.maxPages,
+		sparse:         memory.sparse,
+		zeroThreshold:  memory.zeroThreshold,
+		chunkThreshold: memory.chunkThreshold,
+		root:           shallowCloneTree(memory.root),
 	}
 	return clone
 }
@@ -71,19 +72,23 @@ func NewFragmentedMemory(numPages, maxPages int) *FragmentedMemory {
 	return &FragmentedMemory{numPages: numPages, maxPages: maxPages}
 }
 
-func NewSparseMemory(numPages, maxPages, zeroThreshold int) *FragmentedMemory {
+func NewSparseMemory(numPages, maxPages, zeroThreshold, chunkThreshold int) *FragmentedMemory {
 	return &FragmentedMemory{
-		numPages:      numPages,
-		maxPages:      maxPages,
-		sparse:        true,
-		zeroThreshold: zeroThreshold,
+		numPages:       numPages,
+		maxPages:       maxPages,
+		sparse:         true,
+		zeroThreshold:  zeroThreshold,
+		chunkThreshold: chunkThreshold,
 	}
 }
 
 // sparseChunks splits bytes into sub-slices that are worth storing,
 // skipping leading/trailing zeros and splitting on zero runs longer than zeroThreshold.
+// If chunkThreshold > 0, any span whose size is below that threshold is glued
+// forward into the next span (bridging the gap between them), so we never emit
+// a segment too small to be worth its own BST node.
 // Returns [start, end) index pairs (relative to the start of bytes).
-func sparseChunks(bytes []byte, zeroThreshold int) [][2]int {
+func sparseChunks(bytes []byte, zeroThreshold, chunkThreshold int) [][2]int {
 	var result [][2]int
 	n := len(bytes)
 	i := 0
@@ -108,14 +113,12 @@ func sparseChunks(bytes []byte, zeroThreshold int) [][2]int {
 			} else {
 				zeroRun++
 				if zeroRun > zeroThreshold {
-					// zero run too long — close this span at the last non-zero byte
-					// and skip ahead past the entire zero run
 					result = append(result, [2]int{start, lastNonZero})
-					i++ // move past current zero
+					i++
 					for i < n && bytes[i] == 0 {
 						i++
 					}
-					start = -1 // signal that we closed the span
+					start = -1
 					break
 				}
 			}
@@ -123,8 +126,25 @@ func sparseChunks(bytes []byte, zeroThreshold int) [][2]int {
 		}
 
 		if start != -1 {
-			// reached end of bytes — close the span, trimming trailing zeros
 			result = append(result, [2]int{start, lastNonZero})
+		}
+	}
+
+	// glue tiny spans forward: if a span's size < chunkThreshold, extend it to
+	// cover all bytes up to and including the next span (or to its own end if
+	// it is the last one).
+	if chunkThreshold > 0 {
+		for i := 0; i < len(result)-1; {
+			curSize := result[i][1] - result[i][0]
+			nextSize := result[i+1][1] - result[i+1][0]
+			if curSize < chunkThreshold || nextSize < chunkThreshold {
+				// either side is tiny — bridge them into one span
+				result[i][1] = result[i+1][1]
+				result = append(result[:i+1], result[i+2:]...)
+				// stay at i — re-examine the merged span against its new neighbour
+			} else {
+				i++
+			}
 		}
 	}
 
@@ -138,7 +158,7 @@ func (memory *FragmentedMemory) Store(offset int, bytes []byte) {
 	}
 
 	if memory.sparse {
-		for _, chunk := range sparseChunks(bytes, memory.zeroThreshold) {
+		for _, chunk := range sparseChunks(bytes, memory.zeroThreshold, memory.chunkThreshold) {
 			memory.storeRaw(offset+chunk[0], bytes[chunk[0]:chunk[1]])
 		}
 		return

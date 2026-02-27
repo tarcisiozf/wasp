@@ -185,7 +185,7 @@ func TestClone_SharedDataBeforeWrite(t *testing.T) {
 // ---- sparse correctness tests ----
 
 func TestSparse_SkipsLeadingAndTrailingZeros(t *testing.T) {
-	mem := NewSparseMemory(1, 0, 4)
+	mem := NewSparseMemory(1, 0, 4, 0)
 	mem.Store(0, []byte{0, 0, 1, 2, 3, 0, 0})
 	got := mem.Load(0, 7)
 	want := []byte{0, 0, 1, 2, 3, 0, 0}
@@ -198,7 +198,7 @@ func TestSparse_SkipsLeadingAndTrailingZeros(t *testing.T) {
 
 func TestSparse_BridgesSmallZeroGap(t *testing.T) {
 	// gap of 3 zeros ≤ threshold of 4 → single segment
-	mem := NewSparseMemory(1, 0, 4)
+	mem := NewSparseMemory(1, 0, 4, 0)
 	mem.Store(0, []byte{1, 2, 0, 0, 0, 3, 4})
 	got := mem.Load(0, 7)
 	want := []byte{1, 2, 0, 0, 0, 3, 4}
@@ -211,7 +211,7 @@ func TestSparse_BridgesSmallZeroGap(t *testing.T) {
 
 func TestSparse_SplitsLargeZeroGap(t *testing.T) {
 	// gap of 5 zeros > threshold of 4 → two separate segments; zeros read back as 0
-	mem := NewSparseMemory(1, 0, 4)
+	mem := NewSparseMemory(1, 0, 4, 0)
 	mem.Store(0, []byte{1, 2, 0, 0, 0, 0, 0, 3, 4})
 	got := mem.Load(0, 9)
 	want := []byte{1, 2, 0, 0, 0, 0, 0, 3, 4}
@@ -223,7 +223,7 @@ func TestSparse_SplitsLargeZeroGap(t *testing.T) {
 }
 
 func TestSparse_AllZeros_StoresNothing(t *testing.T) {
-	mem := NewSparseMemory(1, 0, 4)
+	mem := NewSparseMemory(1, 0, 4, 0)
 	mem.Store(0, make([]byte, 64))
 	if mem.root != nil {
 		t.Error("expected no segments for all-zero payload")
@@ -239,6 +239,58 @@ func TestSparse_NonSparseUnchanged(t *testing.T) {
 		if got[i] != b {
 			t.Errorf("byte %d: want %d, got %d", i, b, got[i])
 		}
+	}
+}
+
+func TestChunkThreshold_GluesToySpanForward(t *testing.T) {
+	// tiny span [0,1) size=1 < chunkThreshold=4, gap=5 > zeroThreshold=4
+	// → glued forward into [6,10): result is one span [0,10)
+	mem := NewSparseMemory(1, 0, 4, 4)
+	mem.Store(0, []byte{1, 0, 0, 0, 0, 0, 2, 3, 4, 5})
+	got := mem.Load(0, 10)
+	want := []byte{1, 0, 0, 0, 0, 0, 2, 3, 4, 5}
+	for i, b := range want {
+		if got[i] != b {
+			t.Errorf("byte %d: want %d, got %d", i, b, got[i])
+		}
+	}
+	if segmentCount(mem.root) != 1 {
+		t.Errorf("expected 1 segment after gluing, got %d", segmentCount(mem.root))
+	}
+}
+
+func TestChunkThreshold_DoesNotGlueLargeSpan(t *testing.T) {
+	// first span [0,5) size=5 ≥ chunkThreshold=4 → not glued, stays separate
+	mem := NewSparseMemory(1, 0, 4, 4)
+	mem.Store(0, []byte{1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 6, 7, 8, 9, 10})
+	got := mem.Load(0, 15)
+	want := []byte{1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 6, 7, 8, 9, 10}
+	for i, b := range want {
+		if got[i] != b {
+			t.Errorf("byte %d: want %d, got %d", i, b, got[i])
+		}
+	}
+	if segmentCount(mem.root) != 2 {
+		t.Errorf("expected 2 segments, got %d", segmentCount(mem.root))
+	}
+}
+
+func TestChunkThreshold_ChainGlue(t *testing.T) {
+	// three tiny spans each size=1, separated by gaps of 5 zeros
+	// each is tiny → first glues into second → result still tiny → glues into third
+	// final result: one span covering everything
+	mem := NewSparseMemory(1, 0, 4, 4)
+	//            [1, 0,0,0,0,0, 2, 0,0,0,0,0, 3]
+	mem.Store(0, []byte{1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 3})
+	got := mem.Load(0, 13)
+	want := []byte{1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 3}
+	for i, b := range want {
+		if got[i] != b {
+			t.Errorf("byte %d: want %d, got %d", i, b, got[i])
+		}
+	}
+	if segmentCount(mem.root) != 1 {
+		t.Errorf("expected 1 segment after chain glue, got %d", segmentCount(mem.root))
 	}
 }
 
@@ -267,7 +319,7 @@ func TestSparse_MemoryUsage(t *testing.T) {
 	without := NewFragmentedMemory(1, 0)
 	without.Store(0, payload)
 
-	with := NewSparseMemory(1, 0, sparseThreshold)
+	with := NewSparseMemory(1, 0, sparseThreshold, 0)
 	with.Store(0, payload)
 
 	bytesWithout := segmentBytes(without.root)
@@ -370,7 +422,7 @@ func BenchmarkSparse_Store_WithFlag(b *testing.B) {
 	payload := sparsePayload(sparseNonZeroChunks, sparseNonZeroSize, sparseGapSize)
 	b.ResetTimer()
 	for b.Loop() {
-		mem := NewSparseMemory(1, 0, sparseThreshold)
+		mem := NewSparseMemory(1, 0, sparseThreshold, 0)
 		mem.Store(0, payload)
 	}
 }
@@ -387,7 +439,7 @@ func BenchmarkSparse_Load_WithoutFlag(b *testing.B) {
 
 func BenchmarkSparse_Load_WithFlag(b *testing.B) {
 	payload := sparsePayload(sparseNonZeroChunks, sparseNonZeroSize, sparseGapSize)
-	mem := NewSparseMemory(1, 0, sparseThreshold)
+	mem := NewSparseMemory(1, 0, sparseThreshold, 0)
 	mem.Store(0, payload)
 	b.ResetTimer()
 	for b.Loop() {
@@ -411,7 +463,7 @@ func BenchmarkSparse_StoreAndLoad_WithFlag(b *testing.B) {
 	total := len(payload)
 	b.ResetTimer()
 	for b.Loop() {
-		mem := NewSparseMemory(1, 0, sparseThreshold)
+		mem := NewSparseMemory(1, 0, sparseThreshold, 0)
 		mem.Store(0, payload)
 		_ = mem.Load(0, total)
 	}
