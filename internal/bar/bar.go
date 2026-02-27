@@ -159,18 +159,30 @@ func (mem *SegmentedMemory) segmentsForRange(offset, end int) (segments []*Segme
 		return nil
 	}
 
-	current := mem.root
-	for current != nil {
+	stack := []*Segment{mem.root}
+	for len(stack) > 0 {
+		current := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
 		if end <= current.offset {
 			// range is entirely to the left of this node
-			current = current.left
+			if current.left != nil {
+				stack = append(stack, current.left)
+			}
 		} else if offset >= current.end {
 			// range is entirely to the right of this node
-			current = current.right
+			if current.right != nil {
+				stack = append(stack, current.right)
+			}
 		} else {
-			// overlap: collect and continue right for further overlapping segments
+			// overlap: collect and search both subtrees
 			segments = append(segments, current)
-			current = current.right
+			if current.left != nil {
+				stack = append(stack, current.left)
+			}
+			if current.right != nil {
+				stack = append(stack, current.right)
+			}
 		}
 	}
 
@@ -224,6 +236,7 @@ func (mem *SegmentedMemory) mergeSegments(segments []*Segment) *Segment {
 
 func (mem *SegmentedMemory) removeSegment(s *Segment) {
 	var replacement *Segment
+	var extraRebalanceFrom *Segment
 
 	if s.left == nil {
 		replacement = s.right
@@ -235,37 +248,61 @@ func (mem *SegmentedMemory) removeSegment(s *Segment) {
 		for successor.left != nil {
 			successor = successor.left
 		}
-		// detach successor from its current position
-		mem.removeSegment(successor)
-		// put successor in place of s
-		successor.left = s.left
-		successor.right = s.right
-		if s.left != nil {
-			s.left.parent = successor
-		}
-		if s.right != nil {
+
+		// splice successor out of its current position
+		succParent := successor.parent
+		succRight := successor.right
+
+		if succParent == s {
+			// successor is s's direct right child
+			// just leave successor.right as-is
+		} else {
+			// successor is deeper in the right subtree
+			succParent.left = succRight
+			if succRight != nil {
+				succRight.parent = succParent
+			}
+			successor.right = s.right
 			s.right.parent = successor
+			extraRebalanceFrom = succParent
 		}
+
+		successor.left = s.left
+		s.left.parent = successor
 		replacement = successor
 	}
 
+	sParent := s.parent
+
 	if replacement != nil {
-		replacement.parent = s.parent
+		replacement.parent = sParent
 	}
-	if s.parent == nil {
+	if sParent == nil {
 		mem.root = replacement
-	} else if s.parent.left == s {
-		s.parent.left = replacement
+	} else if sParent.left == s {
+		sParent.left = replacement
 	} else {
-		s.parent.right = replacement
+		sParent.right = replacement
+	}
+
+	// clear removed node's links
+	s.left = nil
+	s.right = nil
+	s.parent = nil
+
+	// rebalance from where successor was spliced out (if applicable)
+	if extraRebalanceFrom != nil {
+		mem.rebalanceUp(extraRebalanceFrom)
 	}
 
 	// rebalance from the replacement (or the parent if no replacement)
 	rebalanceStart := replacement
 	if rebalanceStart == nil {
-		rebalanceStart = s.parent
+		rebalanceStart = sParent
 	}
-	mem.rebalanceUp(rebalanceStart)
+	if rebalanceStart != nil {
+		mem.rebalanceUp(rebalanceStart)
+	}
 }
 
 func (mem *SegmentedMemory) insertSegmentNode(seg *Segment) {
