@@ -9,6 +9,7 @@ import (
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/instructions"
 	"github.com/tarcisiozf/wasp/internal/memory"
+	iface "github.com/tarcisiozf/wasp/memory"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +18,7 @@ import (
 func createTestContextWithMemory(numPages int, body ...[]byte) *execution.Context {
 	ctx := createTestContext(body...)
 	mem := memory.NewMemory(numPages, 10) // max 10 pages
-	ctx.Memories = []*memory.Memory{mem}
+	ctx.Memories = []iface.Memory{mem}
 	return ctx
 }
 

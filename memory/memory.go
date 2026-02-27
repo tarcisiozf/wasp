@@ -7,4 +7,5 @@ type Memory interface {
 	NumPages() int
 	PageSize() int
 	MaxPages() int
+	Data() []byte
 }

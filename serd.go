@@ -8,6 +8,7 @@ import (
 	"github.com/tarcisiozf/wasp/internal/binary"
 	execution "github.com/tarcisiozf/wasp/internal/execution"
 	memory "github.com/tarcisiozf/wasp/internal/memory"
+	iface "github.com/tarcisiozf/wasp/memory"
 )
 
 type StateStore struct {
@@ -93,7 +94,7 @@ func DeserializeState(src io.Reader, module *Module, linker *Linker) (*Store, *I
 
 	store := &Store{
 		Globals:  memory.NewGlobal(),
-		Memories: make([]*memory.Memory, len(state.Store.Memories)),
+		Memories: make([]iface.Memory, len(state.Store.Memories)),
 		Tables:   make([]*memory.Table, len(state.Store.Tables)),
 	}
 	for _, item := range state.Store.Globals {
@@ -207,7 +208,7 @@ func toGlobalItems(globals *memory.Global) ([]GlobalItem, error) {
 	return items, nil
 }
 
-func toMemoryStates(memories []*memory.Memory) []MemoryState {
+func toMemoryStates(memories []iface.Memory) []MemoryState {
 	items := make([]MemoryState, len(memories))
 	for i, mem := range memories {
 		items[i] = toMemoryState(mem)
@@ -215,7 +216,7 @@ func toMemoryStates(memories []*memory.Memory) []MemoryState {
 	return items
 }
 
-func toMemoryState(mem *memory.Memory) MemoryState {
+func toMemoryState(mem iface.Memory) MemoryState {
 	return MemoryState{
 		Data:     mem.Data(),
 		NumPages: mem.NumPages(),

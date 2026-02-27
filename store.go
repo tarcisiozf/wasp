@@ -1,40 +1,63 @@
 package wasp
 
 import (
+	"github.com/tarcisiozf/wasp/internal/foo"
 	"github.com/tarcisiozf/wasp/internal/memory"
 	"github.com/tarcisiozf/wasp/internal/module"
+	iface "github.com/tarcisiozf/wasp/memory"
 )
+
+type StoreOptions func(*Store, *module.Module)
 
 type Store struct {
 	Globals  *memory.Global
-	Memories []*memory.Memory
+	Memories []iface.Memory
 	Tables   []*memory.Table
 }
 
-func NewStore(module *module.Module) *Store {
-	globals := module.Globals().Clone()
+func WithFragmentedMemory() StoreOptions {
+	return func(store *Store, module *module.Module) {
+		moduleMemories := module.Memories()
+		store.Memories = make([]iface.Memory, len(moduleMemories))
+		for i, mem := range moduleMemories {
+			fmem := foo.NewSparseMemory(mem.NumPages(), mem.MaxPages(), 8)
+			fmem.Store(0, mem.Data())
+			store.Memories[i] = fmem
+		}
+	}
+}
 
-	moduleMemories := module.Memories()
-	var memories = make([]*memory.Memory, len(moduleMemories))
-	for i, mem := range moduleMemories {
-		memories[i] = mem.Clone()
+func NewStore(module *module.Module, opts ...StoreOptions) *Store {
+	store := &Store{}
+	for _, opt := range opts {
+		opt(store, module)
+	}
+
+	if store.Globals == nil {
+		store.Globals = module.Globals().Clone()
+	}
+
+	if store.Memories == nil {
+		moduleMemories := module.Memories()
+		store.Memories = make([]iface.Memory, len(moduleMemories))
+		for i, mem := range moduleMemories {
+			store.Memories[i] = mem.Clone()
+		}
+	}
+
+	if store.Tables == nil {
+		tables := module.Tables()
+		store.Tables = make([]*memory.Table, len(tables))
+		for i, tbl := range tables {
+			store.Tables[i] = tbl.Clone()
+		}
 	}
 
 	// Apply data segments to memory
 	for _, segment := range module.DataSegments() {
-		mem := memories[segment.MemoryIndex]
+		mem := store.Memories[segment.MemoryIndex]
 		mem.Store(segment.Offset, segment.Data)
 	}
 
-	tables := module.Tables()
-	storeTables := make([]*memory.Table, len(tables))
-	for i, tbl := range tables {
-		storeTables[i] = tbl.Clone()
-	}
-
-	return &Store{
-		Globals:  globals,
-		Memories: memories,
-		Tables:   storeTables,
-	}
+	return store
 }

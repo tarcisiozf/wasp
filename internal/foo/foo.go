@@ -19,6 +19,11 @@ type FragmentedMemory struct {
 	zeroThreshold int
 }
 
+func (memory *FragmentedMemory) Data() []byte {
+	//TODO implement me
+	panic("implement me")
+}
+
 var _ iface.Memory = (*FragmentedMemory)(nil)
 
 func NewFragmentedMemory(numPages, maxPages int) *FragmentedMemory {

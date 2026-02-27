@@ -5,6 +5,7 @@ import (
 	"github.com/tarcisiozf/wasp/internal/funcs/fnblock"
 	"github.com/tarcisiozf/wasp/internal/funcs/fnsig"
 	"github.com/tarcisiozf/wasp/internal/memory"
+	iface "github.com/tarcisiozf/wasp/memory"
 )
 
 // BlockFrame stores runtime info about a control structure for branching
@@ -14,7 +15,7 @@ type BlockFrame struct {
 
 type Context struct {
 	Globals        *memory.Global
-	Memories       []*memory.Memory
+	Memories       []iface.Memory
 	Tables         []*memory.Table
 	FuncSignatures []fnsig.Signature // indexed by function index
 	TypeSignatures []fnsig.Signature // indexed by type index (for call_indirect)
