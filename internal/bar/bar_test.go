@@ -41,6 +41,62 @@ func TestChunkify(t *testing.T) {
 	})
 }
 
+func TestSegmentsForRange(t *testing.T) {
+	t.Run("nil root returns nil", func(t *testing.T) {
+		foo := NewFoo(8)
+		result := foo.segmentsForRange(0)
+		assert.Nil(t, result)
+	})
+
+	t.Run("offset before segment returns nil", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.insertSegment(10, []byte{1, 2, 3, 4})
+		result := foo.segmentsForRange(5)
+		assert.Nil(t, result)
+	})
+
+	t.Run("offset after segment returns nil", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.insertSegment(0, []byte{1, 2, 3, 4})
+		result := foo.segmentsForRange(10)
+		assert.Nil(t, result)
+	})
+
+	t.Run("offset within segment returns segment", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.insertSegment(0, []byte{1, 2, 3, 4})
+		result := foo.segmentsForRange(2)
+		assert.Len(t, result, 1)
+		assert.Equal(t, 0, result[0].offset)
+		assert.Equal(t, 4, result[0].end)
+	})
+
+	t.Run("offset at segment start is within segment", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.insertSegment(5, []byte{1, 2, 3, 4})
+		result := foo.segmentsForRange(5)
+		assert.Len(t, result, 1)
+		assert.Equal(t, 5, result[0].offset)
+	})
+
+	t.Run("offset at segment end is not within segment", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.insertSegment(0, []byte{1, 2, 3, 4})
+		result := foo.segmentsForRange(4)
+		assert.Nil(t, result)
+	})
+
+	t.Run("returns multiple overlapping segments", func(t *testing.T) {
+		foo := NewFoo(8)
+		foo.insertSegment(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+		foo.insertSegment(4, []byte{9, 10, 11, 12})
+		result := foo.segmentsForRange(4)
+		assert.Len(t, result, 2)
+		assert.Equal(t, 0, result[0].offset)
+		assert.Equal(t, 4, result[1].offset)
+	})
+}
+
 func TestInsertSegment(t *testing.T) {
 	t.Run("root segment", func(t *testing.T) {
 		foo := NewFoo(8)
