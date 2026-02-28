@@ -80,7 +80,6 @@ func newNode(offset, size, capacity, level int) *Node {
 		offset:   offset,
 		size:     size,
 		capacity: capacity,
-		data:     make([]byte, capacity),
 		forward:  make([]*Node, level),
 	}
 }
@@ -154,7 +153,9 @@ func (sl *SkipList) acquireNode(offset, size, level int) *Node {
 		}
 		return node
 	}
-	return newNode(offset, size, sl.minCapacity, level)
+	node := newNode(offset, size, sl.minCapacity, level)
+	node.data = make([]byte, node.capacity)
+	return node
 }
 
 func (sl *SkipList) insert(offset, size int, data []byte) {

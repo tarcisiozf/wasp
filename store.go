@@ -16,7 +16,7 @@ type Store struct {
 	Tables   []*memory.Table
 }
 
-func WithZabeba(minSize int) StoreOptions {
+func WithSkipList(minSize int) StoreOptions {
 	return func(store *Store, module *module.Module) {
 		moduleMemories := module.Memories()
 		store.Memories = make([]iface.Memory, len(moduleMemories))
