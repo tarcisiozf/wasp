@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+
+	iface "github.com/tarcisiozf/wasp/memory"
 )
 
 const maxLevel = 16
 const probability = 0.5
+const pageSize = 65536 // 64KiB
 
 type Node struct {
 	offset   int
@@ -22,13 +25,50 @@ type SkipList struct {
 	level       int
 	length      int
 	minCapacity int
+	numPages    int
+	maxPages    int
 }
 
-func New(minCapacity int) *SkipList {
+func (sl *SkipList) Grow(delta int) bool {
+	if delta < 0 {
+		return false
+	}
+	if sl.maxPages > 0 && sl.numPages+delta > sl.maxPages {
+		return false
+	}
+	sl.numPages += delta
+	return true
+}
+
+func (sl *SkipList) NumPages() int {
+	return sl.numPages
+}
+
+func (sl *SkipList) PageSize() int {
+	return pageSize
+}
+
+func (sl *SkipList) MaxPages() int {
+	return sl.maxPages
+}
+
+func (sl *SkipList) Data() []byte {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (sl *SkipList) Clone() iface.Memory {
+	//TODO implement me
+	panic("implement me")
+}
+
+func New(numPages, maxPages, minCapacity int) *SkipList {
 	return &SkipList{
 		head:        newNode(0, 0, minCapacity, maxLevel),
 		level:       1,
 		minCapacity: minCapacity,
+		numPages:    numPages,
+		maxPages:    maxPages,
 	}
 }
 
