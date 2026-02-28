@@ -11,20 +11,30 @@ import (
 type StoreOptions func(*Store, *module.Module)
 
 type Store struct {
-	Globals  *memory.Global
-	Memories []iface.Memory
-	Tables   []*memory.Table
+	Globals             *memory.Global
+	Memories            []iface.Memory
+	Tables              []*memory.Table
+	dataSegmentsApplied bool
 }
 
-func WithSkipList(minSize int) StoreOptions {
+func WithSkipList(chunkThreshold int) StoreOptions {
 	return func(store *Store, module *module.Module) {
 		moduleMemories := module.Memories()
 		store.Memories = make([]iface.Memory, len(moduleMemories))
 		for i, mem := range moduleMemories {
-			slmem := foo.New(mem.NumPages(), mem.MaxPages(), minSize)
-			foo.FillMyGap(slmem, mem.Data())
+			slmem := foo.New(mem.NumPages(), mem.MaxPages())
+			foo.FillMyGap(slmem, chunkThreshold, mem.Data())
+
+			// Apply data segments now so NewStore doesn't double-apply them
+			for _, segment := range module.DataSegments() {
+				if segment.MemoryIndex == i {
+					slmem.Store(segment.Offset, segment.Data)
+				}
+			}
+
 			store.Memories[i] = slmem
 		}
+		store.dataSegmentsApplied = true
 	}
 }
 
@@ -75,10 +85,12 @@ func NewStore(module *module.Module, opts ...StoreOptions) *Store {
 		}
 	}
 
-	// Apply data segments to memory
-	for _, segment := range module.DataSegments() {
-		mem := store.Memories[segment.MemoryIndex]
-		mem.Store(segment.Offset, segment.Data)
+	// Apply data segments to memory (unless already applied by an option)
+	if !store.dataSegmentsApplied {
+		for _, segment := range module.DataSegments() {
+			mem := store.Memories[segment.MemoryIndex]
+			mem.Store(segment.Offset, segment.Data)
+		}
 	}
 
 	return store

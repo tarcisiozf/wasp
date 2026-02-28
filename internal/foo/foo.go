@@ -9,26 +9,28 @@ import (
 	iface "github.com/tarcisiozf/wasp/memory"
 )
 
-const maxLevel = 16
+const maxLevel = 8
 const probability = 0.5
 const pageSize = 65536 // 64KiB
+const maxFreeNodes = 64
+const maxFreeNodeDataCap = 4096
 
 type Node struct {
-	offset   int
-	size     int
-	capacity int
-	data     []byte
-	forward  []*Node
+	offset  int
+	size    int
+	level   uint8
+	data    []byte
+	forward [maxLevel]*Node
 }
 
 type SkipList struct {
-	head        *Node
-	level       int
-	length      int
-	minCapacity int
-	numPages    int
-	maxPages    int
-	freeNodes   []*Node
+	head     *Node
+	level    int
+	length   int
+	numPages int
+	maxPages int
+
+	freeNodes []*Node
 }
 
 func (sl *SkipList) Grow(delta int) bool {
@@ -55,32 +57,59 @@ func (sl *SkipList) MaxPages() int {
 }
 
 func (sl *SkipList) Data() []byte {
-	//TODO implement me
-	panic("implement me")
+	totalSize := sl.numPages * pageSize
+	return sl.Load(0, totalSize)
 }
 
 func (sl *SkipList) Clone() iface.Memory {
-	//TODO implement me
-	panic("implement me")
-}
-
-func New(numPages, maxPages, minCapacity int) *SkipList {
-	return &SkipList{
-		head:        newNode(0, 0, minCapacity, maxLevel),
-		level:       1,
-		minCapacity: minCapacity,
-		numPages:    numPages,
-		maxPages:    maxPages,
+	clone := &SkipList{
+		head:     &Node{},
+		level:    sl.level,
+		length:   sl.length,
+		numPages: sl.numPages,
+		maxPages: sl.maxPages,
 	}
+
+	// Map from original node to cloned node for forward pointer reconstruction
+	nodeMap := make(map[*Node]*Node, sl.length+1)
+	nodeMap[sl.head] = clone.head
+
+	// Clone all nodes at level 0
+	for n := sl.head.forward[0]; n != nil; n = n.forward[0] {
+		data := make([]byte, n.size)
+		copy(data, n.data[:n.size])
+		cloned := &Node{
+			offset: n.offset,
+			size:   n.size,
+			level:  n.level,
+			data:   data,
+		}
+		nodeMap[n] = cloned
+	}
+
+	// Reconstruct forward pointers at all levels
+	for n := sl.head; n != nil; n = n.forward[0] {
+		cloned := nodeMap[n]
+		lvl := int(n.level)
+		if n == sl.head {
+			lvl = sl.level
+		}
+		for i := 0; i < lvl; i++ {
+			if n.forward[i] != nil {
+				cloned.forward[i] = nodeMap[n.forward[i]]
+			}
+		}
+	}
+
+	return clone
 }
 
-func newNode(offset, size, capacity, level int) *Node {
-	capacity = max(size, capacity)
-	return &Node{
-		offset:   offset,
-		size:     size,
-		capacity: capacity,
-		forward:  make([]*Node, level),
+func New(numPages, maxPages int) *SkipList {
+	return &SkipList{
+		head:     &Node{},
+		level:    1,
+		numPages: numPages,
+		maxPages: maxPages,
 	}
 }
 
@@ -123,39 +152,42 @@ func (sl *SkipList) delete(offset int) *Node {
 }
 
 func (sl *SkipList) recycleNode(n *Node) {
+	if len(sl.freeNodes) >= maxFreeNodes {
+		return // discard — don't grow the pool unboundedly
+	}
+	// Release large data buffers to avoid retaining too much memory
+	if cap(n.data) > maxFreeNodeDataCap {
+		n.data = nil
+	}
 	sl.freeNodes = append(sl.freeNodes, n)
 }
 
 func (sl *SkipList) acquireNode(offset, size, level int) *Node {
-	capacity := max(size, sl.minCapacity)
-	// Try to find a node from the free list with enough capacity
+	// Try to find a node from the free list
 	if n := len(sl.freeNodes); n > 0 {
 		node := sl.freeNodes[n-1]
 		sl.freeNodes = sl.freeNodes[:n-1]
 		node.offset = offset
 		node.size = size
+		node.level = uint8(level)
 		// Reuse data buffer if large enough
-		if cap(node.data) >= capacity {
-			node.data = node.data[:capacity]
-			node.capacity = capacity
+		if cap(node.data) >= size {
+			node.data = node.data[:size]
 		} else {
-			node.data = make([]byte, capacity)
-			node.capacity = capacity
+			node.data = make([]byte, size)
 		}
-		// Reuse forward slice if large enough, otherwise allocate
-		if cap(node.forward) >= level {
-			node.forward = node.forward[:level]
-			for i := range node.forward {
-				node.forward[i] = nil
-			}
-		} else {
-			node.forward = make([]*Node, level)
+		// Clear forward pointers
+		for i := range node.forward {
+			node.forward[i] = nil
 		}
 		return node
 	}
-	node := newNode(offset, size, sl.minCapacity, level)
-	node.data = make([]byte, node.capacity)
-	return node
+	return &Node{
+		offset: offset,
+		size:   size,
+		level:  uint8(level),
+		data:   make([]byte, size),
+	}
 }
 
 func (sl *SkipList) insert(offset, size int, data []byte) {
@@ -206,44 +238,51 @@ func (sl *SkipList) Store(offset int, data []byte) {
 		return
 	}
 
-	// Stack buffers for left/right trimmed data (avoids heap allocation for typical cases)
-	var leftBuf, rightBuf [512]byte
-	var leftOffset, leftSize int
-	var leftData []byte
-	var rightOffset, rightSize int
-	var rightData []byte
+	// Collect overlapping/adjacent nodes and compute the merged range
+	mergeStart := offset
+	mergeEnd := end
 
-	// Use a small stack buffer for offsets to delete
 	var deleteBuf [32]int
 	toDelete := deleteBuf[:0]
 
-	for n := current.forward[0]; n != nil && n.offset < end; n = n.forward[0] {
+	for n := current.forward[0]; n != nil && n.offset <= end; n = n.forward[0] {
 		nodeEnd := n.offset + n.size
 
-		if n.offset < offset && nodeEnd > offset {
-			// Node extends before our range — copy the left portion
-			leftOffset = n.offset
-			leftSize = offset - n.offset
-			if leftSize <= len(leftBuf) {
-				leftData = leftBuf[:leftSize]
-			} else {
-				leftData = make([]byte, leftSize)
-			}
-			copy(leftData, n.data[:leftSize])
+		if nodeEnd < offset {
+			continue
 		}
-		if nodeEnd > end && n.offset < end {
-			// Node extends after our range — copy the right portion
-			rightOffset = end
-			rightSize = nodeEnd - end
-			if rightSize <= len(rightBuf) {
-				rightData = rightBuf[:rightSize]
-			} else {
-				rightData = make([]byte, rightSize)
-			}
-			copy(rightData, n.data[end-n.offset:n.size])
+
+		// Expand the merge range
+		if n.offset < mergeStart {
+			mergeStart = n.offset
+		}
+		if nodeEnd > mergeEnd {
+			mergeEnd = nodeEnd
 		}
 		toDelete = append(toDelete, n.offset)
 	}
+
+	if len(toDelete) == 0 {
+		// No overlapping nodes — just insert
+		sl.insert(offset, size, data)
+		return
+	}
+
+	// Build the merged buffer
+	mergeSize := mergeEnd - mergeStart
+	merged := make([]byte, mergeSize)
+
+	// First, copy data from all overlapping nodes
+	for n := current.forward[0]; n != nil && n.offset < mergeEnd; n = n.forward[0] {
+		if n.offset+n.size <= mergeStart {
+			continue
+		}
+		dstStart := n.offset - mergeStart
+		copy(merged[dstStart:dstStart+n.size], n.data[:n.size])
+	}
+
+	// Overwrite with the new data
+	copy(merged[offset-mergeStart:], data)
 
 	// Delete all overlapping nodes (recycling them)
 	for _, off := range toDelete {
@@ -252,18 +291,8 @@ func (sl *SkipList) Store(offset int, data []byte) {
 		}
 	}
 
-	// Re-insert trimmed left portion
-	if leftSize > 0 {
-		sl.insert(leftOffset, leftSize, leftData)
-	}
-
-	// Insert the new data
-	sl.insert(offset, size, data)
-
-	// Re-insert trimmed right portion
-	if rightSize > 0 {
-		sl.insert(rightOffset, rightSize, rightData)
-	}
+	// Insert the single merged node
+	sl.insert(mergeStart, mergeSize, merged)
 }
 
 func (sl *SkipList) Load(offset, size int) []byte {
@@ -321,9 +350,40 @@ func ExpectedLevels(n int) int {
 	return int(math.Log2(float64(n))) + 1
 }
 
-func FillMyGap(sl *SkipList, data []byte) {
-	for start, end := range chunkify(sl.minCapacity, data) {
-		sl.Store(start, data[start:end])
+// FillMyGap initializes the skip list from a contiguous byte slice,
+// chunking non-zero regions and appending directly (O(1) per chunk).
+func FillMyGap(sl *SkipList, chunkThreshold int, data []byte) {
+	var update [maxLevel]*Node
+	for i := range update {
+		update[i] = sl.head
+	}
+
+	for start, end := range chunkify(chunkThreshold, data) {
+		chunkSize := end - start
+		newLevel := sl.randomLevel()
+		if newLevel > sl.level {
+			for i := sl.level; i < newLevel; i++ {
+				update[i] = sl.head
+			}
+			sl.level = newLevel
+		}
+
+		node := &Node{
+			offset: start,
+			size:   chunkSize,
+			level:  uint8(newLevel),
+			data:   make([]byte, chunkSize),
+		}
+		copy(node.data, data[start:end])
+
+		for i := 0; i < newLevel; i++ {
+			node.forward[i] = update[i].forward[i]
+			update[i].forward[i] = node
+		}
+		for i := 0; i < newLevel; i++ {
+			update[i] = node
+		}
+		sl.length++
 	}
 }
 

@@ -16,7 +16,7 @@ const (
 
 var (
 	avlmem = bar.NewSegmentedMemory(65536, 65536, 256)
-	slmem  = foo.New(0, 0, 256)
+	slmem  = foo.New(0, 0)
 )
 
 type storeTestCase struct {
