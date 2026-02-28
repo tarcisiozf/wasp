@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	mem = foo.New()
+	mem = foo.New(256)
 )
 
 type storeTestCase struct {

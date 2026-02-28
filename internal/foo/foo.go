@@ -8,7 +8,6 @@ import (
 
 const maxLevel = 16
 const probability = 0.5
-const chunkSize = 256
 
 type Node struct {
 	offset   int
@@ -19,26 +18,28 @@ type Node struct {
 }
 
 type SkipList struct {
-	head   *Node
-	level  int
-	length int
+	head        *Node
+	level       int
+	length      int
+	minCapacity int
 }
 
-func newNode(offset, size, level int) *Node {
-	capacity := min(size, chunkSize)
+func New(minCapacity int) *SkipList {
+	return &SkipList{
+		head:        newNode(0, 0, minCapacity, maxLevel),
+		level:       1,
+		minCapacity: minCapacity,
+	}
+}
+
+func newNode(offset, size, capacity, level int) *Node {
+	capacity = max(size, capacity)
 	return &Node{
 		offset:   offset,
 		size:     size,
 		capacity: capacity,
-		data:     make([]byte, 0, capacity),
+		data:     make([]byte, capacity),
 		forward:  make([]*Node, level),
-	}
-}
-
-func New() *SkipList {
-	return &SkipList{
-		head:  newNode(0, 0, maxLevel),
-		level: 1,
 	}
 }
 
@@ -93,8 +94,7 @@ func (sl *SkipList) insert(offset, size int, data []byte) {
 		sl.level = newLevel
 	}
 
-	node := newNode(offset, size, newLevel)
-	node.data = make([]byte, size)
+	node := newNode(offset, size, sl.minCapacity, newLevel)
 	copy(node.data, data)
 	for i := 0; i < newLevel; i++ {
 		node.forward[i] = update[i].forward[i]
