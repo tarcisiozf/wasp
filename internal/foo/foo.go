@@ -2,6 +2,7 @@ package foo
 
 import (
 	"fmt"
+	"iter"
 	"math"
 	"math/rand"
 
@@ -259,4 +260,32 @@ func ExpectedLevels(n int) int {
 		return 1
 	}
 	return int(math.Log2(float64(n))) + 1
+}
+
+func FillMyGap(sl *SkipList, data []byte) {
+	for start, end := range chunkify(sl.minCapacity, data) {
+		sl.Store(start, data[start:end])
+	}
+}
+
+func chunkify(chunkThreshold int, data []byte) iter.Seq2[int, int] {
+	return func(yield func(int, int) bool) {
+		size := len(data)
+		start := -1
+
+		for i := 0; i < size; i++ {
+			if data[i] == 0 {
+				if start >= 0 && i-start >= chunkThreshold {
+					yield(start, i)
+					start = -1
+				}
+			} else if start < 0 {
+				start = i
+			}
+		}
+
+		if start >= 0 {
+			yield(start, size)
+		}
+	}
 }

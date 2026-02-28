@@ -2,6 +2,7 @@ package wasp
 
 import (
 	"github.com/tarcisiozf/wasp/internal/bar"
+	"github.com/tarcisiozf/wasp/internal/foo"
 	"github.com/tarcisiozf/wasp/internal/memory"
 	"github.com/tarcisiozf/wasp/internal/module"
 	iface "github.com/tarcisiozf/wasp/memory"
@@ -13,6 +14,18 @@ type Store struct {
 	Globals  *memory.Global
 	Memories []iface.Memory
 	Tables   []*memory.Table
+}
+
+func WithZabeba(minSize int) StoreOptions {
+	return func(store *Store, module *module.Module) {
+		moduleMemories := module.Memories()
+		store.Memories = make([]iface.Memory, len(moduleMemories))
+		for i, mem := range moduleMemories {
+			slmem := foo.New(mem.NumPages(), mem.MaxPages(), minSize)
+			foo.FillMyGap(slmem, mem.Data())
+			store.Memories[i] = slmem
+		}
+	}
 }
 
 func WithSegmentedMemory(chunkThreshold int) StoreOptions {
