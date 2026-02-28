@@ -50,11 +50,34 @@ func (sl *SkipList) randomLevel() int {
 	return level
 }
 
-func (sl *SkipList) Store(offset int, data []byte) {
-	size := len(data)
+func (sl *SkipList) delete(offset int) {
 	update := make([]*Node, maxLevel)
 	current := sl.head
+	for i := sl.level - 1; i >= 0; i-- {
+		for current.forward[i] != nil && current.forward[i].offset < offset {
+			current = current.forward[i]
+		}
+		update[i] = current
+	}
+	target := current.forward[0]
+	if target == nil || target.offset != offset {
+		return
+	}
+	for i := 0; i < sl.level; i++ {
+		if update[i].forward[i] != target {
+			break
+		}
+		update[i].forward[i] = target.forward[i]
+	}
+	sl.length--
+	for sl.level > 1 && sl.head.forward[sl.level-1] == nil {
+		sl.level--
+	}
+}
 
+func (sl *SkipList) insert(offset, size int, data []byte) {
+	update := make([]*Node, maxLevel)
+	current := sl.head
 	for i := sl.level - 1; i >= 0; i-- {
 		for current.forward[i] != nil && current.forward[i].offset < offset {
 			current = current.forward[i]
@@ -62,18 +85,6 @@ func (sl *SkipList) Store(offset int, data []byte) {
 		update[i] = current
 	}
 
-	current = current.forward[0]
-
-	// Update existing node that starts at the same offset
-	if current != nil && current.offset == offset {
-		current.size = size
-		current.capacity = min(size, chunkSize)
-		current.data = make([]byte, size)
-		copy(current.data, data)
-		return
-	}
-
-	// Insert new node
 	newLevel := sl.randomLevel()
 	if newLevel > sl.level {
 		for i := sl.level; i < newLevel; i++ {
@@ -92,21 +103,94 @@ func (sl *SkipList) Store(offset int, data []byte) {
 	sl.length++
 }
 
-func (sl *SkipList) Load(offset, size int) []byte {
+func (sl *SkipList) Store(offset int, data []byte) {
+	size := len(data)
+	if size == 0 {
+		return
+	}
+	end := offset + size
+
+	// Find the node just before the affected range
 	current := sl.head
 	for i := sl.level - 1; i >= 0; i-- {
 		for current.forward[i] != nil && current.forward[i].offset+current.forward[i].size <= offset {
 			current = current.forward[i]
 		}
 	}
-	current = current.forward[0]
 
-	// Check if the node covers the requested range [offset, offset+size)
-	if current != nil && current.offset <= offset && offset+size <= current.offset+current.size {
-		start := offset - current.offset
-		return current.data[start : start+size]
+	// Collect nodes that overlap with [offset, end)
+	var toDelete []int
+	var leftNode *Node  // partial overlap on the left
+	var rightNode *Node // partial overlap on the right
+
+	for n := current.forward[0]; n != nil && n.offset < end; n = n.forward[0] {
+		nodeEnd := n.offset + n.size
+
+		if n.offset < offset && nodeEnd > offset {
+			// Node extends before our range — save the left portion
+			leftNode = &Node{
+				offset: n.offset,
+				size:   offset - n.offset,
+				data:   make([]byte, offset-n.offset),
+			}
+			copy(leftNode.data, n.data[:offset-n.offset])
+		}
+		if nodeEnd > end && n.offset < end {
+			// Node extends after our range — save the right portion
+			rightNode = &Node{
+				offset: end,
+				size:   nodeEnd - end,
+				data:   make([]byte, nodeEnd-end),
+			}
+			copy(rightNode.data, n.data[end-n.offset:])
+		}
+		toDelete = append(toDelete, n.offset)
 	}
-	return nil
+
+	// Delete all overlapping nodes
+	for _, off := range toDelete {
+		sl.delete(off)
+	}
+
+	// Re-insert trimmed left portion
+	if leftNode != nil {
+		sl.insert(leftNode.offset, leftNode.size, leftNode.data)
+	}
+
+	// Insert the new data
+	sl.insert(offset, size, data)
+
+	// Re-insert trimmed right portion
+	if rightNode != nil {
+		sl.insert(rightNode.offset, rightNode.size, rightNode.data)
+	}
+}
+
+func (sl *SkipList) Load(offset, size int) []byte {
+	result := make([]byte, size)
+	end := offset + size
+
+	// Find the first node that could intersect [offset, end)
+	current := sl.head
+	for i := sl.level - 1; i >= 0; i-- {
+		for current.forward[i] != nil && current.forward[i].offset+current.forward[i].size <= offset {
+			current = current.forward[i]
+		}
+	}
+
+	// Walk level 0 and copy intersecting chunks
+	for current = current.forward[0]; current != nil && current.offset < end; current = current.forward[0] {
+		nodeEnd := current.offset + current.size
+
+		// intersection: [max(offset, node.offset), min(end, nodeEnd))
+		srcStart := max(offset, current.offset) - current.offset
+		srcEnd := min(end, nodeEnd) - current.offset
+		dstStart := max(offset, current.offset) - offset
+
+		copy(result[dstStart:], current.data[srcStart:srcEnd])
+	}
+
+	return result
 }
 
 // Len returns the number of elements.
