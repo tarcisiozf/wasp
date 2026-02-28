@@ -39,6 +39,18 @@ func NewSegmentedMemory(numPages, maxPages, chunkThreshold int) *SegmentedMemory
 }
 
 func (mem *SegmentedMemory) Store(offset int, data []byte) {
+	// Zero out any existing segments in the full store range,
+	// because chunkify will skip zero bytes, but those zeroes
+	// must still overwrite previously stored non-zero data.
+	fullEnd := offset + len(data)
+	for _, seg := range mem.segmentsForRange(offset, fullEnd) {
+		zeroStart := max(seg.offset, offset)
+		zeroEnd := min(seg.end, fullEnd)
+		for i := zeroStart - seg.offset; i < zeroEnd-seg.offset; i++ {
+			seg.data[i] = 0
+		}
+	}
+
 	for start, end := range mem.chunkify(data) {
 		chunkOffset := offset + start
 		chunkEnd := offset + end
