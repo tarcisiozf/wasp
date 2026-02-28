@@ -55,7 +55,7 @@ func randomBytes(n int) []byte {
 
 func TestCompare(t *testing.T) {
 	mem := memory.NewMemory(10, 0)
-	smem := New(256)
+	smem := New(0, 0, 256)
 
 	for i := 0; i < numCases; i++ {
 		storeCase := storeTestCases[i]

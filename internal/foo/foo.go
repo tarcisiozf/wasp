@@ -28,6 +28,7 @@ type SkipList struct {
 	minCapacity int
 	numPages    int
 	maxPages    int
+	freeNodes   []*Node
 }
 
 func (sl *SkipList) Grow(delta int) bool {
@@ -92,8 +93,8 @@ func (sl *SkipList) randomLevel() int {
 	return level
 }
 
-func (sl *SkipList) delete(offset int) {
-	update := make([]*Node, maxLevel)
+func (sl *SkipList) delete(offset int) *Node {
+	var update [maxLevel]*Node
 	current := sl.head
 	for i := sl.level - 1; i >= 0; i-- {
 		for current.forward[i] != nil && current.forward[i].offset < offset {
@@ -103,7 +104,7 @@ func (sl *SkipList) delete(offset int) {
 	}
 	target := current.forward[0]
 	if target == nil || target.offset != offset {
-		return
+		return nil
 	}
 	for i := 0; i < sl.level; i++ {
 		if update[i].forward[i] != target {
@@ -115,10 +116,49 @@ func (sl *SkipList) delete(offset int) {
 	for sl.level > 1 && sl.head.forward[sl.level-1] == nil {
 		sl.level--
 	}
+	// Clear forward pointers for reuse
+	for i := range target.forward {
+		target.forward[i] = nil
+	}
+	return target
+}
+
+func (sl *SkipList) recycleNode(n *Node) {
+	sl.freeNodes = append(sl.freeNodes, n)
+}
+
+func (sl *SkipList) acquireNode(offset, size, level int) *Node {
+	capacity := max(size, sl.minCapacity)
+	// Try to find a node from the free list with enough capacity
+	if n := len(sl.freeNodes); n > 0 {
+		node := sl.freeNodes[n-1]
+		sl.freeNodes = sl.freeNodes[:n-1]
+		node.offset = offset
+		node.size = size
+		// Reuse data buffer if large enough
+		if cap(node.data) >= capacity {
+			node.data = node.data[:capacity]
+			node.capacity = capacity
+		} else {
+			node.data = make([]byte, capacity)
+			node.capacity = capacity
+		}
+		// Reuse forward slice if large enough, otherwise allocate
+		if cap(node.forward) >= level {
+			node.forward = node.forward[:level]
+			for i := range node.forward {
+				node.forward[i] = nil
+			}
+		} else {
+			node.forward = make([]*Node, level)
+		}
+		return node
+	}
+	return newNode(offset, size, sl.minCapacity, level)
 }
 
 func (sl *SkipList) insert(offset, size int, data []byte) {
-	update := make([]*Node, maxLevel)
+	var update [maxLevel]*Node
 	current := sl.head
 	for i := sl.level - 1; i >= 0; i-- {
 		for current.forward[i] != nil && current.forward[i].offset < offset {
@@ -135,7 +175,7 @@ func (sl *SkipList) insert(offset, size int, data []byte) {
 		sl.level = newLevel
 	}
 
-	node := newNode(offset, size, sl.minCapacity, newLevel)
+	node := sl.acquireNode(offset, size, newLevel)
 	copy(node.data, data)
 	for i := 0; i < newLevel; i++ {
 		node.forward[i] = update[i].forward[i]
@@ -159,51 +199,69 @@ func (sl *SkipList) Store(offset int, data []byte) {
 		}
 	}
 
-	// Collect nodes that overlap with [offset, end)
-	var toDelete []int
-	var leftNode *Node  // partial overlap on the left
-	var rightNode *Node // partial overlap on the right
+	// Fast path: write fits entirely within an existing node
+	if n := current.forward[0]; n != nil && n.offset <= offset && n.offset+n.size >= end {
+		copy(n.data[offset-n.offset:], data)
+		return
+	}
+
+	// Stack buffers for left/right trimmed data (avoids heap allocation for typical cases)
+	var leftBuf, rightBuf [512]byte
+	var leftOffset, leftSize int
+	var leftData []byte
+	var rightOffset, rightSize int
+	var rightData []byte
+
+	// Use a small stack buffer for offsets to delete
+	var deleteBuf [32]int
+	toDelete := deleteBuf[:0]
 
 	for n := current.forward[0]; n != nil && n.offset < end; n = n.forward[0] {
 		nodeEnd := n.offset + n.size
 
 		if n.offset < offset && nodeEnd > offset {
-			// Node extends before our range — save the left portion
-			leftNode = &Node{
-				offset: n.offset,
-				size:   offset - n.offset,
-				data:   make([]byte, offset-n.offset),
+			// Node extends before our range — copy the left portion
+			leftOffset = n.offset
+			leftSize = offset - n.offset
+			if leftSize <= len(leftBuf) {
+				leftData = leftBuf[:leftSize]
+			} else {
+				leftData = make([]byte, leftSize)
 			}
-			copy(leftNode.data, n.data[:offset-n.offset])
+			copy(leftData, n.data[:leftSize])
 		}
 		if nodeEnd > end && n.offset < end {
-			// Node extends after our range — save the right portion
-			rightNode = &Node{
-				offset: end,
-				size:   nodeEnd - end,
-				data:   make([]byte, nodeEnd-end),
+			// Node extends after our range — copy the right portion
+			rightOffset = end
+			rightSize = nodeEnd - end
+			if rightSize <= len(rightBuf) {
+				rightData = rightBuf[:rightSize]
+			} else {
+				rightData = make([]byte, rightSize)
 			}
-			copy(rightNode.data, n.data[end-n.offset:])
+			copy(rightData, n.data[end-n.offset:n.size])
 		}
 		toDelete = append(toDelete, n.offset)
 	}
 
-	// Delete all overlapping nodes
+	// Delete all overlapping nodes (recycling them)
 	for _, off := range toDelete {
-		sl.delete(off)
+		if node := sl.delete(off); node != nil {
+			sl.recycleNode(node)
+		}
 	}
 
 	// Re-insert trimmed left portion
-	if leftNode != nil {
-		sl.insert(leftNode.offset, leftNode.size, leftNode.data)
+	if leftSize > 0 {
+		sl.insert(leftOffset, leftSize, leftData)
 	}
 
 	// Insert the new data
 	sl.insert(offset, size, data)
 
 	// Re-insert trimmed right portion
-	if rightNode != nil {
-		sl.insert(rightNode.offset, rightNode.size, rightNode.data)
+	if rightSize > 0 {
+		sl.insert(rightOffset, rightSize, rightData)
 	}
 }
 
