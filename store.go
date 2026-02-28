@@ -2,6 +2,7 @@ package wasp
 
 import (
 	"github.com/tarcisiozf/wasp/internal/bar"
+	"github.com/tarcisiozf/wasp/internal/baz"
 	"github.com/tarcisiozf/wasp/internal/foo"
 	"github.com/tarcisiozf/wasp/internal/memory"
 	"github.com/tarcisiozf/wasp/internal/module"
@@ -47,6 +48,27 @@ func WithSegmentedMemory(chunkThreshold int) StoreOptions {
 			segMem.Store(0, mem.Data())
 			store.Memories[i] = segMem
 		}
+	}
+}
+
+func WithBPlusTree(chunkThreshold int) StoreOptions {
+	return func(store *Store, module *module.Module) {
+		moduleMemories := module.Memories()
+		store.Memories = make([]iface.Memory, len(moduleMemories))
+		for i, mem := range moduleMemories {
+			btmem := baz.New(mem.NumPages(), mem.MaxPages())
+			baz.FillMyGap(btmem, chunkThreshold, mem.Data())
+
+			// Apply data segments now so NewStore doesn't double-apply them
+			for _, segment := range module.DataSegments() {
+				if segment.MemoryIndex == i {
+					btmem.Store(segment.Offset, segment.Data)
+				}
+			}
+
+			store.Memories[i] = btmem
+		}
+		store.dataSegmentsApplied = true
 	}
 }
 
