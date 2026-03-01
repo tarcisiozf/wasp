@@ -868,6 +868,16 @@ var (
 		return nil
 	})
 
+	// i64 sign extension instructions
+	I64Extend8S = addInstruction(opcodes.I64Extend8S, func(ctx *execution.Context) error {
+		a, err := castNumber[int64](ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		ctx.Stack.Push(int64(int8(a)))
+		return nil
+	})
+
 	// i32 reinterpret instruction
 	I32ReinterpretF32 = addInstruction(opcodes.I32ReinterpretF32, func(ctx *execution.Context) error {
 		a, err := castNumber[float32](ctx.Stack.Pop())
@@ -994,6 +1004,38 @@ var (
 			ctx.Stack.Push(int32(math.MinInt32))
 		} else {
 			ctx.Stack.Push(int32(a))
+		}
+		return nil
+	})
+
+	I64TruncSatF64S = addInstruction(opcodes.I64TruncSatF64S, func(ctx *execution.Context) error {
+		a, err := castNumber[float64](ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		if math.IsNaN(a) {
+			ctx.Stack.Push(int64(0))
+		} else if a >= float64(math.MaxInt64) {
+			ctx.Stack.Push(int64(math.MaxInt64))
+		} else if a <= float64(math.MinInt64) {
+			ctx.Stack.Push(int64(math.MinInt64))
+		} else {
+			ctx.Stack.Push(int64(a))
+		}
+		return nil
+	})
+
+	I64TruncSatF64U = addInstruction(opcodes.I64TruncSatF64U, func(ctx *execution.Context) error {
+		a, err := castNumber[float64](ctx.Stack.Pop())
+		if err != nil {
+			return err
+		}
+		if math.IsNaN(a) || a <= 0 {
+			ctx.Stack.Push(int64(0))
+		} else if a >= 1.8446744073709552e+19 {
+			ctx.Stack.Push(^int64(0))
+		} else {
+			ctx.Stack.Push(int64(uint64(a)))
 		}
 		return nil
 	})

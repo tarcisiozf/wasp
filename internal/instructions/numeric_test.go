@@ -1,8 +1,10 @@
 package instructions_test
 
 import (
-	"github.com/tarcisiozf/wasp/tests"
+	"math"
 	"testing"
+
+	"github.com/tarcisiozf/wasp/tests"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -1039,4 +1041,103 @@ func TestI64ReinterpretF64(t *testing.T) {
 	assert.Len(t, results, 2)
 	assert.Equal(t, int64(0), results[0])
 	assert.Equal(t, int64(4607182418800017408), results[1])
+}
+
+func TestI64TruncSatF64S_Integration(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i64 i64 i64)
+			f64.const 3.7
+			i64.trunc_sat_f64_s
+			f64.const 0.0
+			i64.trunc_sat_f64_s
+			f64.const 1000000000000000000000.0
+			i64.trunc_sat_f64_s
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// 3.7 -> 3, 0.0 -> 0, overflow saturates to max
+	assert.Len(t, results, 3)
+	assert.Equal(t, int64(3), results[0])
+	assert.Equal(t, int64(0), results[1])
+	assert.Equal(t, int64(math.MaxInt64), results[2])
+}
+
+func TestI64Extend8S_Integration(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i64 i64 i64)
+			i64.const 127
+			i64.extend8_s
+			i64.const 128
+			i64.extend8_s
+			i64.const 255
+			i64.extend8_s
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// 127 stays 127, 128 becomes -128, 255 becomes -1
+	assert.Len(t, results, 3)
+	assert.Equal(t, int64(127), results[0])
+	assert.Equal(t, int64(-128), results[1])
+	assert.Equal(t, int64(-1), results[2])
+}
+
+func TestI64TruncSatF64U_Integration(t *testing.T) {
+	testEnv := tests.NewEnvironment()
+	build, err := testEnv.BuildWat(t, `
+		(module
+		  (func $subject (result i64 i64 i64)
+			f64.const 3.7
+			i64.trunc_sat_f64_u
+			f64.const 0.0
+			i64.trunc_sat_f64_u
+			f64.const 42.9
+			i64.trunc_sat_f64_u
+		  )
+		  (export "subject" (func $subject))
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to build wat: %v", err)
+	}
+	instance, err := testEnv.CreateInstance(build.Wasm)
+	if err != nil {
+		t.Fatalf("failed to create instance: %v", err)
+	}
+	_, results, err := instance.RunExport("subject")
+	if err != nil {
+		t.Fatalf("failed to run function: %v", err)
+	}
+	// 3.7 -> 3, 0.0 -> 0, 42.9 -> 42
+	assert.Len(t, results, 3)
+	assert.Equal(t, int64(3), results[0])
+	assert.Equal(t, int64(0), results[1])
+	assert.Equal(t, int64(42), results[2])
 }

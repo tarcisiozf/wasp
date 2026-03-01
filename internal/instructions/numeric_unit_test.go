@@ -817,3 +817,230 @@ func TestI64TruncF64U(t *testing.T) {
 		assert.ErrorIs(t, err, execution.ErrIntegerOverflow)
 	})
 }
+
+func TestI64TruncSatF64S(t *testing.T) {
+	t.Run("normal positive", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(42.9))
+
+		err := instructions.I64TruncSatF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(42), ctx.Stack.Top())
+	})
+
+	t.Run("normal negative", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(-42.9))
+
+		err := instructions.I64TruncSatF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(-42), ctx.Stack.Top())
+	})
+
+	t.Run("zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(0.0))
+
+		err := instructions.I64TruncSatF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("NaN saturates to zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.NaN())
+
+		err := instructions.I64TruncSatF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("+Inf saturates to MaxInt64", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.Inf(1))
+
+		err := instructions.I64TruncSatF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(math.MaxInt64), ctx.Stack.Top())
+	})
+
+	t.Run("-Inf saturates to MinInt64", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.Inf(-1))
+
+		err := instructions.I64TruncSatF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(math.MinInt64), ctx.Stack.Top())
+	})
+
+	t.Run("large positive saturates to MaxInt64", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(1e+20))
+
+		err := instructions.I64TruncSatF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(math.MaxInt64), ctx.Stack.Top())
+	})
+
+	t.Run("large negative saturates to MinInt64", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(-1e+20))
+
+		err := instructions.I64TruncSatF64S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(math.MinInt64), ctx.Stack.Top())
+	})
+}
+
+func TestI64Extend8S(t *testing.T) {
+	t.Run("positive value within range", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(127))
+
+		err := instructions.I64Extend8S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(127), ctx.Stack.Top())
+	})
+
+	t.Run("128 becomes -128", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(128))
+
+		err := instructions.I64Extend8S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(-128), ctx.Stack.Top())
+	})
+
+	t.Run("255 becomes -1", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(255))
+
+		err := instructions.I64Extend8S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(-1), ctx.Stack.Top())
+	})
+
+	t.Run("zero stays zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(0))
+
+		err := instructions.I64Extend8S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("large value sign extends low byte", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(0x100)) // low byte is 0x00
+
+		err := instructions.I64Extend8S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("negative value", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(int64(-1)) // low byte is 0xFF -> -1
+
+		err := instructions.I64Extend8S.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(-1), ctx.Stack.Top())
+	})
+}
+
+func TestI64TruncSatF64U(t *testing.T) {
+	t.Run("normal positive", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(42.9))
+
+		err := instructions.I64TruncSatF64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(42), ctx.Stack.Top())
+	})
+
+	t.Run("zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(0.0))
+
+		err := instructions.I64TruncSatF64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("NaN saturates to zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.NaN())
+
+		err := instructions.I64TruncSatF64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("negative saturates to zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(-1.0))
+
+		err := instructions.I64TruncSatF64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("+Inf saturates to MaxUint64", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.Inf(1))
+
+		err := instructions.I64TruncSatF64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, ^int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("large positive saturates to MaxUint64", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(float64(1e+20))
+
+		err := instructions.I64TruncSatF64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, ^int64(0), ctx.Stack.Top())
+	})
+
+	t.Run("large value fitting in uint64", func(t *testing.T) {
+		ctx := createTestContext()
+		v := float64(1<<63) * 1.5 // ~1.38e19, fits in uint64
+		ctx.Stack.Push(v)
+
+		err := instructions.I64TruncSatF64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(uint64(v)), ctx.Stack.Top())
+	})
+
+	t.Run("-Inf saturates to zero", func(t *testing.T) {
+		ctx := createTestContext()
+		ctx.Stack.Push(math.Inf(-1))
+
+		err := instructions.I64TruncSatF64U.Handler(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, ctx.Stack.Size())
+		assert.Equal(t, int64(0), ctx.Stack.Top())
+	})
+}
