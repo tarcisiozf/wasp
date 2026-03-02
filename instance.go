@@ -88,6 +88,11 @@ type DebugData struct {
 	functions []string
 }
 
+type PendingCall interface {
+	Done() bool
+	Results() ([]any, error)
+}
+
 type Instance struct {
 	module         *module.Module
 	funcSignatures []fnsig.Signature
@@ -168,7 +173,7 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 	return instance, nil
 }
 
-func (instance *Instance) Call(fnIndex int, params ...any) (*execution.CallFrame, error) {
+func (instance *Instance) Call(fnIndex int, params ...any) (PendingCall, error) {
 	if !instance.module.IsFunction(fnIndex) {
 		return nil, fmt.Errorf("invalid function index: %d", fnIndex)
 	}
