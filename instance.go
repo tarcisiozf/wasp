@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/tarcisiozf/wasp/internal/binary"
 	"github.com/tarcisiozf/wasp/internal/execution"
@@ -109,13 +110,14 @@ type Instance struct {
 	// Keep track of the original/root frame for tail calls
 	rootFrame *execution.CallFrame
 	callStack *memory.Stack[*execution.CallFrame]
+	stackPool sync.Pool
 }
 
 func NewInstance(module *module.Module, store *Store, options ...InstanceOption) (*Instance, error) {
 	funcSignatures := module.FunctionSignatures()
 	typeSignatures := module.TypeSignatures()
 
-	callStack := memory.NewStackWithCapacity[*execution.CallFrame](maxCallStackDepth)
+	callStack := memory.NewStackWithCapacity[*execution.CallFrame](64)
 
 	instance := &Instance{
 		module:         module,
@@ -237,6 +239,8 @@ func (instance *Instance) Tick() error {
 
 			prev.Context.Stack.Push(results...)
 		}
+
+		instance.stackPool.Put(callFrame.Context.Stack)
 
 		return nil
 	}
@@ -378,7 +382,7 @@ func (instance *Instance) createLocalCallFrame(index int, stack *memory.Stack[an
 
 	debugEnabled := instance.debug.showInstructions
 
-	locals := memory.NewStackWithCapacity[any](numParams + len(fn.Locals))
+	locals := instance.getOrCreateStack(numParams + len(fn.Locals))
 	locals.Push(params...)
 	locals.Push(fn.Locals...)
 
@@ -419,6 +423,16 @@ func (instance *Instance) setPauseState(paused bool) {
 	for callFrame := range instance.callStack.Iter() {
 		callFrame.Context.Paused = paused
 	}
+}
+
+func (instance *Instance) getOrCreateStack(cap int) *memory.Stack[any] {
+	item := instance.stackPool.Get()
+	if item != nil {
+		stack := item.(*memory.Stack[any])
+		stack.Reset()
+		return stack
+	}
+	return memory.NewStackWithCapacity[any](cap)
 }
 
 func (instance *Instance) Done() bool {
