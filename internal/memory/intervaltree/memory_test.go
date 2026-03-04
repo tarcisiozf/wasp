@@ -47,31 +47,39 @@ func TestChunkify(t *testing.T) {
 	})
 }
 
+func collectIntervals(seq iter.Seq[*Interval]) []*Interval {
+	var result []*Interval
+	for s := range seq {
+		result = append(result, s)
+	}
+	return result
+}
+
 func TestSegmentsForRange(t *testing.T) {
-	t.Run("nil root returns nil", func(t *testing.T) {
+	t.Run("nil root returns empty", func(t *testing.T) {
 		mem := NewMemory(numPages, maxPages, chunkThreshold)
-		result := mem.intervalsForRange(0, 1)
-		assert.Nil(t, result)
+		result := collectIntervals(mem.intervalsForRange(0, 1))
+		assert.Empty(t, result)
 	})
 
-	t.Run("offset before segment returns nil", func(t *testing.T) {
+	t.Run("offset before segment returns empty", func(t *testing.T) {
 		mem := NewMemory(numPages, maxPages, chunkThreshold)
 		mem.insertInterval(10, []byte{1, 2, 3, 4})
-		result := mem.intervalsForRange(5, 6)
-		assert.Nil(t, result)
+		result := collectIntervals(mem.intervalsForRange(5, 6))
+		assert.Empty(t, result)
 	})
 
-	t.Run("offset after segment returns nil", func(t *testing.T) {
+	t.Run("offset after segment returns empty", func(t *testing.T) {
 		mem := NewMemory(numPages, maxPages, chunkThreshold)
 		mem.insertInterval(0, []byte{1, 2, 3, 4})
-		result := mem.intervalsForRange(10, 11)
-		assert.Nil(t, result)
+		result := collectIntervals(mem.intervalsForRange(10, 11))
+		assert.Empty(t, result)
 	})
 
 	t.Run("offset within segment returns segment", func(t *testing.T) {
 		mem := NewMemory(numPages, maxPages, chunkThreshold)
 		mem.insertInterval(0, []byte{1, 2, 3, 4})
-		result := mem.intervalsForRange(2, 3)
+		result := collectIntervals(mem.intervalsForRange(2, 3))
 		assert.Len(t, result, 1)
 		assert.Equal(t, 0, result[0].Offset)
 		assert.Equal(t, 4, result[0].end)
@@ -80,7 +88,7 @@ func TestSegmentsForRange(t *testing.T) {
 	t.Run("offset at segment start is within segment", func(t *testing.T) {
 		mem := NewMemory(numPages, maxPages, chunkThreshold)
 		mem.insertInterval(5, []byte{1, 2, 3, 4})
-		result := mem.intervalsForRange(5, 6)
+		result := collectIntervals(mem.intervalsForRange(5, 6))
 		assert.Len(t, result, 1)
 		assert.Equal(t, 5, result[0].Offset)
 	})
@@ -88,25 +96,25 @@ func TestSegmentsForRange(t *testing.T) {
 	t.Run("offset at segment end is not within segment", func(t *testing.T) {
 		mem := NewMemory(numPages, maxPages, chunkThreshold)
 		mem.insertInterval(0, []byte{1, 2, 3, 4})
-		result := mem.intervalsForRange(4, 5)
-		assert.Nil(t, result)
+		result := collectIntervals(mem.intervalsForRange(4, 5))
+		assert.Empty(t, result)
 	})
 
-	t.Run("returns multiple overlapping segments", func(t *testing.T) {
+	t.Run("returns multiple overlapping segments in order", func(t *testing.T) {
 		mem := NewMemory(numPages, maxPages, chunkThreshold)
 		mem.insertInterval(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
 		mem.insertInterval(4, []byte{9, 10, 11, 12})
-		result := mem.intervalsForRange(4, 5)
+		result := collectIntervals(mem.intervalsForRange(4, 5))
 		assert.Len(t, result, 2)
 		assert.Equal(t, 0, result[0].Offset)
 		assert.Equal(t, 4, result[1].Offset)
 	})
 
-	t.Run("range spanning two separate segments returns both", func(t *testing.T) {
+	t.Run("range spanning two separate segments returns both in order", func(t *testing.T) {
 		mem := NewMemory(numPages, maxPages, chunkThreshold)
 		mem.insertInterval(0, []byte{1, 2, 3, 4})
 		mem.insertInterval(8, []byte{5, 6, 7, 8})
-		result := mem.intervalsForRange(2, 10)
+		result := collectIntervals(mem.intervalsForRange(2, 10))
 		assert.Len(t, result, 2)
 		assert.Equal(t, 0, result[0].Offset)
 		assert.Equal(t, 8, result[1].Offset)
@@ -192,12 +200,14 @@ func TestAVLBalance(t *testing.T) {
 func read(mem *Memory, offset, size int) []byte {
 	out := make([]byte, size)
 	for i := 0; i < size; i++ {
-		segs := mem.intervalsForRange(offset+i, offset+i+1)
-		if len(segs) == 0 {
+		var last *Interval
+		for seg := range mem.intervalsForRange(offset+i, offset+i+1) {
+			last = seg
+		}
+		if last == nil {
 			continue
 		}
-		seg := segs[len(segs)-1]
-		out[i] = seg.Data[(offset+i)-seg.Offset]
+		out[i] = last.Data[(offset+i)-last.Offset]
 	}
 	return out
 }
@@ -253,7 +263,7 @@ func TestStore(t *testing.T) {
 		mem.Store(0, []byte{1, 2, 3, 4})
 		mem.Store(8, []byte{5, 6, 7, 8})
 		mem.Store(2, []byte{10, 11, 12, 13, 14, 15, 16, 17})
-		segs := mem.intervalsForRange(0, 1)
+		segs := collectIntervals(mem.intervalsForRange(0, 1))
 		assert.Len(t, segs, 1)
 		assert.Equal(t, []byte{10, 11, 12, 13, 14, 15, 16, 17}, read(mem, 2, 8))
 	})
@@ -261,8 +271,8 @@ func TestStore(t *testing.T) {
 	t.Run("zero gap above threshold splits into two segments", func(t *testing.T) {
 		mem := NewMemory(numPages, maxPages, 4)
 		mem.Store(0, []byte{1, 2, 3, 4, 0, 0, 0, 0, 5, 6, 7, 8})
-		left := mem.intervalsForRange(0, 1)
-		right := mem.intervalsForRange(8, 9)
+		left := collectIntervals(mem.intervalsForRange(0, 1))
+		right := collectIntervals(mem.intervalsForRange(8, 9))
 		assert.Len(t, left, 1)
 		assert.Len(t, right, 1)
 		assert.NotSame(t, left[0], right[0])
@@ -274,7 +284,7 @@ func TestStore(t *testing.T) {
 		mem := NewMemory(numPages, maxPages, chunkThreshold)
 		mem.Store(0, []byte{1, 2, 3, 0, 0, 0, 4, 5, 6})
 		assert.NotNil(t, mem.root)
-		segs := mem.intervalsForRange(0, 1)
+		segs := collectIntervals(mem.intervalsForRange(0, 1))
 		assert.Len(t, segs, 1)
 		assert.Equal(t, 0, segs[0].Offset)
 		assert.Equal(t, 9, segs[0].end)

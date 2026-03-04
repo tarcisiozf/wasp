@@ -2,7 +2,6 @@ package intervaltree
 
 import (
 	"iter"
-	"sort"
 
 	iface "github.com/tarcisiozf/wasp/memory"
 )
@@ -49,7 +48,7 @@ func (mem *Memory) Store(offset int, data []byte) {
 	// because chunkify will skip zero bytes, but those zeroes
 	// must still overwrite previously stored non-zero data.
 	fullEnd := offset + len(data)
-	for _, seg := range mem.intervalsForRange(offset, fullEnd) {
+	for seg := range mem.intervalsForRange(offset, fullEnd) {
 		zeroStart := max(seg.Offset, offset)
 		zeroEnd := min(seg.end, fullEnd)
 		for i := zeroStart - seg.Offset; i < zeroEnd-seg.Offset; i++ {
@@ -61,17 +60,11 @@ func (mem *Memory) Store(offset int, data []byte) {
 		chunkOffset := offset + start
 		chunkEnd := offset + end
 
-		intervals := mem.intervalsForRange(chunkOffset, chunkEnd)
+		hasIntervals := false
+		// intervals are yielded in ascending offset order
+		for seg := range mem.intervalsForRange(chunkOffset, chunkEnd) {
+			hasIntervals = true
 
-		if len(intervals) == 0 {
-			mem.insertInterval(chunkOffset, data[start:end])
-			continue
-		}
-
-		// sort intervals by offset so we process them left-to-right
-		sortIntervals(intervals)
-
-		for _, seg := range intervals {
 			if chunkOffset >= chunkEnd {
 				break
 			}
@@ -99,6 +92,11 @@ func (mem *Memory) Store(offset int, data []byte) {
 			}
 		}
 
+		if !hasIntervals {
+			mem.insertInterval(chunkOffset, data[start:end])
+			continue
+		}
+
 		// gap after the last interval: insert remaining data
 		if chunkOffset < chunkEnd {
 			mem.insertInterval(chunkOffset, data[start:end])
@@ -109,7 +107,7 @@ func (mem *Memory) Store(offset int, data []byte) {
 func (mem *Memory) Load(offset int, size int) []byte {
 	data := make([]byte, size)
 
-	for _, seg := range mem.intervalsForRange(offset, offset+size) {
+	for seg := range mem.intervalsForRange(offset, offset+size) {
 		segStart := max(seg.Offset, offset)
 		segEnd := min(seg.end, offset+size)
 		copy(data[segStart-offset:segEnd-offset], seg.Data[segStart-seg.Offset:segEnd-seg.Offset])
@@ -197,46 +195,45 @@ func (mem *Memory) chunkify(data []byte) iter.Seq2[int, int] {
 	}
 }
 
-func sortIntervals(intervals []*Interval) {
-	sort.Slice(intervals, func(i, j int) bool {
-		return intervals[i].Offset < intervals[j].Offset
-	})
-}
+// intervalsForRange yields all intervals overlapping [offset, end) in ascending offset order.
+func (mem *Memory) intervalsForRange(offset, end int) iter.Seq[*Interval] {
+	return func(yield func(*Interval) bool) {
+		stack := make([]*Interval, 0, mem.size)
+		cur := mem.root
 
-// intervalsForRange returns all intervals that overlap the range [offset, end).
-func (mem *Memory) intervalsForRange(offset, end int) (intervals []*Interval) {
-	if mem.root == nil {
-		return nil
-	}
+		for cur != nil || len(stack) > 0 {
+			// Push left children that could overlap (offset < n.end)
+			for cur != nil {
+				if offset < cur.end {
+					stack = append(stack, cur)
+					cur = cur.Left
+				} else {
+					// Range is entirely to the right; skip left subtree, go right
+					cur = cur.Right
+				}
+			}
 
-	stack := []*Interval{mem.root}
-	for len(stack) > 0 {
-		current := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
+			if len(stack) == 0 {
+				break
+			}
 
-		if end <= current.Offset {
-			// range is entirely to the left of this node
-			if current.Left != nil {
-				stack = append(stack, current.Left)
+			// Pop
+			n := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+
+			// Check overlap
+			if offset < n.end && end > n.Offset {
+				if !yield(n) {
+					return
+				}
 			}
-		} else if offset >= current.end {
-			// range is entirely to the right of this node
-			if current.Right != nil {
-				stack = append(stack, current.Right)
-			}
-		} else {
-			// overlap: collect and search both subtrees
-			intervals = append(intervals, current)
-			if current.Left != nil {
-				stack = append(stack, current.Left)
-			}
-			if current.Right != nil {
-				stack = append(stack, current.Right)
+
+			// Explore right subtree only if range extends past this node
+			if end > n.Offset {
+				cur = n.Right
 			}
 		}
 	}
-
-	return intervals
 }
 
 func (mem *Memory) insertInterval(offset int, data []byte) {
