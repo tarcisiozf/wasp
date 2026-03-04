@@ -1,10 +1,8 @@
 package wasp
 
 import (
-	"github.com/tarcisiozf/wasp/internal/bar"
-	"github.com/tarcisiozf/wasp/internal/baz"
-	"github.com/tarcisiozf/wasp/internal/foo"
 	"github.com/tarcisiozf/wasp/internal/memory"
+	"github.com/tarcisiozf/wasp/internal/memory/intervaltree"
 	"github.com/tarcisiozf/wasp/internal/module"
 	iface "github.com/tarcisiozf/wasp/memory"
 )
@@ -18,57 +16,15 @@ type Store struct {
 	dataSegmentsApplied bool
 }
 
-func WithSkipList(chunkThreshold int) StoreOptions {
+func WithIntervalTreeMemory(chunkThreshold int) StoreOptions {
 	return func(store *Store, module *module.Module) {
 		moduleMemories := module.Memories()
 		store.Memories = make([]iface.Memory, len(moduleMemories))
 		for i, mem := range moduleMemories {
-			slmem := foo.New(mem.NumPages(), mem.MaxPages())
-			foo.FillMyGap(slmem, chunkThreshold, mem.Data())
-
-			// Apply data segments now so NewStore doesn't double-apply them
-			for _, segment := range module.DataSegments() {
-				if segment.MemoryIndex == i {
-					slmem.Store(segment.Offset, segment.Data)
-				}
-			}
-
-			store.Memories[i] = slmem
-		}
-		store.dataSegmentsApplied = true
-	}
-}
-
-func WithSegmentedMemory(chunkThreshold int) StoreOptions {
-	return func(store *Store, module *module.Module) {
-		moduleMemories := module.Memories()
-		store.Memories = make([]iface.Memory, len(moduleMemories))
-		for i, mem := range moduleMemories {
-			segMem := bar.NewSegmentedMemory(mem.NumPages(), mem.MaxPages(), chunkThreshold)
+			segMem := intervaltree.NewMemory(mem.NumPages(), mem.MaxPages(), chunkThreshold)
 			segMem.Store(0, mem.Data())
 			store.Memories[i] = segMem
 		}
-	}
-}
-
-func WithBPlusTree(chunkThreshold int) StoreOptions {
-	return func(store *Store, module *module.Module) {
-		moduleMemories := module.Memories()
-		store.Memories = make([]iface.Memory, len(moduleMemories))
-		for i, mem := range moduleMemories {
-			btmem := baz.New(mem.NumPages(), mem.MaxPages())
-			baz.FillMyGap(btmem, chunkThreshold, mem.Data())
-
-			// Apply data segments now so NewStore doesn't double-apply them
-			for _, segment := range module.DataSegments() {
-				if segment.MemoryIndex == i {
-					btmem.Store(segment.Offset, segment.Data)
-				}
-			}
-
-			store.Memories[i] = btmem
-		}
-		store.dataSegmentsApplied = true
 	}
 }
 

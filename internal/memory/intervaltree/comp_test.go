@@ -1,19 +1,18 @@
-package bar
+package intervaltree_test
 
 import (
 	"fmt"
 	"math/rand"
 	"testing"
+
+	"github.com/tarcisiozf/wasp/internal/memory"
+	"github.com/tarcisiozf/wasp/internal/memory/intervaltree"
 )
 
-var rng = rand.New(rand.NewSource(2472782345746534))
+var rng = rand.New(rand.NewSource(3847234571923791))
 
 const (
 	numCases = 1000
-)
-
-var (
-	mem = NewSegmentedMemory(65536, 65536, 256)
 )
 
 type storeTestCase struct {
@@ -55,16 +54,33 @@ func randomBytes(n int) []byte {
 	return bytes
 }
 
-func BenchmarkStore(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		tc := storeTestCases[i%numCases]
-		mem.Store(tc.offset, tc.data)
+func TestCompare(t *testing.T) {
+	mem := memory.NewMemory(10, 0)
+	smem := intervaltree.NewMemory(0, 0, 256)
+
+	for i := 0; i < numCases; i++ {
+		storeCase := storeTestCases[i]
+		mem.Store(storeCase.offset, storeCase.data)
+		smem.Store(storeCase.offset, storeCase.data)
+
+		loadCase := loadTestCases[i]
+		expected := mem.Load(loadCase.offset, loadCase.size)
+		actual := smem.Load(loadCase.offset, loadCase.size)
+
+		if !equal(expected, actual) {
+			t.Fatalf("Test case %d failed", i)
+		}
 	}
 }
 
-func BenchmarkLoad(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		tc := loadTestCases[i%numCases]
-		_ = mem.Load(tc.offset, tc.size)
+func equal(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
 	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

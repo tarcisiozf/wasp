@@ -5,226 +5,14 @@ import (
 	"io"
 
 	"github.com/tarcisiozf/wasp/internal/binary"
-	"github.com/tarcisiozf/wasp/internal/binary/leb"
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/memory"
+	"github.com/tarcisiozf/wasp/internal/snapshot"
 	iface "github.com/tarcisiozf/wasp/memory"
 )
 
-type StateStore struct {
-	Globals  []GlobalItem
-	Memories []MemoryState
-	Tables   []TableState
-}
-
-type GlobalItem struct {
-	Value   any
-	Mutable bool
-}
-
-type MemoryState struct {
-	Data     []byte
-	NumPages int
-	MaxPages int
-}
-
-type TableState = memory.Table
-
-type CallFrame struct {
-	FunctionIndex int
-	Context       CallContext
-}
-
-type BlockFrame struct {
-	StartPos int
-}
-
-type CallContext struct {
-	Stack  []any
-	Locals []any
-
-	NumParams  int
-	NumResults int
-	Params     []any
-
-	BodyPos             int
-	BodyCheckpoint      int
-	FunctionCallRequest int
-	Done                bool
-	TailCall            bool
-
-	Condition  bool
-	BlockStack []BlockFrame
-}
-
-type ExecutionState struct {
-	Store     StateStore
-	CallStack []CallFrame
-}
-
-const (
-	tagInt   byte = 0x01
-	tagBool  byte = 0x02
-	tagByte  byte = 0x03
-	tagBytes byte = 0x04
-	tagInt32 byte = 0x05
-	tagInt64 byte = 0x06
-)
-
-type Encoder struct {
-	dest io.Writer
-}
-
-func (enc *Encoder) Int(value int) {
-	enc.VarUint(uint64(value))
-}
-
-func (enc *Encoder) VarUint(value uint64) {
-	var buf [10]byte
-	n := leb.EncodeUint(buf[:], value)
-	enc.dest.Write(buf[:n])
-}
-
-func (enc *Encoder) Any(value any) {
-	switch value.(type) {
-	case int:
-		enc.Byte(tagInt)
-		enc.Int(value.(int))
-	case bool:
-		enc.Byte(tagBool)
-		enc.Bool(value.(bool))
-	case byte:
-		enc.Byte(tagByte)
-		enc.Byte(value.(byte))
-	case []byte:
-		enc.Byte(tagBytes)
-		enc.Bytes(value.([]byte))
-	case int32:
-		enc.Byte(tagInt32)
-		enc.VarUint(uint64(value.(int32)))
-	case int64:
-		enc.Byte(tagInt64)
-		enc.VarUint(uint64(value.(int64)))
-	default:
-		panic(fmt.Sprintf("unsupported encoding for type: %T", value))
-	}
-}
-
-func (enc *Encoder) Bool(value bool) {
-	if value {
-		enc.Byte(1)
-	} else {
-		enc.Byte(0)
-	}
-}
-
-func (enc *Encoder) Bytes(data []byte) {
-	enc.Int(len(data))
-	enc.dest.Write(data)
-}
-
-func (enc *Encoder) Byte(b byte) {
-	enc.dest.Write([]byte{b})
-}
-
-func NewEncoder(dest io.Writer) *Encoder {
-	return &Encoder{dest: dest}
-}
-
-type Decoder struct {
-	src io.Reader
-}
-
-func NewDecoder(src io.Reader) *Decoder {
-	return &Decoder{src: src}
-}
-
-func (dec *Decoder) Byte() (byte, error) {
-	var buf [1]byte
-	if _, err := io.ReadFull(dec.src, buf[:]); err != nil {
-		return 0, err
-	}
-	return buf[0], nil
-}
-
-func (dec *Decoder) Bool() (bool, error) {
-	b, err := dec.Byte()
-	if err != nil {
-		return false, err
-	}
-	return b != 0, nil
-}
-
-func (dec *Decoder) VarUint() (uint64, error) {
-	var x uint64
-	var shift uint
-	for {
-		b, err := dec.Byte()
-		if err != nil {
-			return 0, err
-		}
-		x |= uint64(b&0x7F) << shift
-		if b < 0x80 {
-			break
-		}
-		shift += 7
-	}
-	return x, nil
-}
-
-func (dec *Decoder) Int() (int, error) {
-	v, err := dec.VarUint()
-	if err != nil {
-		return 0, err
-	}
-	return int(v), nil
-}
-
-func (dec *Decoder) Bytes() ([]byte, error) {
-	length, err := dec.Int()
-	if err != nil {
-		return nil, err
-	}
-	buf := make([]byte, length)
-	if _, err := io.ReadFull(dec.src, buf); err != nil {
-		return nil, err
-	}
-	return buf, nil
-}
-
-func (dec *Decoder) Any() (any, error) {
-	tag, err := dec.Byte()
-	if err != nil {
-		return nil, err
-	}
-	switch tag {
-	case tagInt:
-		return dec.Int()
-	case tagBool:
-		return dec.Bool()
-	case tagByte:
-		return dec.Byte()
-	case tagBytes:
-		return dec.Bytes()
-	case tagInt32:
-		v, err := dec.VarUint()
-		if err != nil {
-			return nil, err
-		}
-		return int32(v), nil
-	case tagInt64:
-		v, err := dec.VarUint()
-		if err != nil {
-			return nil, err
-		}
-		return int64(v), nil
-	default:
-		return nil, fmt.Errorf("unsupported type tag: 0x%02x", tag)
-	}
-}
-
 func SerializeState(dest io.Writer, store *Store, instance *Instance) error {
-	encoder := NewEncoder(dest)
+	encoder := snapshot.NewEncoder(dest)
 
 	if err := toStateStore(encoder, store); err != nil {
 		return err
@@ -237,7 +25,7 @@ func SerializeState(dest io.Writer, store *Store, instance *Instance) error {
 }
 
 func DeserializeState(src io.Reader, module *Module, linker *Linker) (*Store, *Instance, error) {
-	decoder := NewDecoder(src)
+	decoder := snapshot.NewDecoder(src)
 
 	store, err := fromStateStore(decoder)
 	if err != nil {
@@ -256,7 +44,7 @@ func DeserializeState(src io.Reader, module *Module, linker *Linker) (*Store, *I
 	return store, instance, nil
 }
 
-func fromStateStore(decoder *Decoder) (*Store, error) {
+func fromStateStore(decoder *snapshot.Decoder) (*Store, error) {
 	globals, err := decodeGlobalItems(decoder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode globals: %w", err)
@@ -276,7 +64,7 @@ func fromStateStore(decoder *Decoder) (*Store, error) {
 	}, nil
 }
 
-func decodeGlobalItems(decoder *Decoder) (*memory.Global, error) {
+func decodeGlobalItems(decoder *snapshot.Decoder) (*memory.Global, error) {
 	size, err := decoder.Int()
 	if err != nil {
 		return nil, err
@@ -296,7 +84,7 @@ func decodeGlobalItems(decoder *Decoder) (*memory.Global, error) {
 	return globals, nil
 }
 
-func decodeMemories(decoder *Decoder) ([]iface.Memory, error) {
+func decodeMemories(decoder *snapshot.Decoder) ([]iface.Memory, error) {
 	count, err := decoder.Int()
 	if err != nil {
 		return nil, err
@@ -322,7 +110,7 @@ func decodeMemories(decoder *Decoder) ([]iface.Memory, error) {
 	return memories, nil
 }
 
-func decodeTables(decoder *Decoder) ([]*memory.Table, error) {
+func decodeTables(decoder *snapshot.Decoder) ([]*memory.Table, error) {
 	count, err := decoder.Int()
 	if err != nil {
 		return nil, err
@@ -362,7 +150,7 @@ func decodeTables(decoder *Decoder) ([]*memory.Table, error) {
 	return tables, nil
 }
 
-func decodeCallStack(decoder *Decoder, module *Module, instance *Instance, store *Store) error {
+func decodeCallStack(decoder *snapshot.Decoder, module *Module, instance *Instance, store *Store) error {
 	count, err := decoder.Int()
 	if err != nil {
 		return err
@@ -377,7 +165,7 @@ func decodeCallStack(decoder *Decoder, module *Module, instance *Instance, store
 	return nil
 }
 
-func decodeCallFrame(decoder *Decoder, module *Module, instance *Instance, store *Store) (*execution.CallFrame, error) {
+func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instance, store *Store) (*execution.CallFrame, error) {
 	// Stack
 	stackSize, err := decoder.Int()
 	if err != nil {
@@ -523,7 +311,7 @@ func decodeCallFrame(decoder *Decoder, module *Module, instance *Instance, store
 	return frame, nil
 }
 
-func toStateStore(encoder *Encoder, store *Store) error {
+func toStateStore(encoder *snapshot.Encoder, store *Store) error {
 	if err := encodeGlobalItems(encoder, store.Globals); err != nil {
 		return err
 	}
@@ -532,7 +320,7 @@ func toStateStore(encoder *Encoder, store *Store) error {
 	return nil
 }
 
-func encodeGlobalItems(encoder *Encoder, globals *memory.Global) error {
+func encodeGlobalItems(encoder *snapshot.Encoder, globals *memory.Global) error {
 	size := globals.Size()
 	encoder.Int(size)
 	for i := 0; i < size; i++ {
@@ -546,7 +334,7 @@ func encodeGlobalItems(encoder *Encoder, globals *memory.Global) error {
 	return nil
 }
 
-func encodeMemories(encoder *Encoder, memories []iface.Memory) {
+func encodeMemories(encoder *snapshot.Encoder, memories []iface.Memory) {
 	encoder.Int(len(memories))
 	for _, mem := range memories {
 		encoder.Bytes(mem.Data())
@@ -555,7 +343,7 @@ func encodeMemories(encoder *Encoder, memories []iface.Memory) {
 	}
 }
 
-func encodeTables(encoder *Encoder, tables []*memory.Table) {
+func encodeTables(encoder *snapshot.Encoder, tables []*memory.Table) {
 	encoder.Int(len(tables))
 	for _, table := range tables {
 		encoder.Byte(table.ElementType)
@@ -568,7 +356,7 @@ func encodeTables(encoder *Encoder, tables []*memory.Table) {
 	}
 }
 
-func encodeCallStack(encoder *Encoder, instance *Instance) error {
+func encodeCallStack(encoder *snapshot.Encoder, instance *Instance) error {
 	size := instance.callStack.Size()
 	encoder.Int(size)
 	for i := 0; i < size; i++ {
@@ -578,7 +366,7 @@ func encodeCallStack(encoder *Encoder, instance *Instance) error {
 	return nil
 }
 
-func encodeCallFrame(encoder *Encoder, frame *execution.CallFrame) {
+func encodeCallFrame(encoder *snapshot.Encoder, frame *execution.CallFrame) {
 	if frame.Context.Stack == nil {
 		encoder.Int(0)
 	} else {
