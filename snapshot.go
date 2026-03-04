@@ -7,8 +7,14 @@ import (
 	"github.com/tarcisiozf/wasp/internal/binary"
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/memory"
+	"github.com/tarcisiozf/wasp/internal/memory/intervaltree"
 	"github.com/tarcisiozf/wasp/internal/snapshot"
 	iface "github.com/tarcisiozf/wasp/memory"
+)
+
+const (
+	tagLinearMemory       byte = 0x01
+	tagIntervalTreeMemory byte = 0x02
 )
 
 func SerializeState(dest io.Writer, store *Store, instance *Instance) error {
@@ -91,23 +97,76 @@ func decodeMemories(decoder *snapshot.Decoder) ([]iface.Memory, error) {
 	}
 	memories := make([]iface.Memory, count)
 	for i := 0; i < count; i++ {
-		data, err := decoder.Bytes()
+		tag, err := decoder.Byte()
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode memory data at index %d: %w", i, err)
+			return nil, fmt.Errorf("failed to decode memory type tag at index %d: %w", i, err)
 		}
-		numPages, err := decoder.Int()
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode memory numPages at index %d: %w", i, err)
+		switch tag {
+		case tagLinearMemory:
+			memories[i], err = decodeLinearMemory(decoder)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode linear memory at index %d: %w", i, err)
+			}
+		case tagIntervalTreeMemory:
+			memories[i], err = decodeIntervalTreeMemory(decoder)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode interval tree memory at index %d: %w", i, err)
+			}
+		default:
+			return nil, fmt.Errorf("unknown memory type tag 0x%02x at index %d", tag, i)
 		}
-		maxPages, err := decoder.Int()
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode memory maxPages at index %d: %w", i, err)
-		}
-		mem := memory.NewMemory(numPages, maxPages)
-		mem.Store(0, data)
-		memories[i] = mem
 	}
 	return memories, nil
+}
+
+func decodeLinearMemory(decoder *snapshot.Decoder) (*memory.Memory, error) {
+	data, err := decoder.Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode memory data: %w", err)
+	}
+	numPages, err := decoder.Int()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode memory numPages: %w", err)
+	}
+	maxPages, err := decoder.Int()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode memory maxPages: %w", err)
+	}
+	mem := memory.NewMemory(numPages, maxPages)
+	mem.Store(0, data)
+	return mem, nil
+}
+
+func decodeIntervalTreeMemory(decoder *snapshot.Decoder) (*intervaltree.Memory, error) {
+	numPages, err := decoder.Int()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode numPages: %w", err)
+	}
+	maxPages, err := decoder.Int()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode maxPages: %w", err)
+	}
+	chunkThreshold, err := decoder.Int()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode chunkThreshold: %w", err)
+	}
+	intervalCount, err := decoder.Int()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode interval count: %w", err)
+	}
+	mem := intervaltree.NewMemory(numPages, maxPages, chunkThreshold)
+	for j := 0; j < intervalCount; j++ {
+		offset, err := decoder.Int()
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode interval offset at %d: %w", j, err)
+		}
+		data, err := decoder.Bytes()
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode interval data at %d: %w", j, err)
+		}
+		mem.Store(offset, data)
+	}
+	return mem, nil
 }
 
 func decodeTables(decoder *snapshot.Decoder) ([]*memory.Table, error) {
@@ -337,9 +396,36 @@ func encodeGlobalItems(encoder *snapshot.Encoder, globals *memory.Global) error 
 func encodeMemories(encoder *snapshot.Encoder, memories []iface.Memory) {
 	encoder.Int(len(memories))
 	for _, mem := range memories {
-		encoder.Bytes(mem.Data())
-		encoder.Int(mem.NumPages())
-		encoder.Int(mem.MaxPages())
+		encodeMemory(encoder, mem)
+	}
+}
+
+func encodeMemory(encoder *snapshot.Encoder, mem any) {
+	switch mem.(type) {
+	case *memory.Memory:
+		encoder.Byte(tagLinearMemory)
+		encodeLinearMemory(encoder, mem.(*memory.Memory))
+	case *intervaltree.Memory:
+		encoder.Byte(tagIntervalTreeMemory)
+		encodeIntervalTreeMemory(encoder, mem.(*intervaltree.Memory))
+	}
+}
+
+func encodeLinearMemory(encoder *snapshot.Encoder, mem *memory.Memory) {
+	encoder.Bytes(mem.Data())
+	encoder.Int(mem.NumPages())
+	encoder.Int(mem.MaxPages())
+}
+
+func encodeIntervalTreeMemory(encoder *snapshot.Encoder, mem *intervaltree.Memory) {
+	encoder.Int(mem.NumPages())
+	encoder.Int(mem.MaxPages())
+	encoder.Int(mem.ChunkThreshold())
+
+	encoder.Int(mem.Size())
+	for iv := range mem.Iterate() {
+		encoder.Int(iv.Offset)
+		encoder.Bytes(iv.Data)
 	}
 }
 
