@@ -196,39 +196,37 @@ func (mem *Memory) chunkify(data []byte) iter.Seq2[int, int] {
 }
 
 // intervalsForRange yields all intervals overlapping [offset, end) in ascending offset order.
+// Uses a fixed-size array stack (zero heap allocation; depth 64 supports >10^13 nodes in AVL).
 func (mem *Memory) intervalsForRange(offset, end int) iter.Seq[*Interval] {
 	return func(yield func(*Interval) bool) {
-		stack := make([]*Interval, 0, mem.size)
+		var stack [64]*Interval
+		top := 0
 		cur := mem.root
 
-		for cur != nil || len(stack) > 0 {
-			// Push left children that could overlap (offset < n.end)
+		for cur != nil || top > 0 {
 			for cur != nil {
 				if offset < cur.end {
-					stack = append(stack, cur)
+					stack[top] = cur
+					top++
 					cur = cur.Left
 				} else {
-					// Range is entirely to the right; skip left subtree, go right
 					cur = cur.Right
 				}
 			}
 
-			if len(stack) == 0 {
+			if top == 0 {
 				break
 			}
 
-			// Pop
-			n := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
+			top--
+			n := stack[top]
 
-			// Check overlap
 			if offset < n.end && end > n.Offset {
 				if !yield(n) {
 					return
 				}
 			}
 
-			// Explore right subtree only if range extends past this node
 			if end > n.Offset {
 				cur = n.Right
 			}
@@ -381,22 +379,37 @@ func (mem *Memory) Size() int {
 	return mem.size
 }
 
-// collect all intervals via in-order traversal
+// Iterate yields all intervals via in-order traversal using parent pointers (zero allocation).
 func (mem *Memory) Iterate() iter.Seq[*Interval] {
 	return func(yield func(*Interval) bool) {
-		var stack []*Interval
-		node := mem.root
-		for node != nil || len(stack) > 0 {
-			for node != nil {
-				stack = append(stack, node)
-				node = node.Left
-			}
-			node = stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			if !yield(node) {
+		// Start at the leftmost node
+		cur := mem.root
+		if cur == nil {
+			return
+		}
+		for cur.Left != nil {
+			cur = cur.Left
+		}
+
+		for cur != nil {
+			if !yield(cur) {
 				return
 			}
-			node = node.Right
+			// In-order successor
+			if cur.Right != nil {
+				cur = cur.Right
+				for cur.Left != nil {
+					cur = cur.Left
+				}
+			} else {
+				for {
+					prev := cur
+					cur = cur.parent
+					if cur == nil || cur.Left == prev {
+						break
+					}
+				}
+			}
 		}
 	}
 }
