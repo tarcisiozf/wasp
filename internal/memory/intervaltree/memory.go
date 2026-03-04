@@ -238,13 +238,14 @@ func (mem *Memory) intervalsForRange(offset, end int) iter.Seq[*Interval] {
 
 func (mem *Memory) insertInterval(offset int, data []byte) {
 	size := len(data)
+	buf := make([]byte, size)
+	copy(buf, data)
 	seg := &Interval{
 		Offset: offset,
 		end:    offset + size,
 		size:   size,
-		Data:   make([]byte, size),
+		Data:   buf,
 	}
-	seg.set(offset, data)
 	mem.insertIntervalNode(seg)
 }
 
