@@ -25,3 +25,19 @@ func EncodeInt(v int) []byte {
 
 	return bytes
 }
+
+func EncodeUint(buf []byte, v uint64) int {
+	i := 0
+	for {
+		b := byte(v & 0x7F)
+		v >>= 7
+		if v == 0 {
+			buf[i] = b
+			i++
+			break
+		}
+		buf[i] = b | 0x80
+		i++
+	}
+	return i
+}
