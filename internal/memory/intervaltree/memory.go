@@ -379,37 +379,28 @@ func (mem *Memory) Size() int {
 	return mem.size
 }
 
-// Iterate yields all intervals via in-order traversal using parent pointers (zero allocation).
+// Iterate yields all intervals via in-order traversal (zero heap allocation).
 func (mem *Memory) Iterate() iter.Seq[*Interval] {
 	return func(yield func(*Interval) bool) {
-		// Start at the leftmost node
+		var stack [64]*Interval
+		top := 0
 		cur := mem.root
-		if cur == nil {
-			return
-		}
-		for cur.Left != nil {
-			cur = cur.Left
-		}
 
-		for cur != nil {
-			if !yield(cur) {
+		for cur != nil || top > 0 {
+			for cur != nil {
+				stack[top] = cur
+				top++
+				cur = cur.Left
+			}
+
+			top--
+			n := stack[top]
+
+			if !yield(n) {
 				return
 			}
-			// In-order successor
-			if cur.Right != nil {
-				cur = cur.Right
-				for cur.Left != nil {
-					cur = cur.Left
-				}
-			} else {
-				for {
-					prev := cur
-					cur = cur.parent
-					if cur == nil || cur.Left == prev {
-						break
-					}
-				}
-			}
+
+			cur = n.Right
 		}
 	}
 }
