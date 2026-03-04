@@ -68,6 +68,7 @@ const (
 	tagByte  byte = 0x03
 	tagBytes byte = 0x04
 	tagInt32 byte = 0x05
+	tagInt64 byte = 0x06
 )
 
 type Encoder struct {
@@ -101,6 +102,9 @@ func (enc *Encoder) Any(value any) {
 	case int32:
 		enc.Byte(tagInt32)
 		enc.VarUint(uint64(value.(int32)))
+	case int64:
+		enc.Byte(tagInt64)
+		enc.VarUint(uint64(value.(int64)))
 	default:
 		panic(fmt.Sprintf("unsupported encoding for type: %T", value))
 	}
@@ -208,6 +212,12 @@ func (dec *Decoder) Any() (any, error) {
 			return nil, err
 		}
 		return int32(v), nil
+	case tagInt64:
+		v, err := dec.VarUint()
+		if err != nil {
+			return nil, err
+		}
+		return int64(v), nil
 	default:
 		return nil, fmt.Errorf("unsupported type tag: 0x%02x", tag)
 	}
