@@ -13,14 +13,18 @@ type BlockFrame struct {
 	StartPos int // Position after block header (key into Blocks map)
 }
 
-type Context struct {
+type Memory struct {
 	Globals        *memory.Global
 	Memories       []iface.Memory
 	Tables         []*memory.Table
+	Stack          *memory.Stack[any]
 	FuncSignatures []fnsig.Signature // indexed by function index
 	TypeSignatures []fnsig.Signature // indexed by type index (for call_indirect)
+}
 
-	Stack  *memory.Stack[any]
+type Context struct {
+	*Memory
+
 	Locals *memory.Stack[any]
 
 	NumParams  int

@@ -8,7 +8,6 @@ import (
 	"github.com/tarcisiozf/wasp/internal/binary"
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/external"
-	"github.com/tarcisiozf/wasp/internal/funcs/fnsig"
 	"github.com/tarcisiozf/wasp/internal/memory"
 	"github.com/tarcisiozf/wasp/internal/module"
 )
@@ -88,25 +87,17 @@ type DebugData struct {
 	functions []string
 }
 
-type PendingCall interface {
-	Done() bool
-	Results() ([]any, error)
-}
-
 type Instance struct {
-	module         *module.Module
-	funcSignatures []fnsig.Signature
-	typeSignatures []fnsig.Signature
-
+	module *module.Module
 	linker *Linker
 	store  *Store
-	stack  *memory.Stack[any]
 
 	indexedImportedFunctions []*external.Function
 	debug                    DebugData
 	ignoreUnreachable        bool
 	paused                   bool
 
+	memory *execution.Memory
 	// Keep track of the original/root frame for tail calls
 	rootFrame *execution.CallFrame
 	callStack *memory.Stack[*execution.CallFrame]
@@ -118,14 +109,22 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 
 	callStack := memory.NewStackWithCapacity[*execution.CallFrame](64)
 
+	stack := memory.NewStackWithCapacity[any](32)
+
+	memory := &execution.Memory{
+		Stack:          stack,
+		Globals:        store.Globals,
+		Memories:       store.Memories,
+		Tables:         store.Tables,
+		FuncSignatures: funcSignatures,
+		TypeSignatures: typeSignatures,
+	}
+
 	instance := &Instance{
-		module:         module,
-		funcSignatures: funcSignatures,
-		typeSignatures: typeSignatures,
+		module: module,
+		store:  store,
 
-		store: store,
-		stack: memory.NewStackWithCapacity[any](32),
-
+		memory:    memory,
 		callStack: callStack,
 	}
 	for _, option := range options {
@@ -175,7 +174,7 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 	return instance, nil
 }
 
-func (instance *Instance) Call(fnIndex int, params ...any) (PendingCall, error) {
+func (instance *Instance) Call(fnIndex int, params ...any) (*execution.CallFrame, error) {
 	if !instance.module.IsFunction(fnIndex) {
 		return nil, fmt.Errorf("invalid function index: %d", fnIndex)
 	}
@@ -183,7 +182,7 @@ func (instance *Instance) Call(fnIndex int, params ...any) (PendingCall, error) 
 	if len(params) != len(fn.Signature.Params) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.Signature.Params), len(params))
 	}
-	instance.stack.Push(params...)
+	instance.memory.Stack.Push(params...)
 	return instance.enqueueCall(fnIndex)
 }
 
@@ -345,21 +344,21 @@ func (instance *Instance) createImportCallFrame(index int) (*execution.CallFrame
 	numParams := extFunc.NumInputs()
 	numResults := extFunc.NumOutputs()
 
-	if instance.stack.Size() < numParams {
-		return nil, fmt.Errorf("not enough parameters on stack for function at index %d: expected %d, got %d", index, numParams, instance.stack.Size())
+	if instance.memory.Stack.Size() < numParams {
+		return nil, fmt.Errorf("not enough parameters on stack for function at index %d: expected %d, got %d", index, numParams, instance.memory.Stack.Size())
 	}
-	params := instance.stack.Last(numParams)
+	params := instance.memory.Stack.Last(numParams)
 
 	return &execution.CallFrame{
 		FunctionIndex: index,
 		Function:      extFunc,
 
 		Context: execution.Context{
+			Memory: instance.memory,
+
 			NumParams:  numParams,
 			NumResults: numResults,
 			Params:     params,
-
-			Stack: instance.stack,
 
 			FunctionCallRequest: -1,
 		},
@@ -372,10 +371,10 @@ func (instance *Instance) createLocalCallFrame(index int) (*execution.CallFrame,
 	numParams := len(fn.Signature.Params)
 	numResults := len(fn.Signature.Results)
 
-	if instance.stack.Size() < numParams {
-		return nil, fmt.Errorf("not enough parameters on stack for function at index %d: expected %d, got %d", index, numParams, instance.stack.Size())
+	if instance.memory.Stack.Size() < numParams {
+		return nil, fmt.Errorf("not enough parameters on stack for function at index %d: expected %d, got %d", index, numParams, instance.memory.Stack.Size())
 	}
-	params := instance.stack.Last(numParams)
+	params := instance.memory.Stack.Last(numParams)
 
 	debugEnabled := instance.debug.showInstructions
 
@@ -388,18 +387,13 @@ func (instance *Instance) createLocalCallFrame(index int) (*execution.CallFrame,
 		Function:      fn,
 
 		Context: execution.Context{
+			Memory: instance.memory,
+
 			NumParams:  numParams,
 			NumResults: numResults,
 			Params:     params,
 
-			Stack:  instance.stack,
 			Locals: locals,
-
-			Globals:        instance.store.Globals,
-			Memories:       instance.store.Memories,
-			Tables:         instance.store.Tables,
-			FuncSignatures: instance.funcSignatures,
-			TypeSignatures: instance.typeSignatures,
 
 			Body:                binary.NewIterator(fn.Body),
 			FunctionCallRequest: -1,

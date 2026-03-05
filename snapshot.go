@@ -325,7 +325,7 @@ func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instan
 	frame := &execution.CallFrame{
 		FunctionIndex: functionIndex,
 		Context: execution.Context{
-			Stack:  memory.NewStack[any](stackItems...),
+			//Stack:  memory.NewStack[any](stackItems...),
 			Locals: memory.NewStack[any](localItems...),
 
 			NumParams:  numParams,
@@ -339,12 +339,12 @@ func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instan
 			Condition:  condition,
 			BlockStack: blockStack,
 
-			Globals:  store.Globals,
-			Memories: store.Memories,
-			Tables:   store.Tables,
-
-			FuncSignatures: instance.funcSignatures,
-			TypeSignatures: instance.typeSignatures,
+			//Globals:  store.Globals,
+			//Memories: store.Memories,
+			//Tables:   store.Tables,
+			//
+			//FuncSignatures: instance.funcSignatures,
+			//TypeSignatures: instance.typeSignatures,
 		},
 	}
 

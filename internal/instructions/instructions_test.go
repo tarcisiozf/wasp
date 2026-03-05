@@ -18,10 +18,14 @@ func createTestContext(body ...[]byte) *execution.Context {
 
 	iter := binary.NewIterator(bytes)
 
-	return &execution.Context{
-		Stack:   stack,
-		Locals:  locals,
+	mem := &execution.Memory{
 		Globals: globals,
+		Stack:   stack,
+	}
+
+	return &execution.Context{
+		Memory: mem,
+		Locals: locals,
 
 		Body: iter,
 	}
