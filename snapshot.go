@@ -256,7 +256,7 @@ func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instan
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode block stack size: %w", err)
 	}
-	blockStack := memory.NewStack[execution.BlockFrame]()
+	blockStack := memory.NewStackWithCapacity[execution.BlockFrame](blockStackSize)
 	for i := 0; i < blockStackSize; i++ {
 		startPos, err := decoder.Int()
 		if err != nil {
