@@ -281,11 +281,7 @@ func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instan
 		return nil, fmt.Errorf("failed to decode function index: %w", err)
 	}
 
-	// NumParams, NumResults
-	numParams, err := decoder.Int()
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode num params: %w", err)
-	}
+	// NumResults
 	numResults, err := decoder.Int()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode num results: %w", err)
@@ -328,7 +324,6 @@ func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instan
 			Memory: instance.memory,
 			Locals: memory.NewStack[any](localItems...),
 
-			NumParams:  numParams,
 			NumResults: numResults,
 			Params:     params,
 
@@ -484,7 +479,6 @@ func encodeCallFrame(encoder *snapshot.Encoder, frame *execution.CallFrame) {
 
 	encoder.Int(frame.FunctionIndex)
 
-	encoder.Int(frame.Context.NumParams)
 	encoder.Int(frame.Context.NumResults)
 	encoder.Int(len(frame.Context.Params))
 	for _, param := range frame.Context.Params {

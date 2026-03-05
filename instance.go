@@ -356,7 +356,6 @@ func (instance *Instance) createImportCallFrame(index int) (*execution.CallFrame
 		Context: execution.Context{
 			Memory: instance.memory,
 
-			NumParams:  numParams,
 			NumResults: numResults,
 			Params:     params,
 
@@ -389,7 +388,6 @@ func (instance *Instance) createLocalCallFrame(index int) (*execution.CallFrame,
 		Context: execution.Context{
 			Memory: instance.memory,
 
-			NumParams:  numParams,
 			NumResults: numResults,
 			Params:     params,
 

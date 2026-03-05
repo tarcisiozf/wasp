@@ -27,7 +27,6 @@ type Context struct {
 
 	Locals *memory.Stack[any]
 
-	NumParams  int
 	NumResults int
 	Params     []any
 
