@@ -17,7 +17,7 @@ const (
 	tagIntervalTreeMemory byte = 0x02
 )
 
-func SerializeState(dest io.Writer, store *Store, instance *Instance) error {
+func SerializeState(dest snapshot.Writer, store *Store, instance *Instance) error {
 	encoder := snapshot.NewEncoder(dest)
 
 	if err := toStateStore(encoder, store); err != nil {

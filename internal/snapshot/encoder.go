@@ -7,8 +7,13 @@ import (
 	"github.com/tarcisiozf/wasp/internal/binary/leb"
 )
 
+type Writer interface {
+	io.Writer
+	io.ByteWriter
+}
+
 type Encoder struct {
-	dest io.Writer
+	dest Writer
 }
 
 func (enc *Encoder) Int(value int) {
@@ -16,9 +21,7 @@ func (enc *Encoder) Int(value int) {
 }
 
 func (enc *Encoder) VarUint(value uint64) {
-	var buf [10]byte
-	n := leb.EncodeUint(buf[:], value)
-	enc.dest.Write(buf[:n])
+	leb.WriteUint(enc.dest, value)
 }
 
 func (enc *Encoder) Any(value any) {
@@ -63,6 +66,6 @@ func (enc *Encoder) Byte(b byte) {
 	enc.dest.Write([]byte{b})
 }
 
-func NewEncoder(dest io.Writer) *Encoder {
+func NewEncoder(dest Writer) *Encoder {
 	return &Encoder{dest: dest}
 }
