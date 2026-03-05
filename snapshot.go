@@ -43,7 +43,7 @@ func DeserializeState(src io.Reader, module *Module, linker *Linker) (*Store, *I
 		return nil, nil, fmt.Errorf("failed to create instance: %w", err)
 	}
 
-	if err := decodeCallStack(decoder, module, instance, store); err != nil {
+	if err := decodeCallStack(decoder, module, instance); err != nil {
 		return nil, nil, fmt.Errorf("failed to decode call stack: %w", err)
 	}
 
@@ -209,13 +209,13 @@ func decodeTables(decoder *snapshot.Decoder) ([]*memory.Table, error) {
 	return tables, nil
 }
 
-func decodeCallStack(decoder *snapshot.Decoder, module *Module, instance *Instance, store *Store) error {
+func decodeCallStack(decoder *snapshot.Decoder, module *Module, instance *Instance) error {
 	count, err := decoder.Int()
 	if err != nil {
 		return err
 	}
 	for i := 0; i < count; i++ {
-		frame, err := decodeCallFrame(decoder, module, instance, store)
+		frame, err := decodeCallFrame(decoder, module, instance)
 		if err != nil {
 			return fmt.Errorf("failed to decode call frame at index %d: %w", i, err)
 		}
@@ -224,7 +224,7 @@ func decodeCallStack(decoder *snapshot.Decoder, module *Module, instance *Instan
 	return nil
 }
 
-func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instance, store *Store) (*execution.CallFrame, error) {
+func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instance) (*execution.CallFrame, error) {
 	// Stack
 	stackSize, err := decoder.Int()
 	if err != nil {
@@ -325,7 +325,7 @@ func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instan
 	frame := &execution.CallFrame{
 		FunctionIndex: functionIndex,
 		Context: execution.Context{
-			//Stack:  memory.NewStack[any](stackItems...),
+			Memory: instance.memory,
 			Locals: memory.NewStack[any](localItems...),
 
 			NumParams:  numParams,
@@ -338,13 +338,6 @@ func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instan
 
 			Condition:  condition,
 			BlockStack: blockStack,
-
-			//Globals:  store.Globals,
-			//Memories: store.Memories,
-			//Tables:   store.Tables,
-			//
-			//FuncSignatures: instance.funcSignatures,
-			//TypeSignatures: instance.typeSignatures,
 		},
 	}
 
