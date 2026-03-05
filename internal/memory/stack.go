@@ -109,6 +109,10 @@ func (s *Stack[T]) PeekLast(n int) []T {
 	return s.items[len(s.items)-n:]
 }
 
+func (s *Stack[T]) Capacity() int {
+	return cap(s.items)
+}
+
 func (s *Stack[T]) Reset() {
 	s.items = s.items[:0]
 }
