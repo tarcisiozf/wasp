@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	iface "github.com/tarcisiozf/wasp/memory"
+	"github.com/tarcisiozf/wasp/utils/byteutils"
 )
 
 const pageSize = 65536 // 64KiB
@@ -66,7 +67,7 @@ func NewMemoryWithData(numPages, maxPages, pageSize int, data []byte, opts ...Me
 	for offset := 0; offset < size; offset += pageSize {
 		end := min(offset+pageSize, size)
 		page := data[offset:end]
-		if isEmpty(page) {
+		if byteutils.IsEmpty(page) {
 			continue
 		}
 		mem.Store(offset, page)
@@ -103,7 +104,7 @@ func (mem *Memory) Store(offset int, bytes []byte) {
 	}
 
 	mem.foo = append(mem.foo, size)
-	mem.bar = append(mem.bar, isEmpty(bytes))
+	mem.bar = append(mem.bar, byteutils.IsEmpty(bytes))
 
 	mem.ensurePages(offset, size)
 
@@ -306,13 +307,4 @@ func calculateOverheadCost(numPages, numPagesWithData int) (cost uint64) {
 	cost += uint64(numPages) * sizeOfByteSlicePtr      // slice of page pointers
 	cost += uint64(numPagesWithData) * sizeOfByteSlice // slice header for the page
 	return cost
-}
-
-func isEmpty(bytes []byte) bool {
-	for _, b := range bytes {
-		if b != 0 {
-			return false
-		}
-	}
-	return true
 }
