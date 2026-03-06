@@ -541,7 +541,7 @@ func (mem *Memory) ChunkThreshold() int {
 }
 
 func (mem *Memory) Size() int {
-	return mem.numNodes
+	return mem.size
 }
 
 func (mem *Memory) SizeOf() uint64 {

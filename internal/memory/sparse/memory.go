@@ -6,6 +6,8 @@ import (
 	iface "github.com/tarcisiozf/wasp/memory"
 )
 
+const pageSize = 65536 // 64KiB
+
 var (
 	sizeOfByteSlicePtr = uint64(unsafe.Sizeof(&[]byte{}))
 	sizeOfByteSlice    = uint64(unsafe.Sizeof([]byte{}))
@@ -98,53 +100,62 @@ func (mem *Memory) Store(offset int, bytes []byte) {
 }
 
 func (mem *Memory) Grow(delta int) bool {
-	//TODO implement me
-	panic("implement me")
+	if delta < 0 {
+		return false
+	}
+	if mem.maxPages > 0 && mem.numPages+delta > mem.maxPages {
+		return false
+	}
+	mem.numPages += delta
+	return true
 }
 
 func (mem *Memory) NumPages() int {
-	//TODO implement me
-	panic("implement me")
+	return mem.numPages
 }
 
 func (mem *Memory) PageSize() int {
-	//TODO implement me
-	panic("implement me")
+	return pageSize
 }
 
 func (mem *Memory) MaxPages() int {
-	//TODO implement me
-	panic("implement me")
+	return mem.maxPages
 }
 
 func (mem *Memory) Size() int {
-	//TODO implement me
-	panic("implement me")
+	return mem.pagesWithData * mem.pageSize
 }
 
 func (mem *Memory) SizeOf() uint64 {
 	sm := uint64(unsafe.Sizeof(Memory{}))
 	slice := uint64(len(mem.pages)) * sizeOfByteSlicePtr
-	pages := uint64(0)
-	data := uint64(0)
-	for _, page := range mem.pages {
-		if page != nil {
-			data += uint64(mem.pageSize)
-			pages += sizeOfByteSlice
-		}
-	}
-	total := sm + slice + pages + data
-	return total
+	pages := uint64(mem.pagesWithData) * sizeOfByteSlice
+	data := uint64(mem.pagesWithData) * uint64(mem.pageSize)
+	return sm + slice + pages + data
 }
 
 func (mem *Memory) Data() []byte {
-	//TODO implement me
-	panic("implement me")
+	return mem.Load(0, len(mem.pages)*mem.pageSize)
 }
 
 func (mem *Memory) Clone() iface.Memory {
-	//TODO implement me
-	panic("implement me")
+	pages := make([]*[]byte, len(mem.pages))
+	for i, ptr := range mem.pages {
+		if ptr == nil {
+			continue
+		}
+		clone := make([]byte, mem.pageSize)
+		copy(clone, *ptr)
+		pages[i] = &clone
+	}
+
+	return &Memory{
+		numPages:      mem.numPages,
+		maxPages:      mem.maxPages,
+		pageSize:      mem.pageSize,
+		pagesWithData: mem.pagesWithData,
+		pages:         pages,
+	}
 }
 
 func (mem *Memory) writeToPage(pageIdx int, pageOff int, bytes []byte) {
