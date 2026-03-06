@@ -14,8 +14,8 @@ func Encode(encoder *serialization.Encoder, mem *Memory) {
 		if page == nil {
 			continue
 		}
-		encoder.Int(i)       // page index
-		encoder.Bytes(*page) // page data
+		encoder.Int(i)          // page index
+		encoder.RawBytes(*page) // page data
 	}
 }
 

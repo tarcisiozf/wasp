@@ -58,9 +58,13 @@ func (enc *Encoder) Bool(value bool) {
 	}
 }
 
-func (enc *Encoder) Bytes(data []byte) {
-	enc.Int(len(data))
-	enc.dest.Write(data)
+func (enc *Encoder) Bytes(bytes []byte) {
+	enc.Int(len(bytes))
+	enc.dest.Write(bytes)
+}
+
+func (enc *Encoder) RawBytes(bytes []byte) {
+	enc.dest.Write(bytes)
 }
 
 func (enc *Encoder) Byte(b byte) {

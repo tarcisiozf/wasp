@@ -1,10 +1,12 @@
 package sparse_test
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"testing"
 
+	"github.com/tarcisiozf/wasp/internal/serialization"
 	"github.com/tarcisiozf/wasp/memory/contiguous"
 	"github.com/tarcisiozf/wasp/memory/sparse"
 )
@@ -71,9 +73,36 @@ func TestCompare(t *testing.T) {
 			t.Errorf("test case %d failed: %v", i, err)
 		}
 	}
+}
 
-	fmt.Println("mem ", mem.SizeOf())
-	fmt.Println("smem", smem.SizeOf())
+func TestSerialization(t *testing.T) {
+	smem := sparse.NewMemory(0, 0, 128)
+
+	for i := 0; i < numCases; i++ {
+		storeCase := storeTestCases[i]
+		smem.Store(storeCase.offset, storeCase.data)
+	}
+
+	var buf bytes.Buffer
+	enc := serialization.NewEncoder(&buf)
+	sparse.Encode(enc, smem)
+
+	encoded := buf.Bytes()
+	dec := serialization.NewDecoder(bytes.NewReader(encoded))
+	decodedMem, err := sparse.Decode(dec)
+	if err != nil {
+		t.Fatalf("decoding failed: %v", err)
+	}
+
+	for i := 0; i < numCases; i++ {
+		loadCase := loadTestCases[i]
+		expected := smem.Load(loadCase.offset, loadCase.size)
+		actual := decodedMem.Load(loadCase.offset, loadCase.size)
+
+		if err := equal(expected, actual); err != nil {
+			t.Errorf("serialization test case %d failed: %v", i, err)
+		}
+	}
 }
 
 func equal(a, b []byte) error {
