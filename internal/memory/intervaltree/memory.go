@@ -1,6 +1,7 @@
 package intervaltree
 
 import (
+	"fmt"
 	"iter"
 	"unsafe"
 
@@ -384,9 +385,13 @@ func (mem *Memory) Size() int {
 }
 
 func (mem *Memory) SizeOf() uint64 {
-	return (uint64(mem.numNodes) * uint64(unsafe.Sizeof(Interval{}))) +
-		uint64(unsafe.Sizeof(Memory{})) +
-		uint64(mem.size)
+	nn := uint64(mem.numNodes)
+	si := uint64(unsafe.Sizeof(Interval{}))
+	sm := uint64(unsafe.Sizeof(Memory{}))
+	ss := uint64(mem.size)
+	total := (nn * si) + ss + sm
+	fmt.Printf("Memory SizeOf: numNodes=%d, sizeof(Interval)=%d, sizeof(Memory)=%d, data=%d, total=%d\n", nn, si, sm, ss, total)
+	return total
 }
 
 // Iterate yields all intervals via in-order traversal (zero heap allocation).
