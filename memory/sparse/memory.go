@@ -1,8 +1,6 @@
 package sparse
 
 import (
-	"fmt"
-	"slices"
 	"unsafe"
 
 	iface "github.com/tarcisiozf/wasp/memory"
@@ -36,8 +34,6 @@ type Memory struct {
 	pages         []*[]byte
 
 	mergeThreshold float64
-	foo            []int
-	bar            []bool
 }
 
 var _ iface.Memory = (*Memory)(nil)
@@ -99,9 +95,6 @@ func (mem *Memory) Store(offset int, bytes []byte) {
 		return
 	}
 
-	mem.foo = append(mem.foo, size)
-	mem.bar = append(mem.bar, byteutils.IsEmpty(bytes))
-
 	mem.ensurePages(offset, size)
 
 	isEmpty := byteutils.IsEmpty(bytes)
@@ -158,8 +151,6 @@ func (mem *Memory) Size() int {
 }
 
 func (mem *Memory) SizeOf() uint64 {
-	mem.stats()
-
 	sm := uint64(unsafe.Sizeof(Memory{}))
 	slice := uint64(len(mem.pages)) * sizeOfByteSlicePtr
 	pages := uint64(mem.pagesWithData) * sizeOfByteSlice
@@ -260,49 +251,7 @@ func (mem *Memory) shouldMergePages() bool {
 	}
 
 	previewOverhead := calculateOverhead(len(mem.pages)/2, mem.pagesWithData, mem.pageSize*2)
-	if previewOverhead >= currentOverhead {
-		return false
-	}
-
-	fmt.Println(
-		"savings",
-		calculateOverheadCost(len(mem.pages), mem.pagesWithData)-calculateOverheadCost(len(mem.pages)/2, mem.pagesWithData),
-	)
-
-	return true
-}
-
-func (mem *Memory) stats() {
-	slices.Sort(mem.foo)
-	var sum uint64
-	for _, x := range mem.foo {
-		sum += uint64(x)
-	}
-	count := len(mem.foo)
-
-	fmt.Println("Count", count)
-	fmt.Println("Average", sum/uint64(count))
-	fmt.Println("Median", mem.foo[count/2])
-	fmt.Println("Max", mem.foo[count-1])
-	fmt.Println("Min", mem.foo[0])
-
-	{
-		bar := make([]int, 0, count)
-		var sum uint64
-		for i, x := range mem.foo {
-			if mem.bar[i] {
-				bar = append(bar, x)
-				sum += uint64(x)
-			}
-		}
-		slices.Sort(bar)
-		count := len(bar)
-
-		fmt.Println("Empty Count", count)
-		fmt.Println("Empty Average", sum/uint64(count))
-		fmt.Println("Empty Median", bar[count/2])
-		fmt.Println("Empty Max", bar[count-1])
-	}
+	return previewOverhead < currentOverhead
 }
 
 func (mem *Memory) hasPage(index int) bool {
