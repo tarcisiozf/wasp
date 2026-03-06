@@ -1,7 +1,6 @@
-package foo
+package sparse
 
 import (
-	"fmt"
 	"unsafe"
 
 	iface "github.com/tarcisiozf/wasp/memory"
@@ -23,15 +22,15 @@ type Memory struct {
 
 var _ iface.Memory = (*Memory)(nil)
 
-func NewMemory(numPages, maxPages, pageSize int) (*Memory, error) {
+func NewMemory(numPages, maxPages, pageSize int) *Memory {
 	if !isPowerOfTwo(pageSize) {
-		return nil, fmt.Errorf("memory size must be a power of two")
+		panic("memory size must be a power of two")
 	}
 	return &Memory{
 		numPages: numPages,
 		maxPages: maxPages,
 		pageSize: pageSize,
-	}, nil
+	}
 }
 
 func isPowerOfTwo(n int) bool {

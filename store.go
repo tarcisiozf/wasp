@@ -3,6 +3,7 @@ package wasp
 import (
 	"github.com/tarcisiozf/wasp/internal/memory"
 	"github.com/tarcisiozf/wasp/internal/memory/intervaltree"
+	"github.com/tarcisiozf/wasp/internal/memory/sparse"
 	"github.com/tarcisiozf/wasp/internal/module"
 	iface "github.com/tarcisiozf/wasp/memory"
 )
@@ -24,6 +25,18 @@ func WithIntervalTreeMemory(chunkThreshold int) StoreOptions {
 			segMem := intervaltree.NewMemory(mem.NumPages(), mem.MaxPages(), chunkThreshold)
 			segMem.Store(0, mem.Data())
 			store.Memories[i] = segMem
+		}
+	}
+}
+
+func WithSparsePagedMemory(pageSize int) StoreOptions {
+	return func(store *Store, module *module.Module) {
+		moduleMemories := module.Memories()
+		store.Memories = make([]iface.Memory, len(moduleMemories))
+		for i, mem := range moduleMemories {
+			sparseMem := sparse.NewMemory(mem.NumPages(), mem.MaxPages(), pageSize)
+			sparseMem.Store(0, mem.Data())
+			store.Memories[i] = sparseMem
 		}
 	}
 }

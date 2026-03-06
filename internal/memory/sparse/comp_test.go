@@ -1,4 +1,4 @@
-package foo_test
+package sparse_test
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/tarcisiozf/wasp/internal/memory"
-	"github.com/tarcisiozf/wasp/internal/memory/foo"
+	"github.com/tarcisiozf/wasp/internal/memory/sparse"
 )
 
 var rng = rand.New(rand.NewSource(3847234571923791))
@@ -56,10 +56,7 @@ func randomBytes(n int) []byte {
 
 func TestCompare(t *testing.T) {
 	mem := memory.NewMemory(10, 0)
-	smem, err := foo.NewMemory(0, 0, 128)
-	if err != nil {
-		t.Fatal(err)
-	}
+	smem := sparse.NewMemory(0, 0, 128)
 
 	for i := 0; i < numCases; i++ {
 		storeCase := storeTestCases[i]

@@ -1,4 +1,4 @@
-package foo
+package sparse
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ const (
 )
 
 var (
-	mem, _ = NewMemory(65536, 65536, 128)
+	mem = NewMemory(65536, 65536, 128)
 )
 
 type storeTestCase struct {
