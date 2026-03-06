@@ -13,6 +13,17 @@ var (
 	sizeOfByteSlice    = uint64(unsafe.Sizeof([]byte{}))
 )
 
+type MemoryOption func(*Memory)
+
+func WithPageMerging(threshold float64) MemoryOption {
+	return func(memory *Memory) {
+		if threshold < 0 || threshold > 1 {
+			panic("threshold must be between 0 and 1")
+		}
+		memory.mergeThreshold = threshold
+	}
+}
+
 type Memory struct {
 	numPages int
 	maxPages int
@@ -20,24 +31,30 @@ type Memory struct {
 	pageSize      int
 	pagesWithData int
 	pages         []*[]byte
+
+	mergeThreshold float64
 }
 
 var _ iface.Memory = (*Memory)(nil)
 
-func NewMemory(numPages, maxPages, pageSize int) *Memory {
+func NewMemory(numPages, maxPages, pageSize int, opts ...MemoryOption) *Memory {
 	if !isPowerOfTwo(pageSize) {
 		panic("memory size must be a power of two")
 	}
-	return &Memory{
+	mem := &Memory{
 		numPages: numPages,
 		maxPages: maxPages,
 		pageSize: pageSize,
 	}
+	for _, opt := range opts {
+		opt(mem)
+	}
+	return mem
 }
 
-func NewMemoryWithData(numPages, maxPages, pageSize int, data []byte) *Memory {
+func NewMemoryWithData(numPages, maxPages, pageSize int, data []byte, opts ...MemoryOption) *Memory {
 	size := len(data)
-	mem := NewMemory(numPages, maxPages, pageSize)
+	mem := NewMemory(numPages, maxPages, pageSize, opts...)
 	if size == 0 {
 		return mem
 	}
@@ -94,7 +111,7 @@ func (mem *Memory) Store(offset int, bytes []byte) {
 		pageOff = 0
 	}
 
-	if mem.shouldMergePages() {
+	if mem.mergeThreshold > 0 && mem.shouldMergePages() {
 		mem.mergePages()
 	}
 }
@@ -220,7 +237,7 @@ func (mem *Memory) mergePages() {
 
 func (mem *Memory) shouldMergePages() bool {
 	currentOverhead := calculateOverhead(len(mem.pages), mem.pagesWithData, mem.pageSize)
-	if currentOverhead < 0.25 {
+	if currentOverhead < mem.mergeThreshold {
 		return false
 	}
 

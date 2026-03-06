@@ -29,7 +29,7 @@ func WithIntervalTreeMemory(chunkThreshold int) StoreOptions {
 	}
 }
 
-func WithSparsePagedMemory(pageSize int) StoreOptions {
+func WithSparsePagedMemory(pageSize int, opts ...sparse.MemoryOption) StoreOptions {
 	return func(store *Store, module *module.Module) {
 		moduleMemories := module.Memories()
 		store.Memories = make([]iface.Memory, len(moduleMemories))
@@ -39,6 +39,7 @@ func WithSparsePagedMemory(pageSize int) StoreOptions {
 				mem.MaxPages(),
 				pageSize,
 				mem.Data(),
+				opts...,
 			)
 		}
 	}
