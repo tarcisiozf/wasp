@@ -32,6 +32,11 @@ type Memory struct {
 	chunkThreshold int
 	numNodes       int
 	size           int
+
+	minStore int
+	maxStore int
+	minLoad  int
+	maxLoad  int
 }
 
 func NewMemory(numPages, maxPages, chunkThreshold int) *Memory {
@@ -39,6 +44,11 @@ func NewMemory(numPages, maxPages, chunkThreshold int) *Memory {
 		numPages:       numPages,
 		maxPages:       maxPages,
 		chunkThreshold: chunkThreshold,
+
+		minStore: 1<<63 - 1,
+		maxStore: 0,
+		minLoad:  1<<63 - 1,
+		maxLoad:  0,
 	}
 }
 
@@ -46,6 +56,9 @@ func (mem *Memory) Store(offset int, data []byte) {
 	if len(data) == 0 {
 		return
 	}
+
+	mem.minStore = min(mem.minStore, offset)
+	mem.maxStore = max(mem.maxStore, offset+len(data))
 
 	// Zero out any existing intervals in the full store range,
 	// because chunkify will skip zero bytes, but those zeroes
@@ -112,6 +125,9 @@ func (mem *Memory) Store(offset int, data []byte) {
 
 func (mem *Memory) Load(offset int, size int) []byte {
 	data := make([]byte, size)
+
+	mem.minLoad = min(mem.minLoad, offset)
+	mem.maxLoad = max(mem.maxLoad, offset+size)
 
 	for seg := range mem.intervalsForRange(offset, offset+size) {
 		segStart := max(seg.Offset, offset)
@@ -535,6 +551,8 @@ func (mem *Memory) SizeOf() uint64 {
 	ss := uint64(mem.size)
 	total := (nn * si) + ss + sm
 	fmt.Printf("Memory SizeOf: numNodes=%d, sizeof(Interval)=%d, sizeof(Memory)=%d, data=%d, total=%d\n", nn, si, sm, ss, total)
+	fmt.Printf("min store offset: %d, max store offset: %d\n", mem.minStore, mem.maxStore)
+	fmt.Printf("min load offset: %d, max load offset: %d\n", mem.minLoad, mem.maxLoad)
 	return total
 }
 
