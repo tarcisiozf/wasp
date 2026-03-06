@@ -76,10 +76,6 @@ func NewMemoryWithData(numPages, maxPages, pageSize int, data []byte, opts ...Me
 	return mem
 }
 
-func isPowerOfTwo(n int) bool {
-	return n > 0 && (n&(n-1)) == 0
-}
-
 func (mem *Memory) Load(offset int, size int) []byte {
 	data := make([]byte, size)
 
@@ -108,12 +104,22 @@ func (mem *Memory) Store(offset int, bytes []byte) {
 
 	mem.ensurePages(offset, size)
 
+	isEmpty := byteutils.IsEmpty(bytes)
+
 	pageIdx := offset / mem.pageSize
 	pageOff := offset % mem.pageSize
 	written := 0
 	for written < size {
 		n := min(size-written, mem.pageSize-pageOff)
-		mem.writeToPage(pageIdx, pageOff, bytes[written:written+n])
+
+		if !isEmpty || mem.hasPage(pageIdx) {
+			mem.writeToPage(pageIdx, pageOff, bytes[written:written+n])
+			if isEmpty {
+				// current write is empty but page had data, check if we can delete it
+				mem.deletePageIfEmpty(pageIdx)
+			}
+		}
+
 		written += n
 		pageIdx++
 		pageOff = 0
@@ -200,11 +206,13 @@ func (mem *Memory) writeToPage(pageIdx int, pageOff int, bytes []byte) {
 
 func (mem *Memory) ensurePages(offset int, size int) {
 	requiredSize := ((offset + size) / mem.pageSize) + 1
-	if requiredSize > len(mem.pages) {
-		pages := make([]*[]byte, requiredSize)
-		copy(pages, mem.pages)
-		mem.pages = pages
+	if requiredSize <= len(mem.pages) {
+		return
 	}
+
+	pages := make([]*[]byte, requiredSize)
+	copy(pages, mem.pages)
+	mem.pages = pages
 }
 
 func (mem *Memory) loadFromPage(pageIdx int, pageOff int, dest []byte, n int) {
@@ -297,6 +305,21 @@ func (mem *Memory) stats() {
 	}
 }
 
+func (mem *Memory) hasPage(index int) bool {
+	return index >= 0 && index < len(mem.pages) && mem.pages[index] != nil
+}
+
+func (mem *Memory) deletePageIfEmpty(index int) {
+	if !mem.hasPage(index) {
+		return
+	}
+	page := *mem.pages[index]
+	if byteutils.IsEmpty(page) {
+		mem.pages[index] = nil
+		mem.pagesWithData--
+	}
+}
+
 func calculateOverhead(numPages, numPagesWithData, pageSize int) float64 {
 	cost := calculateOverheadCost(numPages, numPagesWithData)
 	size := pageSize * numPagesWithData
@@ -307,4 +330,8 @@ func calculateOverheadCost(numPages, numPagesWithData int) (cost uint64) {
 	cost += uint64(numPages) * sizeOfByteSlicePtr      // slice of page pointers
 	cost += uint64(numPagesWithData) * sizeOfByteSlice // slice header for the page
 	return cost
+}
+
+func isPowerOfTwo(n int) bool {
+	return n > 0 && (n&(n-1)) == 0
 }
