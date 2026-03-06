@@ -2,6 +2,7 @@ package intervaltree
 
 import (
 	"iter"
+	"unsafe"
 
 	iface "github.com/tarcisiozf/wasp/memory"
 )
@@ -28,6 +29,7 @@ type Memory struct {
 	numPages       int
 	maxPages       int
 	chunkThreshold int
+	numNodes       int
 	size           int
 }
 
@@ -148,6 +150,7 @@ func (mem *Memory) Clone() iface.Memory {
 		numPages:       mem.numPages,
 		maxPages:       mem.maxPages,
 		chunkThreshold: mem.chunkThreshold,
+		numNodes:       mem.numNodes,
 		size:           mem.size,
 		root:           cloneInterval(mem.root, nil),
 	}
@@ -248,7 +251,8 @@ func (mem *Memory) insertInterval(offset int, data []byte) {
 }
 
 func (mem *Memory) insertIntervalNode(seg *Interval) {
-	mem.size++
+	mem.numNodes++
+	mem.size += seg.size
 	seg.height = 1
 	if mem.root == nil {
 		mem.root = seg
@@ -376,7 +380,13 @@ func (mem *Memory) ChunkThreshold() int {
 }
 
 func (mem *Memory) Size() int {
-	return mem.size
+	return mem.numNodes
+}
+
+func (mem *Memory) SizeOf() uint64 {
+	return (uint64(mem.numNodes) * uint64(unsafe.Sizeof(Interval{}))) +
+		uint64(unsafe.Sizeof(Memory{})) +
+		uint64(mem.size)
 }
 
 // Iterate yields all intervals via in-order traversal (zero heap allocation).

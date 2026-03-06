@@ -1,6 +1,10 @@
 package memory
 
-import iface "github.com/tarcisiozf/wasp/memory"
+import (
+	"unsafe"
+
+	iface "github.com/tarcisiozf/wasp/memory"
+)
 
 const pageSize = 65536 // 64 KiB
 
@@ -78,4 +82,12 @@ func (memory *Memory) MaxPages() int {
 
 func (memory *Memory) Data() []byte {
 	return memory.data
+}
+
+func (memory *Memory) Size() int {
+	return len(memory.data)
+}
+
+func (memory *Memory) SizeOf() uint64 {
+	return uint64(len(memory.data)) + uint64(unsafe.Sizeof(Memory{}))
 }

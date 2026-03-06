@@ -7,6 +7,8 @@ type Memory interface {
 	NumPages() int
 	PageSize() int
 	MaxPages() int
+	Size() int
+	SizeOf() uint64
 	Data() []byte
 	Clone() Memory
 }
