@@ -476,3 +476,283 @@ func TestInsertSegment(t *testing.T) {
 		assert.Equal(t, []byte{5, 6, 7, 8}, mem.root.Right.Data)
 	})
 }
+
+func TestDeleteNode(t *testing.T) {
+	t.Run("delete only node (root)", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(0, []byte{1, 2, 3, 4})
+		mem.deleteNode(mem.root)
+		assert.Nil(t, mem.root)
+		assert.Equal(t, 0, mem.numNodes)
+	})
+
+	t.Run("delete leaf node", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(10, []byte{1})
+		mem.insertInterval(5, []byte{2})
+		mem.insertInterval(15, []byte{3})
+		// delete leaf (5)
+		mem.deleteNode(mem.root.Left)
+		assert.Equal(t, 2, mem.numNodes)
+		assert.True(t, isBalanced(mem.root))
+		segs := collectIntervals(mem.intervalsForRange(0, 20))
+		assert.Len(t, segs, 2)
+		assert.Equal(t, 10, segs[0].Offset)
+		assert.Equal(t, 15, segs[1].Offset)
+	})
+
+	t.Run("delete node with one child", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(10, []byte{1})
+		mem.insertInterval(5, []byte{2})
+		mem.insertInterval(15, []byte{3})
+		mem.insertInterval(20, []byte{4})
+		// 15 has right child 20, no left child
+		node15 := mem.root.Right
+		assert.Equal(t, 15, node15.Offset)
+		mem.deleteNode(node15)
+		assert.Equal(t, 3, mem.numNodes)
+		assert.True(t, isBalanced(mem.root))
+		segs := collectIntervals(mem.intervalsForRange(0, 25))
+		offsets := make([]int, len(segs))
+		for i, s := range segs {
+			offsets[i] = s.Offset
+		}
+		assert.Equal(t, []int{5, 10, 20}, offsets)
+	})
+
+	t.Run("delete node with two children", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(10, []byte{1})
+		mem.insertInterval(5, []byte{2})
+		mem.insertInterval(15, []byte{3})
+		mem.insertInterval(3, []byte{4})
+		mem.insertInterval(7, []byte{5})
+		// delete root (10) which has two children
+		mem.deleteNode(mem.root)
+		assert.Equal(t, 4, mem.numNodes)
+		assert.True(t, isBalanced(mem.root))
+		segs := collectIntervals(mem.intervalsForRange(0, 20))
+		offsets := make([]int, len(segs))
+		for i, s := range segs {
+			offsets[i] = s.Offset
+		}
+		assert.Equal(t, []int{3, 5, 7, 15}, offsets)
+	})
+
+	t.Run("tree stays balanced after many deletions", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		for i := 0; i < 20; i++ {
+			mem.insertInterval(i*10, []byte{byte(i + 1)})
+		}
+		assert.True(t, isBalanced(mem.root))
+		// delete every other node
+		for i := 0; i < 20; i += 2 {
+			segs := collectIntervals(mem.intervalsForRange(i*10, i*10+1))
+			if len(segs) > 0 {
+				mem.deleteNode(segs[0])
+			}
+		}
+		assert.True(t, isBalanced(mem.root))
+		assert.Equal(t, 10, mem.numNodes)
+	})
+
+	t.Run("numNodes and size track correctly", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(0, []byte{1, 2, 3})
+		mem.insertInterval(10, []byte{4, 5})
+		assert.Equal(t, 2, mem.numNodes)
+		assert.Equal(t, 5, mem.size)
+		mem.deleteNode(mem.root)
+		assert.Equal(t, 1, mem.numNodes)
+	})
+}
+
+func TestMergeRange(t *testing.T) {
+	t.Run("no merge when intervals are disjoint", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(0, []byte{1, 2})
+		mem.insertInterval(10, []byte{3, 4})
+		mem.mergeRange(0, 12)
+		assert.Equal(t, 2, mem.numNodes)
+	})
+
+	t.Run("merge two adjacent intervals", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(0, []byte{1, 2, 3, 4})
+		mem.insertInterval(4, []byte{5, 6, 7, 8})
+		assert.Equal(t, 2, mem.numNodes)
+		mem.mergeRange(0, 8)
+		assert.Equal(t, 1, mem.numNodes)
+		assert.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, mem.Load(0, 8))
+		assert.True(t, isBalanced(mem.root))
+	})
+
+	t.Run("merge overlapping intervals", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(0, []byte{1, 2, 3, 4, 5, 6})
+		mem.insertInterval(4, []byte{7, 8, 9, 10})
+		mem.mergeRange(0, 10)
+		assert.Equal(t, 1, mem.numNodes)
+		// overlap region [4,6) should have b's data (7,8)
+		assert.Equal(t, []byte{1, 2, 3, 4, 7, 8, 9, 10}, mem.Load(0, 8))
+	})
+
+	t.Run("merge three consecutive adjacent intervals", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(0, []byte{1, 2})
+		mem.insertInterval(2, []byte{3, 4})
+		mem.insertInterval(4, []byte{5, 6})
+		assert.Equal(t, 3, mem.numNodes)
+		mem.mergeRange(0, 6)
+		assert.Equal(t, 1, mem.numNodes)
+		assert.Equal(t, []byte{1, 2, 3, 4, 5, 6}, mem.Load(0, 6))
+		assert.True(t, isBalanced(mem.root))
+	})
+
+	t.Run("merge does not touch intervals outside range", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(0, []byte{1, 2})
+		mem.insertInterval(2, []byte{3, 4})
+		mem.insertInterval(100, []byte{5, 6})
+		mem.mergeRange(0, 4)
+		assert.Equal(t, 2, mem.numNodes) // [0,4) merged, [100,102) untouched
+	})
+
+	t.Run("no-op on empty tree", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.mergeRange(0, 100)
+		assert.Nil(t, mem.root)
+	})
+
+	t.Run("no-op on single interval", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(0, []byte{1, 2, 3})
+		mem.mergeRange(0, 3)
+		assert.Equal(t, 1, mem.numNodes)
+	})
+}
+
+func TestMergeAll(t *testing.T) {
+	t.Run("merges all adjacent intervals in the tree", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(0, []byte{1, 2})
+		mem.insertInterval(2, []byte{3, 4})
+		mem.insertInterval(4, []byte{5, 6})
+		mem.insertInterval(6, []byte{7, 8})
+		assert.Equal(t, 4, mem.numNodes)
+		mem.MergeAll()
+		assert.Equal(t, 1, mem.numNodes)
+		assert.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, mem.Load(0, 8))
+		assert.True(t, isBalanced(mem.root))
+	})
+
+	t.Run("no-op on empty tree", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.MergeAll()
+		assert.Nil(t, mem.root)
+	})
+
+	t.Run("preserves disjoint intervals", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(0, []byte{1, 2})
+		mem.insertInterval(10, []byte{3, 4})
+		mem.insertInterval(20, []byte{5, 6})
+		mem.MergeAll()
+		assert.Equal(t, 3, mem.numNodes)
+	})
+
+	t.Run("partial merge: some adjacent, some not", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(0, []byte{1, 2})
+		mem.insertInterval(2, []byte{3, 4})
+		mem.insertInterval(20, []byte{5, 6})
+		mem.insertInterval(22, []byte{7, 8})
+		mem.MergeAll()
+		assert.Equal(t, 2, mem.numNodes)
+		assert.Equal(t, []byte{1, 2, 3, 4}, mem.Load(0, 4))
+		assert.Equal(t, []byte{5, 6, 7, 8}, mem.Load(20, 4))
+	})
+}
+
+func TestStoreMergesAdjacentIntervals(t *testing.T) {
+	t.Run("store extending an existing segment merges into one", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.Store(0, []byte{1, 2, 3, 4, 5, 6, 7, 8})
+		mem.Store(4, []byte{9, 10, 11, 12})
+		assert.Equal(t, 1, mem.Size())
+		assert.Equal(t, 0, mem.root.Offset)
+		assert.Equal(t, 8, mem.root.end)
+		assert.Equal(t, []byte{1, 2, 3, 4, 9, 10, 11, 12}, mem.Load(0, 8))
+	})
+
+	t.Run("store bridging a gap merges all into one", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		mem.Store(8, []byte{5, 6, 7, 8})
+		// bridge the gap [4,8)
+		mem.Store(4, []byte{9, 10, 11, 12})
+		assert.Equal(t, 1, mem.Size())
+		assert.Equal(t, []byte{1, 2, 3, 4, 9, 10, 11, 12, 5, 6, 7, 8}, mem.Load(0, 12))
+	})
+
+	t.Run("store appending to the right merges", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.Store(0, []byte{1, 2, 3, 4})
+		mem.Store(4, []byte{5, 6, 7, 8})
+		assert.Equal(t, 1, mem.Size())
+		assert.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, mem.Load(0, 8))
+	})
+
+	t.Run("store prepending to the left merges", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.Store(4, []byte{5, 6, 7, 8})
+		mem.Store(0, []byte{1, 2, 3, 4})
+		assert.Equal(t, 1, mem.Size())
+		assert.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, mem.Load(0, 8))
+	})
+
+	t.Run("data correctness after multiple merging stores", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.Store(0, []byte{1, 2})
+		mem.Store(2, []byte{3, 4})
+		mem.Store(4, []byte{5, 6})
+		mem.Store(6, []byte{7, 8})
+		assert.Equal(t, 1, mem.Size())
+		assert.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, mem.Load(0, 8))
+		assert.True(t, isBalanced(mem.root))
+	})
+}
+
+func TestInOrderSuccessor(t *testing.T) {
+	t.Run("successor of leftmost is root", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(10, []byte{1})
+		mem.insertInterval(5, []byte{2})
+		mem.insertInterval(15, []byte{3})
+		leftmost := mem.root.Left
+		assert.Equal(t, 5, leftmost.Offset)
+		succ := mem.inOrderSuccessor(leftmost)
+		assert.Equal(t, 10, succ.Offset)
+	})
+
+	t.Run("successor of root is rightmost-of-left-subtree's parent", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(10, []byte{1})
+		mem.insertInterval(5, []byte{2})
+		mem.insertInterval(15, []byte{3})
+		succ := mem.inOrderSuccessor(mem.root)
+		assert.Equal(t, 15, succ.Offset)
+	})
+
+	t.Run("successor of rightmost is nil", func(t *testing.T) {
+		mem := NewMemory(numPages, maxPages, chunkThreshold)
+		mem.insertInterval(10, []byte{1})
+		mem.insertInterval(5, []byte{2})
+		mem.insertInterval(15, []byte{3})
+		rightmost := mem.root.Right
+		assert.Equal(t, 15, rightmost.Offset)
+		succ := mem.inOrderSuccessor(rightmost)
+		assert.Nil(t, succ)
+	})
+}

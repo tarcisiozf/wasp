@@ -105,6 +105,9 @@ func (mem *Memory) Store(offset int, data []byte) {
 			mem.insertInterval(chunkOffset, data[start:end])
 		}
 	}
+
+	// Merge adjacent/overlapping intervals in the affected range.
+	mem.mergeRange(offset, fullEnd)
 }
 
 func (mem *Memory) Load(offset int, size int) []byte {
@@ -374,6 +377,147 @@ func (mem *Memory) rebalanceUp(n *Interval) {
 		mem.rebalance(n)
 		n = parent
 	}
+}
+
+// deleteNode removes n from the AVL tree, rebalancing as needed.
+func (mem *Memory) deleteNode(n *Interval) {
+	mem.numNodes--
+	mem.size -= n.size
+
+	if n.Left != nil && n.Right != nil {
+		// find in-order successor (leftmost node in right subtree)
+		succ := n.Right
+		for succ.Left != nil {
+			succ = succ.Left
+		}
+		// copy successor's data into n
+		n.Offset = succ.Offset
+		n.end = succ.end
+		n.size = succ.size
+		n.Data = succ.Data
+		// now delete the successor (which has at most one child)
+		n = succ
+	}
+
+	// n has at most one child
+	var child *Interval
+	if n.Left != nil {
+		child = n.Left
+	} else {
+		child = n.Right
+	}
+
+	parent := n.parent
+	if child != nil {
+		child.parent = parent
+	}
+
+	if parent == nil {
+		mem.root = child
+	} else if parent.Left == n {
+		parent.Left = child
+	} else {
+		parent.Right = child
+	}
+
+	// clear references for GC
+	n.Left = nil
+	n.Right = nil
+	n.parent = nil
+
+	// rebalance from parent upward
+	mem.rebalanceUp(parent)
+}
+
+// inOrderSuccessor returns the next interval after n in offset order, or nil.
+func (mem *Memory) inOrderSuccessor(n *Interval) *Interval {
+	if n.Right != nil {
+		cur := n.Right
+		for cur.Left != nil {
+			cur = cur.Left
+		}
+		return cur
+	}
+	cur := n
+	p := cur.parent
+	for p != nil && cur == p.Right {
+		cur = p
+		p = p.parent
+	}
+	return p
+}
+
+// mergeRange coalesces adjacent or overlapping intervals touching [offset, end).
+// Two intervals A, B (A before B) are merged when A.end >= B.Offset (adjacent or overlapping).
+func (mem *Memory) mergeRange(offset, end int) {
+	// Expand the search range by 1 on each side so we also catch intervals
+	// that are exactly adjacent to the written region.
+	searchStart := offset - 1
+	if searchStart < 0 {
+		searchStart = 0
+	}
+	searchEnd := end + 1
+
+	for {
+		// Collect intervals in range. We must re-collect after each merge
+		// because deleteNode may swap node data (in-order successor copy),
+		// invalidating previously collected pointers.
+		var a, b *Interval
+		merged := false
+		for seg := range mem.intervalsForRange(searchStart, searchEnd) {
+			if a == nil {
+				a = seg
+				continue
+			}
+			b = seg
+			if a.end >= b.Offset {
+				// merge b into a
+				mergedEnd := b.end
+				if a.end > mergedEnd {
+					mergedEnd = a.end
+				}
+				newSize := mergedEnd - a.Offset
+				oldSize := a.size
+				buf := make([]byte, newSize)
+				copy(buf, a.Data)
+				// copy b's data (may partially overlap with a's range)
+				bStart := b.Offset - a.Offset
+				copy(buf[bStart:bStart+b.size], b.Data)
+
+				a.Data = buf
+				a.end = mergedEnd
+				a.size = newSize
+				// adjust mem.size for the growth of a
+				mem.size += newSize - oldSize
+
+				mem.deleteNode(b)
+				merged = true
+				break // restart scan — tree structure changed
+			}
+			a = b
+		}
+		if !merged {
+			break
+		}
+	}
+}
+
+// MergeAll performs a full in-order merge pass over the entire tree.
+func (mem *Memory) MergeAll() {
+	if mem.root == nil {
+		return
+	}
+	// find the minimum offset
+	minNode := mem.root
+	for minNode.Left != nil {
+		minNode = minNode.Left
+	}
+	// find the maximum end
+	maxNode := mem.root
+	for maxNode.Right != nil {
+		maxNode = maxNode.Right
+	}
+	mem.mergeRange(minNode.Offset, maxNode.end)
 }
 
 func (mem *Memory) ChunkThreshold() int {
