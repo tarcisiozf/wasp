@@ -33,6 +33,25 @@ func NewMemory(numPages, maxPages, pageSize int) *Memory {
 	}
 }
 
+func NewMemoryWithData(numPages, maxPages, pageSize int, data []byte) *Memory {
+	size := len(data)
+	mem := NewMemory(numPages, maxPages, pageSize)
+	if size == 0 {
+		return mem
+	}
+
+	for offset := 0; offset < size; offset += pageSize {
+		end := min(offset+pageSize, size)
+		page := data[offset:end]
+		if isEmpty(page) {
+			continue
+		}
+		mem.Store(offset, page)
+	}
+
+	return mem
+}
+
 func isPowerOfTwo(n int) bool {
 	return n > 0 && (n&(n-1)) == 0
 }
@@ -204,4 +223,13 @@ func calculateOverhead(numPages, numPagesWithData, pageSize int) float64 {
 	cost += uint64(numPagesWithData) * sizeOfByteSlice // slice header for the page
 	size := pageSize * numPagesWithData
 	return float64(cost) / float64(size)
+}
+
+func isEmpty(bytes []byte) bool {
+	for _, b := range bytes {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
 }

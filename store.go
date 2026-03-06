@@ -34,9 +34,12 @@ func WithSparsePagedMemory(pageSize int) StoreOptions {
 		moduleMemories := module.Memories()
 		store.Memories = make([]iface.Memory, len(moduleMemories))
 		for i, mem := range moduleMemories {
-			sparseMem := sparse.NewMemory(mem.NumPages(), mem.MaxPages(), pageSize)
-			sparseMem.Store(0, mem.Data())
-			store.Memories[i] = sparseMem
+			store.Memories[i] = sparse.NewMemoryWithData(
+				mem.NumPages(),
+				mem.MaxPages(),
+				pageSize,
+				mem.Data(),
+			)
 		}
 	}
 }
