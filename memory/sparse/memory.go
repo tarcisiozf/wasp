@@ -246,11 +246,15 @@ func (mem *Memory) shouldMergePages() bool {
 }
 
 func calculateOverhead(numPages, numPagesWithData, pageSize int) float64 {
-	var cost uint64
-	cost += uint64(numPages) * sizeOfByteSlicePtr      // slice of page pointers
-	cost += uint64(numPagesWithData) * sizeOfByteSlice // slice header for the page
+	cost := calculateOverheadCost(numPages, numPagesWithData)
 	size := pageSize * numPagesWithData
 	return float64(cost) / float64(size)
+}
+
+func calculateOverheadCost(numPages, numPagesWithData int) (cost uint64) {
+	cost += uint64(numPages) * sizeOfByteSlicePtr      // slice of page pointers
+	cost += uint64(numPagesWithData) * sizeOfByteSlice // slice header for the page
+	return cost
 }
 
 func isEmpty(bytes []byte) bool {
