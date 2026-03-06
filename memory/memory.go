@@ -10,5 +10,4 @@ type Memory interface {
 	Size() int
 	SizeOf() uint64
 	Data() []byte
-	Clone() Memory
 }

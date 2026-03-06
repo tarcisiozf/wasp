@@ -2,9 +2,11 @@ package module
 
 import (
 	"fmt"
+
 	"github.com/tarcisiozf/wasp/internal/funcs"
 	"github.com/tarcisiozf/wasp/internal/funcs/fnsig"
 	memory "github.com/tarcisiozf/wasp/internal/memory"
+	"github.com/tarcisiozf/wasp/memory/contiguous"
 )
 
 type Module struct {
@@ -22,7 +24,7 @@ type Module struct {
 	globals  memory.Global
 	tables   []memory.Table
 	data     []memory.DataSegment
-	memories []*memory.Memory
+	memories []*contiguous.Memory
 }
 
 func NewModule(wasm []byte) *Module {
@@ -78,7 +80,7 @@ func (module *Module) IsFunction(index int) bool {
 	return index >= len(module.imports) && index < len(module.imports)+len(module.functions)
 }
 
-func (module *Module) Memories() []*memory.Memory {
+func (module *Module) Memories() []*contiguous.Memory {
 	return module.memories
 }
 

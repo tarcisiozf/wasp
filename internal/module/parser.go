@@ -10,6 +10,7 @@ import (
 	memory "github.com/tarcisiozf/wasp/internal/memory"
 	"github.com/tarcisiozf/wasp/internal/opcodes"
 	"github.com/tarcisiozf/wasp/internal/types"
+	"github.com/tarcisiozf/wasp/memory/contiguous"
 )
 
 var unhandled = make(map[uint16]int) // TODO: remove before flight
@@ -213,7 +214,7 @@ func parseElementSection(module *Module, iter *binary.Iterator) error {
 
 func parseMemorySection(module *Module, iter *binary.Iterator) error {
 	numMemories := iter.Varint()
-	module.memories = make([]*memory.Memory, numMemories)
+	module.memories = make([]*contiguous.Memory, numMemories)
 	for i := 0; i < numMemories; i++ {
 		flag := iter.Byte()
 		initialPages := iter.Varint()
@@ -221,7 +222,7 @@ func parseMemorySection(module *Module, iter *binary.Iterator) error {
 		if flag == 0x1 {
 			maxPages = iter.Varint()
 		}
-		module.memories[i] = memory.NewMemory(initialPages, maxPages)
+		module.memories[i] = contiguous.NewMemory(initialPages, maxPages)
 	}
 	return nil
 }

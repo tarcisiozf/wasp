@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/tarcisiozf/wasp/internal/memory"
-	"github.com/tarcisiozf/wasp/internal/memory/intervaltree"
+	"github.com/tarcisiozf/wasp/memory/contiguous"
+	"github.com/tarcisiozf/wasp/memory/intervaltree"
 )
 
 var rng = rand.New(rand.NewSource(3847234571923791))
@@ -55,7 +55,7 @@ func randomBytes(n int) []byte {
 }
 
 func TestCompare(t *testing.T) {
-	mem := memory.NewMemory(10, 0)
+	mem := contiguous.NewMemory(10, 0)
 	smem := intervaltree.NewMemory(0, 0, 256)
 
 	for i := 0; i < numCases; i++ {

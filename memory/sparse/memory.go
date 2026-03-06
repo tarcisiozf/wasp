@@ -155,7 +155,7 @@ func (mem *Memory) Data() []byte {
 	return mem.Load(0, len(mem.pages)*mem.pageSize)
 }
 
-func (mem *Memory) Clone() iface.Memory {
+func (mem *Memory) Clone() *Memory {
 	pages := make([]*[]byte, len(mem.pages))
 	for i, ptr := range mem.pages {
 		if ptr == nil {

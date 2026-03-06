@@ -7,9 +7,10 @@ import (
 	"github.com/tarcisiozf/wasp/internal/binary"
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/memory"
-	"github.com/tarcisiozf/wasp/internal/memory/intervaltree"
 	"github.com/tarcisiozf/wasp/internal/snapshot"
 	iface "github.com/tarcisiozf/wasp/memory"
+	"github.com/tarcisiozf/wasp/memory/contiguous"
+	"github.com/tarcisiozf/wasp/memory/intervaltree"
 )
 
 const (
@@ -119,7 +120,7 @@ func decodeMemories(decoder *snapshot.Decoder) ([]iface.Memory, error) {
 	return memories, nil
 }
 
-func decodeLinearMemory(decoder *snapshot.Decoder) (*memory.Memory, error) {
+func decodeLinearMemory(decoder *snapshot.Decoder) (*contiguous.Memory, error) {
 	data, err := decoder.Bytes()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode memory data: %w", err)
@@ -132,7 +133,7 @@ func decodeLinearMemory(decoder *snapshot.Decoder) (*memory.Memory, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode memory maxPages: %w", err)
 	}
-	mem := memory.NewMemory(numPages, maxPages)
+	mem := contiguous.NewMemory(numPages, maxPages)
 	mem.Store(0, data)
 	return mem, nil
 }
@@ -390,16 +391,16 @@ func encodeMemories(encoder *snapshot.Encoder, memories []iface.Memory) {
 
 func encodeMemory(encoder *snapshot.Encoder, mem any) {
 	switch mem.(type) {
-	case *memory.Memory:
+	case *contiguous.Memory:
 		encoder.Byte(tagLinearMemory)
-		encodeLinearMemory(encoder, mem.(*memory.Memory))
+		encodeLinearMemory(encoder, mem.(*contiguous.Memory))
 	case *intervaltree.Memory:
 		encoder.Byte(tagIntervalTreeMemory)
 		encodeIntervalTreeMemory(encoder, mem.(*intervaltree.Memory))
 	}
 }
 
-func encodeLinearMemory(encoder *snapshot.Encoder, mem *memory.Memory) {
+func encodeLinearMemory(encoder *snapshot.Encoder, mem *contiguous.Memory) {
 	encoder.Bytes(mem.Data())
 	encoder.Int(mem.NumPages())
 	encoder.Int(mem.MaxPages())

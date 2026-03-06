@@ -1,9 +1,7 @@
-package memory
+package contiguous
 
 import (
 	"unsafe"
-
-	iface "github.com/tarcisiozf/wasp/memory"
 )
 
 const pageSize = 65536 // 64 KiB
@@ -23,7 +21,7 @@ func NewMemory(numPages, maxPages int) *Memory {
 	}
 }
 
-func (memory *Memory) Clone() iface.Memory {
+func (memory *Memory) Clone() *Memory {
 	data := make([]byte, len(memory.data))
 	copy(data, memory.data)
 

@@ -3,7 +3,7 @@ package sparse_test
 import (
 	"testing"
 
-	"github.com/tarcisiozf/wasp/internal/memory/sparse"
+	"github.com/tarcisiozf/wasp/memory/sparse"
 )
 
 const pageSize = 128

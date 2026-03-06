@@ -8,8 +8,8 @@ import (
 	"github.com/tarcisiozf/wasp/internal/binary/leb"
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/instructions"
-	"github.com/tarcisiozf/wasp/internal/memory"
 	iface "github.com/tarcisiozf/wasp/memory"
+	"github.com/tarcisiozf/wasp/memory/contiguous"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +17,7 @@ import (
 // createTestContextWithMemory creates a test context with a memory instance
 func createTestContextWithMemory(numPages int, body ...[]byte) *execution.Context {
 	ctx := createTestContext(body...)
-	mem := memory.NewMemory(numPages, 10) // max 10 pages
+	mem := contiguous.NewMemory(numPages, 10) // max 10 pages
 	ctx.Memories = []iface.Memory{mem}
 	return ctx
 }

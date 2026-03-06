@@ -2,10 +2,10 @@ package wasp
 
 import (
 	"github.com/tarcisiozf/wasp/internal/memory"
-	"github.com/tarcisiozf/wasp/internal/memory/intervaltree"
-	"github.com/tarcisiozf/wasp/internal/memory/sparse"
 	"github.com/tarcisiozf/wasp/internal/module"
 	iface "github.com/tarcisiozf/wasp/memory"
+	"github.com/tarcisiozf/wasp/memory/intervaltree"
+	"github.com/tarcisiozf/wasp/memory/sparse"
 )
 
 type StoreOptions func(*Store, *module.Module)
@@ -41,15 +41,6 @@ func WithSparsePagedMemory(pageSize int, opts ...sparse.MemoryOption) StoreOptio
 				mem.Data(),
 				opts...,
 			)
-		}
-	}
-}
-
-func WithMemories(memories []iface.Memory) StoreOptions {
-	return func(store *Store, module *module.Module) {
-		store.Memories = make([]iface.Memory, len(memories))
-		for i, mem := range memories {
-			store.Memories[i] = mem.Clone()
 		}
 	}
 }
