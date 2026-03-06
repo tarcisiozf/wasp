@@ -56,7 +56,7 @@ func randomBytes(n int) []byte {
 
 func TestCompare(t *testing.T) {
 	mem := memory.NewMemory(10, 0)
-	smem, err := foo.NewMemory(0, 0)
+	smem, err := foo.NewMemory(0, 0, 128)
 	if err != nil {
 		t.Fatal(err)
 	}

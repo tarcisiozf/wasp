@@ -13,7 +13,7 @@ const (
 )
 
 var (
-	mem, _ = NewMemory(65536, 65536)
+	mem, _ = NewMemory(65536, 65536, 128)
 )
 
 type storeTestCase struct {
