@@ -7,19 +7,21 @@ import (
 	"github.com/tarcisiozf/wasp/internal/binary"
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/memory"
-	"github.com/tarcisiozf/wasp/internal/snapshot"
+	"github.com/tarcisiozf/wasp/internal/serialization"
 	iface "github.com/tarcisiozf/wasp/memory"
 	"github.com/tarcisiozf/wasp/memory/contiguous"
 	"github.com/tarcisiozf/wasp/memory/intervaltree"
+	"github.com/tarcisiozf/wasp/memory/sparse"
 )
 
 const (
 	tagLinearMemory       byte = 0x01
 	tagIntervalTreeMemory byte = 0x02
+	tagSparsePagedMemory  byte = 0x03
 )
 
-func SerializeState(dest snapshot.Writer, store *Store, instance *Instance) error {
-	encoder := snapshot.NewEncoder(dest)
+func SerializeState(dest serialization.Writer, store *Store, instance *Instance) error {
+	encoder := serialization.NewEncoder(dest)
 
 	if err := toStateStore(encoder, store); err != nil {
 		return err
@@ -32,7 +34,7 @@ func SerializeState(dest snapshot.Writer, store *Store, instance *Instance) erro
 }
 
 func DeserializeState(src io.Reader, module *Module, linker *Linker) (*Store, *Instance, error) {
-	decoder := snapshot.NewDecoder(src)
+	decoder := serialization.NewDecoder(src)
 
 	store, err := fromStateStore(decoder)
 	if err != nil {
@@ -51,7 +53,7 @@ func DeserializeState(src io.Reader, module *Module, linker *Linker) (*Store, *I
 	return store, instance, nil
 }
 
-func fromStateStore(decoder *snapshot.Decoder) (*Store, error) {
+func fromStateStore(decoder *serialization.Decoder) (*Store, error) {
 	globals, err := decodeGlobalItems(decoder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode globals: %w", err)
@@ -71,7 +73,7 @@ func fromStateStore(decoder *snapshot.Decoder) (*Store, error) {
 	}, nil
 }
 
-func decodeGlobalItems(decoder *snapshot.Decoder) (*memory.Global, error) {
+func decodeGlobalItems(decoder *serialization.Decoder) (*memory.Global, error) {
 	size, err := decoder.Int()
 	if err != nil {
 		return nil, err
@@ -91,7 +93,7 @@ func decodeGlobalItems(decoder *snapshot.Decoder) (*memory.Global, error) {
 	return globals, nil
 }
 
-func decodeMemories(decoder *snapshot.Decoder) ([]iface.Memory, error) {
+func decodeMemories(decoder *serialization.Decoder) ([]iface.Memory, error) {
 	count, err := decoder.Int()
 	if err != nil {
 		return nil, err
@@ -113,6 +115,11 @@ func decodeMemories(decoder *snapshot.Decoder) ([]iface.Memory, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode interval tree memory at index %d: %w", i, err)
 			}
+		case tagSparsePagedMemory:
+			memories[i], err = sparse.Decode(decoder)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode sparse paged memory at index %d: %w", i, err)
+			}
 		default:
 			return nil, fmt.Errorf("unknown memory type tag 0x%02x at index %d", tag, i)
 		}
@@ -120,7 +127,7 @@ func decodeMemories(decoder *snapshot.Decoder) ([]iface.Memory, error) {
 	return memories, nil
 }
 
-func decodeLinearMemory(decoder *snapshot.Decoder) (*contiguous.Memory, error) {
+func decodeLinearMemory(decoder *serialization.Decoder) (*contiguous.Memory, error) {
 	data, err := decoder.Bytes()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode memory data: %w", err)
@@ -138,7 +145,7 @@ func decodeLinearMemory(decoder *snapshot.Decoder) (*contiguous.Memory, error) {
 	return mem, nil
 }
 
-func decodeIntervalTreeMemory(decoder *snapshot.Decoder) (*intervaltree.Memory, error) {
+func decodeIntervalTreeMemory(decoder *serialization.Decoder) (*intervaltree.Memory, error) {
 	numPages, err := decoder.Int()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode numPages: %w", err)
@@ -170,7 +177,7 @@ func decodeIntervalTreeMemory(decoder *snapshot.Decoder) (*intervaltree.Memory, 
 	return mem, nil
 }
 
-func decodeTables(decoder *snapshot.Decoder) ([]*memory.Table, error) {
+func decodeTables(decoder *serialization.Decoder) ([]*memory.Table, error) {
 	count, err := decoder.Int()
 	if err != nil {
 		return nil, err
@@ -210,7 +217,7 @@ func decodeTables(decoder *snapshot.Decoder) ([]*memory.Table, error) {
 	return tables, nil
 }
 
-func decodeCallStack(decoder *snapshot.Decoder, module *Module, instance *Instance) error {
+func decodeCallStack(decoder *serialization.Decoder, module *Module, instance *Instance) error {
 	count, err := decoder.Int()
 	if err != nil {
 		return err
@@ -225,7 +232,7 @@ func decodeCallStack(decoder *snapshot.Decoder, module *Module, instance *Instan
 	return nil
 }
 
-func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instance) (*execution.CallFrame, error) {
+func decodeCallFrame(decoder *serialization.Decoder, module *Module, instance *Instance) (*execution.CallFrame, error) {
 	// Stack
 	stackSize, err := decoder.Int()
 	if err != nil {
@@ -359,7 +366,7 @@ func decodeCallFrame(decoder *snapshot.Decoder, module *Module, instance *Instan
 	return frame, nil
 }
 
-func toStateStore(encoder *snapshot.Encoder, store *Store) error {
+func toStateStore(encoder *serialization.Encoder, store *Store) error {
 	if err := encodeGlobalItems(encoder, store.Globals); err != nil {
 		return err
 	}
@@ -368,7 +375,7 @@ func toStateStore(encoder *snapshot.Encoder, store *Store) error {
 	return nil
 }
 
-func encodeGlobalItems(encoder *snapshot.Encoder, globals *memory.Global) error {
+func encodeGlobalItems(encoder *serialization.Encoder, globals *memory.Global) error {
 	size := globals.Size()
 	encoder.Int(size)
 	for i := 0; i < size; i++ {
@@ -382,14 +389,14 @@ func encodeGlobalItems(encoder *snapshot.Encoder, globals *memory.Global) error 
 	return nil
 }
 
-func encodeMemories(encoder *snapshot.Encoder, memories []iface.Memory) {
+func encodeMemories(encoder *serialization.Encoder, memories []iface.Memory) {
 	encoder.Int(len(memories))
 	for _, mem := range memories {
 		encodeMemory(encoder, mem)
 	}
 }
 
-func encodeMemory(encoder *snapshot.Encoder, mem any) {
+func encodeMemory(encoder *serialization.Encoder, mem any) {
 	switch mem.(type) {
 	case *contiguous.Memory:
 		encoder.Byte(tagLinearMemory)
@@ -397,16 +404,19 @@ func encodeMemory(encoder *snapshot.Encoder, mem any) {
 	case *intervaltree.Memory:
 		encoder.Byte(tagIntervalTreeMemory)
 		encodeIntervalTreeMemory(encoder, mem.(*intervaltree.Memory))
+	case *sparse.Memory:
+		encoder.Byte(tagSparsePagedMemory)
+		sparse.Encode(encoder, mem.(*sparse.Memory))
 	}
 }
 
-func encodeLinearMemory(encoder *snapshot.Encoder, mem *contiguous.Memory) {
+func encodeLinearMemory(encoder *serialization.Encoder, mem *contiguous.Memory) {
 	encoder.Bytes(mem.Data())
 	encoder.Int(mem.NumPages())
 	encoder.Int(mem.MaxPages())
 }
 
-func encodeIntervalTreeMemory(encoder *snapshot.Encoder, mem *intervaltree.Memory) {
+func encodeIntervalTreeMemory(encoder *serialization.Encoder, mem *intervaltree.Memory) {
 	encoder.Int(mem.NumPages())
 	encoder.Int(mem.MaxPages())
 	encoder.Int(mem.ChunkThreshold())
@@ -418,7 +428,7 @@ func encodeIntervalTreeMemory(encoder *snapshot.Encoder, mem *intervaltree.Memor
 	}
 }
 
-func encodeTables(encoder *snapshot.Encoder, tables []*memory.Table) {
+func encodeTables(encoder *serialization.Encoder, tables []*memory.Table) {
 	encoder.Int(len(tables))
 	for _, table := range tables {
 		encoder.Byte(table.ElementType)
@@ -431,7 +441,7 @@ func encodeTables(encoder *snapshot.Encoder, tables []*memory.Table) {
 	}
 }
 
-func encodeCallStack(encoder *snapshot.Encoder, instance *Instance) error {
+func encodeCallStack(encoder *serialization.Encoder, instance *Instance) error {
 	size := instance.callStack.Size()
 	encoder.Int(size)
 	for i := 0; i < size; i++ {
@@ -441,7 +451,7 @@ func encodeCallStack(encoder *snapshot.Encoder, instance *Instance) error {
 	return nil
 }
 
-func encodeCallFrame(encoder *snapshot.Encoder, frame *execution.CallFrame) {
+func encodeCallFrame(encoder *serialization.Encoder, frame *execution.CallFrame) {
 	if frame.Context.Stack == nil {
 		encoder.Int(0)
 	} else {

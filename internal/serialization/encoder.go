@@ -1,8 +1,9 @@
-package snapshot
+package serialization
 
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/tarcisiozf/wasp/internal/binary/leb"
 )
@@ -64,6 +65,10 @@ func (enc *Encoder) Bytes(data []byte) {
 
 func (enc *Encoder) Byte(b byte) {
 	enc.dest.Write([]byte{b})
+}
+
+func (enc *Encoder) Float64(f float64) {
+	enc.VarUint(math.Float64bits(f))
 }
 
 func NewEncoder(dest Writer) *Encoder {

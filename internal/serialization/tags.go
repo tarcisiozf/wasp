@@ -1,4 +1,4 @@
-package snapshot
+package serialization
 
 const (
 	tagInt   byte = 0x01

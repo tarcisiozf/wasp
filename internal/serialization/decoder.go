@@ -1,8 +1,9 @@
-package snapshot
+package serialization
 
 import (
 	"fmt"
 	"io"
+	"unsafe"
 )
 
 type Decoder struct {
@@ -59,6 +60,10 @@ func (dec *Decoder) Bytes() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return dec.BytesN(length)
+}
+
+func (dec *Decoder) BytesN(length int) ([]byte, error) {
 	buf := make([]byte, length)
 	if _, err := io.ReadFull(dec.src, buf); err != nil {
 		return nil, err
@@ -95,4 +100,16 @@ func (dec *Decoder) Any() (any, error) {
 	default:
 		return nil, fmt.Errorf("unsupported type tag: 0x%02x", tag)
 	}
+}
+
+func (dec *Decoder) Float64() (float64, error) {
+	v, err := dec.VarUint()
+	if err != nil {
+		return 0, err
+	}
+	return float64FromBits(v), nil
+}
+
+func float64FromBits(v uint64) float64 {
+	return *(*float64)(unsafe.Pointer(&v))
 }
