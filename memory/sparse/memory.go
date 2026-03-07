@@ -242,6 +242,10 @@ func (mem *Memory) mergePages() {
 	mem.pageSize = newPageSize
 	mem.pagesWithData = pagesWithData
 	mem.pages = newPages
+
+	for i := 0; i < len(newPages); i++ {
+		mem.deletePageIfEmpty(i)
+	}
 }
 
 func (mem *Memory) shouldMergePages() bool {
