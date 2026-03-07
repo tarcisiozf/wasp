@@ -35,11 +35,15 @@ func WriteUint(w io.ByteWriter, v uint64) int {
 		b := byte(v & 0x7F)
 		v >>= 7
 		if v == 0 {
-			w.WriteByte(b)
+			if err := w.WriteByte(b); err != nil {
+				panic(fmt.Sprintf("failed to write byte: %v", err))
+			}
 			i++
 			break
 		}
-		w.WriteByte(b | 0x80)
+		if err := w.WriteByte(b | 0x80); err != nil {
+			panic(fmt.Sprintf("failed to write byte: %v", err))
+		}
 		i++
 	}
 	return i

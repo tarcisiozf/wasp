@@ -58,7 +58,7 @@ func randomBytes(n int) []byte {
 
 func TestCompare(t *testing.T) {
 	mem := contiguous.NewMemory(10, 0)
-	smem := sparse.NewMemory(0, 0, 128)
+	smem := sparse.NewMemory(10, 0, 128)
 
 	for i := 0; i < numCases; i++ {
 		storeCase := storeTestCases[i]
@@ -76,7 +76,7 @@ func TestCompare(t *testing.T) {
 }
 
 func TestSerialization(t *testing.T) {
-	smem := sparse.NewMemory(0, 0, 128)
+	smem := sparse.NewMemory(10, 0, 128)
 
 	for i := 0; i < numCases; i++ {
 		storeCase := storeTestCases[i]

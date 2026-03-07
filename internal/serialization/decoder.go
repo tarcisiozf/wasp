@@ -3,6 +3,7 @@ package serialization
 import (
 	"fmt"
 	"io"
+	"math"
 	"unsafe"
 )
 
@@ -34,6 +35,9 @@ func (dec *Decoder) VarUint() (uint64, error) {
 	var x uint64
 	var shift uint
 	for {
+		if shift >= 64 {
+			return 0, fmt.Errorf("varuint overflow: too many bytes")
+		}
 		b, err := dec.Byte()
 		if err != nil {
 			return 0, err
@@ -51,6 +55,9 @@ func (dec *Decoder) Int() (int, error) {
 	v, err := dec.VarUint()
 	if err != nil {
 		return 0, err
+	}
+	if v > uint64(math.MaxInt) {
+		return 0, fmt.Errorf("integer overflow: %d exceeds max int", v)
 	}
 	return int(v), nil
 }

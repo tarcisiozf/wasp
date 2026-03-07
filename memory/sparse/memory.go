@@ -73,6 +73,13 @@ func NewMemoryWithData(numPages, maxPages, pageSize int, data []byte, opts ...Me
 }
 
 func (mem *Memory) Load(offset int, size int) []byte {
+	if size == 0 {
+		return nil
+	}
+	if offset < 0 || offset+size > mem.numPages*pageSize {
+		panic("memory load out of bounds")
+	}
+
 	data := make([]byte, size)
 
 	pageIdx := offset / mem.pageSize
@@ -93,6 +100,9 @@ func (mem *Memory) Store(offset int, bytes []byte) {
 	size := len(bytes)
 	if size == 0 {
 		return
+	}
+	if offset < 0 || offset+size > mem.numPages*pageSize {
+		panic("memory store out of bounds")
 	}
 
 	mem.ensurePages(offset, size)
@@ -159,7 +169,7 @@ func (mem *Memory) SizeOf() uint64 {
 }
 
 func (mem *Memory) Data() []byte {
-	return mem.Load(0, len(mem.pages)*mem.pageSize)
+	return mem.Load(0, mem.numPages*pageSize)
 }
 
 func (mem *Memory) Clone() *Memory {
@@ -174,11 +184,12 @@ func (mem *Memory) Clone() *Memory {
 	}
 
 	return &Memory{
-		numPages:      mem.numPages,
-		maxPages:      mem.maxPages,
-		pageSize:      mem.pageSize,
-		pagesWithData: mem.pagesWithData,
-		pages:         pages,
+		numPages:       mem.numPages,
+		maxPages:       mem.maxPages,
+		pageSize:       mem.pageSize,
+		pagesWithData:  mem.pagesWithData,
+		pages:          pages,
+		mergeThreshold: mem.mergeThreshold,
 	}
 }
 
@@ -218,14 +229,23 @@ func (mem *Memory) mergePages() {
 	newPageSize := mem.pageSize * 2
 	newPages := make([]*[]byte, (len(mem.pages)+1)/2)
 	for i := 0; i < len(mem.pages); i += 2 {
+		page1 := mem.pages[i]
+		var page2 *[]byte
+		if i+1 < len(mem.pages) {
+			page2 = mem.pages[i+1]
+		}
+		// skip if both pages are nil
+		if page1 == nil && page2 == nil {
+			continue
+		}
 		var mergedPage []byte
-		if mem.pages[i] != nil {
-			mergedPage = append(mergedPage, *mem.pages[i]...)
+		if page1 != nil {
+			mergedPage = append(mergedPage, *page1...)
 		} else {
 			mergedPage = make([]byte, mem.pageSize)
 		}
-		if i+1 < len(mem.pages) && mem.pages[i+1] != nil {
-			mergedPage = append(mergedPage, *mem.pages[i+1]...)
+		if page2 != nil {
+			mergedPage = append(mergedPage, *page2...)
 		} else {
 			mergedPage = append(mergedPage, make([]byte, mem.pageSize)...)
 		}
@@ -280,6 +300,9 @@ func calculateOverhead(numPages, numPagesWithData, pageSize int) float64 {
 }
 
 func calculateOverheadCost(numPages, numPagesWithData int) (cost uint64) {
+	if numPagesWithData == 0 {
+		return 0
+	}
 	cost += uint64(numPages) * sizeOfByteSlicePtr      // slice of page pointers
 	cost += uint64(numPagesWithData) * sizeOfByteSlice // slice header for the page
 	return cost

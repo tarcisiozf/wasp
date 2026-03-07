@@ -179,6 +179,19 @@ func decodeTables(decoder *serialization.Decoder) ([]*memory.Table, error) {
 }
 
 func decodeCallStack(decoder *serialization.Decoder, module *Module, instance *Instance) error {
+	// Stack
+	stackSize, err := decoder.Int()
+	if err != nil {
+		return fmt.Errorf("failed to decode stack size: %w", err)
+	}
+	for i := 0; i < stackSize; i++ {
+		item, err := decoder.Any()
+		if err != nil {
+			return fmt.Errorf("failed to decode stack item %d: %w", i, err)
+		}
+		instance.memory.Stack.Push(item)
+	}
+
 	count, err := decoder.Int()
 	if err != nil {
 		return err
@@ -194,19 +207,6 @@ func decodeCallStack(decoder *serialization.Decoder, module *Module, instance *I
 }
 
 func decodeCallFrame(decoder *serialization.Decoder, module *Module, instance *Instance) (*execution.CallFrame, error) {
-	// Stack
-	stackSize, err := decoder.Int()
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode stack size: %w", err)
-	}
-	stackItems := make([]any, stackSize)
-	for i := 0; i < stackSize; i++ {
-		stackItems[i], err = decoder.Any()
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode stack item %d: %w", i, err)
-		}
-	}
-
 	// Locals
 	localsSize, err := decoder.Int()
 	if err != nil {
@@ -322,6 +322,8 @@ func decodeCallFrame(decoder *serialization.Decoder, module *Module, instance *I
 		frame.Context.Body = body
 
 		frame.Context.Blocks = fn.Blocks
+	} else {
+		return nil, fmt.Errorf("invalid function index %d in call frame", functionIndex)
 	}
 
 	return frame, nil
@@ -365,6 +367,8 @@ func encodeMemory(encoder *serialization.Encoder, mem any) {
 	case *sparse.Memory:
 		encoder.Byte(tagSparsePagedMemory)
 		sparse.Encode(encoder, mem.(*sparse.Memory))
+	default:
+		panic(fmt.Sprintf("unsupported memory type: %T", mem))
 	}
 }
 
@@ -388,6 +392,13 @@ func encodeTables(encoder *serialization.Encoder, tables []*memory.Table) {
 }
 
 func encodeCallStack(encoder *serialization.Encoder, instance *Instance) error {
+	stackSize := instance.memory.Stack.Size()
+	encoder.Int(stackSize)
+	for i := 0; i < stackSize; i++ {
+		item := instance.memory.Stack.At(i)
+		encoder.Any(item)
+	}
+
 	size := instance.callStack.Size()
 	encoder.Int(size)
 	for i := 0; i < size; i++ {
@@ -398,15 +409,6 @@ func encodeCallStack(encoder *serialization.Encoder, instance *Instance) error {
 }
 
 func encodeCallFrame(encoder *serialization.Encoder, frame *execution.CallFrame) {
-	if frame.Context.Stack == nil {
-		encoder.Int(0)
-	} else {
-		encoder.Int(frame.Context.Stack.Size())
-		for i := 0; i < frame.Context.Stack.Size(); i++ {
-			encoder.Any(frame.Context.Stack.At(i))
-		}
-	}
-
 	if frame.Context.Locals == nil {
 		encoder.Int(0)
 	} else {
