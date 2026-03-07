@@ -4,7 +4,6 @@ import (
 	"github.com/tarcisiozf/wasp/internal/memory"
 	"github.com/tarcisiozf/wasp/internal/module"
 	iface "github.com/tarcisiozf/wasp/memory"
-	"github.com/tarcisiozf/wasp/memory/intervaltree"
 	"github.com/tarcisiozf/wasp/memory/sparse"
 )
 
@@ -15,18 +14,6 @@ type Store struct {
 	Memories            []iface.Memory
 	Tables              []*memory.Table
 	dataSegmentsApplied bool
-}
-
-func WithIntervalTreeMemory(chunkThreshold int) StoreOptions {
-	return func(store *Store, module *module.Module) {
-		moduleMemories := module.Memories()
-		store.Memories = make([]iface.Memory, len(moduleMemories))
-		for i, mem := range moduleMemories {
-			segMem := intervaltree.NewMemory(mem.NumPages(), mem.MaxPages(), chunkThreshold)
-			segMem.Store(0, mem.Data())
-			store.Memories[i] = segMem
-		}
-	}
 }
 
 func WithSparsePagedMemory(pageSize int, opts ...sparse.MemoryOption) StoreOptions {

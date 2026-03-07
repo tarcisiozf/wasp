@@ -10,14 +10,12 @@ import (
 	"github.com/tarcisiozf/wasp/internal/serialization"
 	iface "github.com/tarcisiozf/wasp/memory"
 	"github.com/tarcisiozf/wasp/memory/contiguous"
-	"github.com/tarcisiozf/wasp/memory/intervaltree"
 	"github.com/tarcisiozf/wasp/memory/sparse"
 )
 
 const (
-	tagLinearMemory       byte = 0x01
-	tagIntervalTreeMemory byte = 0x02
-	tagSparsePagedMemory  byte = 0x03
+	tagLinearMemory      byte = 0x01
+	tagSparsePagedMemory byte = 0x02
 )
 
 func SerializeState(dest serialization.Writer, store *Store, instance *Instance) error {
@@ -110,11 +108,6 @@ func decodeMemories(decoder *serialization.Decoder) ([]iface.Memory, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode linear memory at index %d: %w", i, err)
 			}
-		case tagIntervalTreeMemory:
-			memories[i], err = decodeIntervalTreeMemory(decoder)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode interval tree memory at index %d: %w", i, err)
-			}
 		case tagSparsePagedMemory:
 			memories[i], err = sparse.Decode(decoder)
 			if err != nil {
@@ -142,38 +135,6 @@ func decodeLinearMemory(decoder *serialization.Decoder) (*contiguous.Memory, err
 	}
 	mem := contiguous.NewMemory(numPages, maxPages)
 	mem.Store(0, data)
-	return mem, nil
-}
-
-func decodeIntervalTreeMemory(decoder *serialization.Decoder) (*intervaltree.Memory, error) {
-	numPages, err := decoder.Int()
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode numPages: %w", err)
-	}
-	maxPages, err := decoder.Int()
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode maxPages: %w", err)
-	}
-	chunkThreshold, err := decoder.Int()
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode chunkThreshold: %w", err)
-	}
-	intervalCount, err := decoder.Int()
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode interval count: %w", err)
-	}
-	mem := intervaltree.NewMemory(numPages, maxPages, chunkThreshold)
-	for j := 0; j < intervalCount; j++ {
-		offset, err := decoder.Int()
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode interval offset at %d: %w", j, err)
-		}
-		data, err := decoder.Bytes()
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode interval data at %d: %w", j, err)
-		}
-		mem.Store(offset, data)
-	}
 	return mem, nil
 }
 
@@ -401,9 +362,6 @@ func encodeMemory(encoder *serialization.Encoder, mem any) {
 	case *contiguous.Memory:
 		encoder.Byte(tagLinearMemory)
 		encodeLinearMemory(encoder, mem.(*contiguous.Memory))
-	case *intervaltree.Memory:
-		encoder.Byte(tagIntervalTreeMemory)
-		encodeIntervalTreeMemory(encoder, mem.(*intervaltree.Memory))
 	case *sparse.Memory:
 		encoder.Byte(tagSparsePagedMemory)
 		sparse.Encode(encoder, mem.(*sparse.Memory))
@@ -414,18 +372,6 @@ func encodeLinearMemory(encoder *serialization.Encoder, mem *contiguous.Memory) 
 	encoder.Bytes(mem.Data())
 	encoder.Int(mem.NumPages())
 	encoder.Int(mem.MaxPages())
-}
-
-func encodeIntervalTreeMemory(encoder *serialization.Encoder, mem *intervaltree.Memory) {
-	encoder.Int(mem.NumPages())
-	encoder.Int(mem.MaxPages())
-	encoder.Int(mem.ChunkThreshold())
-
-	encoder.Int(mem.Size())
-	for iv := range mem.Iterate() {
-		encoder.Int(iv.Offset)
-		encoder.Bytes(iv.Data)
-	}
 }
 
 func encodeTables(encoder *serialization.Encoder, tables []*memory.Table) {
