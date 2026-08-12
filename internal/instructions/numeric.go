@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"unsafe"
 
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/opcodes"
@@ -73,6 +74,10 @@ func and[T ints](ctx *execution.Context) error {
 	return nil
 }
 
+func boolToInt(b bool) int {
+	return int(*(*uint8)(unsafe.Pointer(&b)))
+}
+
 func eq[T number](ctx *execution.Context) error {
 	b, err := castNumber[T](ctx.Stack.Pop())
 	if err != nil {
@@ -82,11 +87,7 @@ func eq[T number](ctx *execution.Context) error {
 	if err != nil {
 		return err
 	}
-	if a == b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a == b))
 	return nil
 }
 
@@ -95,11 +96,7 @@ func eqz[T ints](ctx *execution.Context) error {
 	if err != nil {
 		return err
 	}
-	if a == 0 {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a == 0))
 	return nil
 }
 
@@ -112,11 +109,7 @@ func ne[T number](ctx *execution.Context) error {
 	if err != nil {
 		return err
 	}
-	if a != b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a != b))
 	return nil
 }
 
@@ -168,11 +161,7 @@ func gt[T number](ctx *execution.Context) error {
 	if err != nil {
 		return err
 	}
-	if a > b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a > b))
 	return nil
 }
 
@@ -185,11 +174,7 @@ func lt[T number](ctx *execution.Context) error {
 	if err != nil {
 		return err
 	}
-	if a < b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a < b))
 	return nil
 }
 
@@ -202,11 +187,7 @@ func le[T number](ctx *execution.Context) error {
 	if err != nil {
 		return err
 	}
-	if a <= b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a <= b))
 	return nil
 }
 
@@ -219,11 +200,7 @@ func ge[T number](ctx *execution.Context) error {
 	if err != nil {
 		return err
 	}
-	if a >= b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a >= b))
 	return nil
 }
 
@@ -342,11 +319,7 @@ func ltU32(ctx *execution.Context) error {
 	}
 	b := toUnsigned32(bVal)
 	a := toUnsigned32(aVal)
-	if a < b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a < b))
 	return nil
 }
 
@@ -361,11 +334,7 @@ func ltU64(ctx *execution.Context) error {
 	}
 	b := toUnsigned64(bVal)
 	a := toUnsigned64(aVal)
-	if a < b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a < b))
 	return nil
 }
 
@@ -380,11 +349,7 @@ func gtU32(ctx *execution.Context) error {
 	}
 	b := toUnsigned32(bVal)
 	a := toUnsigned32(aVal)
-	if a > b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a > b))
 	return nil
 }
 
@@ -399,11 +364,7 @@ func gtU64(ctx *execution.Context) error {
 	}
 	b := toUnsigned64(bVal)
 	a := toUnsigned64(aVal)
-	if a > b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a > b))
 	return nil
 }
 
@@ -418,11 +379,7 @@ func leU32(ctx *execution.Context) error {
 	}
 	b := toUnsigned32(bVal)
 	a := toUnsigned32(aVal)
-	if a <= b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a <= b))
 	return nil
 }
 
@@ -437,11 +394,7 @@ func leU64(ctx *execution.Context) error {
 	}
 	b := toUnsigned64(bVal)
 	a := toUnsigned64(aVal)
-	if a <= b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a <= b))
 	return nil
 }
 
@@ -456,11 +409,7 @@ func geU32(ctx *execution.Context) error {
 	}
 	b := toUnsigned32(bVal)
 	a := toUnsigned32(aVal)
-	if a >= b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a >= b))
 	return nil
 }
 
@@ -475,11 +424,7 @@ func geU64(ctx *execution.Context) error {
 	}
 	b := toUnsigned64(bVal)
 	a := toUnsigned64(aVal)
-	if a >= b {
-		ctx.Stack.Push(1)
-	} else {
-		ctx.Stack.Push(0)
-	}
+	ctx.Stack.Push(boolToInt(a >= b))
 	return nil
 }
 
