@@ -18,7 +18,11 @@ func NewStackWithCapacity[T any](capacity int) *Stack[T] {
 	}
 }
 
-func (s *Stack[T]) Push(value ...T) {
+func (s *Stack[T]) Push(value T) {
+	s.items = append(s.items, value)
+}
+
+func (s *Stack[T]) PushMany(value ...T) {
 	s.items = append(s.items, value...)
 }
 

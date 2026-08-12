@@ -2,10 +2,11 @@ package external
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/funcs/fnsig"
 	"github.com/tarcisiozf/wasp/internal/types"
-	"reflect"
 )
 
 type Function struct {
@@ -27,7 +28,7 @@ func (f *Function) Call(ctx *execution.Context) (err error) {
 	if len(results) != f.numOutputs {
 		return fmt.Errorf("function %s.%s expected to return %d values, but got %d", f.moduleName, f.fieldName, f.numOutputs, len(results))
 	}
-	ctx.Stack.Push(results...)
+	ctx.Stack.PushMany(results...)
 	ctx.Done = true
 	return nil
 }

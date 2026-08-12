@@ -182,7 +182,7 @@ func (instance *Instance) Call(fnIndex int, params ...any) (*execution.CallFrame
 	if len(params) != len(fn.Signature.Params) {
 		return nil, fmt.Errorf("expected %d arguments, got %d", len(fn.Signature.Params), len(params))
 	}
-	instance.memory.Stack.Push(params...)
+	instance.memory.Stack.PushMany(params...)
 	return instance.enqueueCall(fnIndex)
 }
 
@@ -378,8 +378,8 @@ func (instance *Instance) createLocalCallFrame(index int) (*execution.CallFrame,
 	debugEnabled := instance.debug.showInstructions
 
 	locals := memory.NewStackWithCapacity[any](numParams + len(fn.Locals))
-	locals.Push(params...)
-	locals.Push(fn.Locals...)
+	locals.PushMany(params...)
+	locals.PushMany(fn.Locals...)
 
 	return &execution.CallFrame{
 		FunctionIndex: index,
