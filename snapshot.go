@@ -7,6 +7,7 @@ import (
 	"github.com/tarcisiozf/wasp/internal/binary"
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/memory"
+	"github.com/tarcisiozf/wasp/internal/memory/stack"
 	"github.com/tarcisiozf/wasp/internal/serialization"
 	iface "github.com/tarcisiozf/wasp/memory"
 	"github.com/tarcisiozf/wasp/memory/contiguous"
@@ -287,11 +288,14 @@ func decodeCallFrame(decoder *serialization.Decoder, module *Module, instance *I
 		return nil, fmt.Errorf("failed to decode condition: %w", err)
 	}
 
+	locals := stack.New()
+	locals.PushMany(localItems...)
+
 	frame := &execution.CallFrame{
 		FunctionIndex: functionIndex,
 		Context: execution.Context{
 			Memory: instance.memory,
-			Locals: memory.NewStack[any](localItems...),
+			Locals: locals,
 
 			NumResults: numResults,
 			Params:     params,

@@ -5,6 +5,7 @@ import (
 	"github.com/tarcisiozf/wasp/internal/funcs/fnblock"
 	"github.com/tarcisiozf/wasp/internal/funcs/fnsig"
 	"github.com/tarcisiozf/wasp/internal/memory"
+	"github.com/tarcisiozf/wasp/internal/memory/stack"
 	iface "github.com/tarcisiozf/wasp/memory"
 )
 
@@ -17,7 +18,7 @@ type Memory struct {
 	Globals        *memory.Global
 	Memories       []iface.Memory
 	Tables         []*memory.Table
-	Stack          *memory.Stack[any]
+	Stack          *stack.Stack
 	FuncSignatures []fnsig.Signature // indexed by function index
 	TypeSignatures []fnsig.Signature // indexed by type index (for call_indirect)
 }
@@ -25,7 +26,7 @@ type Memory struct {
 type Context struct {
 	*Memory
 
-	Locals *memory.Stack[any]
+	Locals *stack.Stack
 
 	NumResults int
 	Params     []any

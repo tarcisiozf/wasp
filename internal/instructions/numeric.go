@@ -7,15 +7,16 @@ import (
 	"unsafe"
 
 	"github.com/tarcisiozf/wasp/internal/execution"
+	"github.com/tarcisiozf/wasp/internal/memory/stack"
 	"github.com/tarcisiozf/wasp/internal/opcodes"
 )
 
 type ints interface {
-	~int32 | ~int64
+	int32 | int64
 }
 
 type floats interface {
-	~float32 | ~float64
+	float32 | float64
 }
 
 type number interface {
@@ -23,53 +24,29 @@ type number interface {
 }
 
 func mul[T number](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(a * b)
 	return nil
 }
 
 func add[T number](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(a + b)
 	return nil
 }
 
 func sub[T number](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(a - b)
 	return nil
 }
 
 func and[T ints](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(a & b)
 	return nil
 }
@@ -79,136 +56,76 @@ func boolToInt(b bool) int {
 }
 
 func eq[T number](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(boolToInt(a == b))
 	return nil
 }
 
 func eqz[T ints](ctx *execution.Context) error {
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(boolToInt(a == 0))
 	return nil
 }
 
 func ne[T number](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(boolToInt(a != b))
 	return nil
 }
 
 func xor[T ints](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(a ^ b)
 	return nil
 }
 
 func or[T ints](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(a | b)
 	return nil
 }
 
 func div[T number](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(a / b)
 	return nil
 }
 
 func gt[T number](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(boolToInt(a > b))
 	return nil
 }
 
 func lt[T number](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(boolToInt(a < b))
 	return nil
 }
 
 func le[T number](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(boolToInt(a <= b))
 	return nil
 }
 
 func ge[T number](ctx *execution.Context) error {
-	b, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[T](ctx.Stack)
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(boolToInt(a >= b))
 	return nil
 }
 
 func abs[T floats](ctx *execution.Context) error {
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	a := stack.Pop[T](ctx.Stack)
 	// Use math.Abs to properly handle edge cases like -0.0 and NaN
 	ctx.Stack.Push(T(math.Abs(float64(a))))
 	return nil
@@ -219,403 +136,238 @@ type unsigned interface {
 	~uint32 | ~uint64
 }
 
-func toUnsigned32(v int32) uint32 { return uint32(v) }
-func toUnsigned64(v int64) uint64 { return uint64(v) }
-
 func divU32(ctx *execution.Context) error {
-	bVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned32(bVal)
-	a := toUnsigned32(aVal)
+	bVal := stack.Pop[int32](ctx.Stack)
+	aVal := stack.Pop[int32](ctx.Stack)
+	b := uint32(bVal)
+	a := uint32(aVal)
 	ctx.Stack.Push(int32(a / b))
 	return nil
 }
 
 func divU64(ctx *execution.Context) error {
-	bVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned64(bVal)
-	a := toUnsigned64(aVal)
+	bVal := stack.Pop[int64](ctx.Stack)
+	aVal := stack.Pop[int64](ctx.Stack)
+	b := uint64(bVal)
+	a := uint64(aVal)
 	ctx.Stack.Push(int64(a / b))
 	return nil
 }
 
 func remS32(ctx *execution.Context) error {
-	b, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[int32](ctx.Stack)
+	a := stack.Pop[int32](ctx.Stack)
 	ctx.Stack.Push(a % b)
 	return nil
 }
 
 func remS64(ctx *execution.Context) error {
-	b, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	b := stack.Pop[int64](ctx.Stack)
+	a := stack.Pop[int64](ctx.Stack)
 	ctx.Stack.Push(a % b)
 	return nil
 }
 
 func remU32(ctx *execution.Context) error {
-	bVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned32(bVal)
-	a := toUnsigned32(aVal)
+	bVal := stack.Pop[int32](ctx.Stack)
+	aVal := stack.Pop[int32](ctx.Stack)
+	b := uint32(bVal)
+	a := uint32(aVal)
 	ctx.Stack.Push(int32(a % b))
 	return nil
 }
 
 func remU64(ctx *execution.Context) error {
-	bVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned64(bVal)
-	a := toUnsigned64(aVal)
+	bVal := stack.Pop[int64](ctx.Stack)
+	aVal := stack.Pop[int64](ctx.Stack)
+	b := uint64(bVal)
+	a := uint64(aVal)
 	ctx.Stack.Push(int64(a % b))
 	return nil
 }
 
 func ltU32(ctx *execution.Context) error {
-	bVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned32(bVal)
-	a := toUnsigned32(aVal)
+	bVal := stack.Pop[int32](ctx.Stack)
+	aVal := stack.Pop[int32](ctx.Stack)
+	b := uint32(bVal)
+	a := uint32(aVal)
 	ctx.Stack.Push(boolToInt(a < b))
 	return nil
 }
 
 func ltU64(ctx *execution.Context) error {
-	bVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned64(bVal)
-	a := toUnsigned64(aVal)
+	bVal := stack.Pop[int64](ctx.Stack)
+	aVal := stack.Pop[int64](ctx.Stack)
+	b := uint64(bVal)
+	a := uint64(aVal)
 	ctx.Stack.Push(boolToInt(a < b))
 	return nil
 }
 
 func gtU32(ctx *execution.Context) error {
-	bVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned32(bVal)
-	a := toUnsigned32(aVal)
+	bVal := stack.Pop[int32](ctx.Stack)
+	aVal := stack.Pop[int32](ctx.Stack)
+	b := uint32(bVal)
+	a := uint32(aVal)
 	ctx.Stack.Push(boolToInt(a > b))
 	return nil
 }
 
 func gtU64(ctx *execution.Context) error {
-	bVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned64(bVal)
-	a := toUnsigned64(aVal)
+	bVal := stack.Pop[int64](ctx.Stack)
+	aVal := stack.Pop[int64](ctx.Stack)
+	b := uint64(bVal)
+	a := uint64(aVal)
 	ctx.Stack.Push(boolToInt(a > b))
 	return nil
 }
 
 func leU32(ctx *execution.Context) error {
-	bVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned32(bVal)
-	a := toUnsigned32(aVal)
+	bVal := stack.Pop[int32](ctx.Stack)
+	aVal := stack.Pop[int32](ctx.Stack)
+	b := uint32(bVal)
+	a := uint32(aVal)
 	ctx.Stack.Push(boolToInt(a <= b))
 	return nil
 }
 
 func leU64(ctx *execution.Context) error {
-	bVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned64(bVal)
-	a := toUnsigned64(aVal)
+	bVal := stack.Pop[int64](ctx.Stack)
+	aVal := stack.Pop[int64](ctx.Stack)
+	b := uint64(bVal)
+	a := uint64(aVal)
 	ctx.Stack.Push(boolToInt(a <= b))
 	return nil
 }
 
 func geU32(ctx *execution.Context) error {
-	bVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned32(bVal)
-	a := toUnsigned32(aVal)
+	bVal := stack.Pop[int32](ctx.Stack)
+	aVal := stack.Pop[int32](ctx.Stack)
+	b := uint32(bVal)
+	a := uint32(aVal)
 	ctx.Stack.Push(boolToInt(a >= b))
 	return nil
 }
 
 func geU64(ctx *execution.Context) error {
-	bVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned64(bVal)
-	a := toUnsigned64(aVal)
+	bVal := stack.Pop[int64](ctx.Stack)
+	aVal := stack.Pop[int64](ctx.Stack)
+	b := uint64(bVal)
+	a := uint64(aVal)
 	ctx.Stack.Push(boolToInt(a >= b))
 	return nil
 }
 
 func clz32(ctx *execution.Context) error {
-	aVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a := toUnsigned32(aVal)
+	aVal := stack.Pop[int32](ctx.Stack)
+	a := uint32(aVal)
 	ctx.Stack.Push(int32(bits.LeadingZeros32(a)))
 	return nil
 }
 
 func clz64(ctx *execution.Context) error {
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a := toUnsigned64(aVal)
+	aVal := stack.Pop[int64](ctx.Stack)
+	a := uint64(aVal)
 	ctx.Stack.Push(int64(bits.LeadingZeros64(a)))
 	return nil
 }
 
 func ctz32(ctx *execution.Context) error {
-	aVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a := toUnsigned32(aVal)
+	aVal := stack.Pop[int32](ctx.Stack)
+	a := uint32(aVal)
 	ctx.Stack.Push(int32(bits.TrailingZeros32(a)))
 	return nil
 }
 
 func ctz64(ctx *execution.Context) error {
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a := toUnsigned64(aVal)
+	aVal := stack.Pop[int64](ctx.Stack)
+	a := uint64(aVal)
 	ctx.Stack.Push(int64(bits.TrailingZeros64(a)))
 	return nil
 }
 
 func popcnt64(ctx *execution.Context) error {
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	aVal := stack.Pop[int64](ctx.Stack)
 	ctx.Stack.Push(int64(bits.OnesCount64(uint64(aVal))))
 	return nil
 }
 
 func shl32(ctx *execution.Context) error {
-	bVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned32(bVal)
-	a := toUnsigned32(aVal)
-	ctx.Stack.Push(int32(a << (b % 32)))
+	b := ctx.Stack.PopEntry()
+	a := ctx.Stack.PopEntry()
+	c := a.U32() << (b.U32() % 32)
+	ctx.Stack.Push(int32(c))
 	return nil
 }
 
 func shl64(ctx *execution.Context) error {
-	bVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned64(bVal)
-	a := toUnsigned64(aVal)
+	bVal := stack.Pop[int64](ctx.Stack)
+	aVal := stack.Pop[int64](ctx.Stack)
+	b := uint64(bVal)
+	a := uint64(aVal)
 	ctx.Stack.Push(int64(a << (b % 64)))
 	return nil
 }
 
 func shrS32(ctx *execution.Context) error {
-	bVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned32(bVal)
+	bVal := stack.Pop[int32](ctx.Stack)
+	a := stack.Pop[int32](ctx.Stack)
+	b := uint32(bVal)
 	ctx.Stack.Push(a >> (b % 32))
 	return nil
 }
 
 func shrS64(ctx *execution.Context) error {
-	bVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	a, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned64(bVal)
+	bVal := stack.Pop[int64](ctx.Stack)
+	a := stack.Pop[int64](ctx.Stack)
+	b := uint64(bVal)
 	ctx.Stack.Push(a >> (b % 64))
 	return nil
 }
 
 func shrU32(ctx *execution.Context) error {
-	bVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned32(bVal)
-	a := toUnsigned32(aVal)
+	bVal := stack.Pop[int32](ctx.Stack)
+	aVal := stack.Pop[int32](ctx.Stack)
+	b := uint32(bVal)
+	a := uint32(aVal)
 	ctx.Stack.Push(int32(a >> (b % 32)))
 	return nil
 }
 
 func shrU64(ctx *execution.Context) error {
-	bVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	b := toUnsigned64(bVal)
-	a := toUnsigned64(aVal)
+	bVal := stack.Pop[int64](ctx.Stack)
+	aVal := stack.Pop[int64](ctx.Stack)
+	b := uint64(bVal)
+	a := uint64(aVal)
 	ctx.Stack.Push(int64(a >> (b % 64)))
 	return nil
 }
 
 func rotl32(ctx *execution.Context) error {
-	bVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int32](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	bVal := stack.Pop[int32](ctx.Stack)
+	aVal := stack.Pop[int32](ctx.Stack)
 	b := int(bVal)
-	a := toUnsigned32(aVal)
+	a := uint32(aVal)
 	ctx.Stack.Push(int32(bits.RotateLeft32(a, b)))
 	return nil
 }
 
 func rotl64(ctx *execution.Context) error {
-	bVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
-	aVal, err := castNumber[int64](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	bVal := stack.Pop[int64](ctx.Stack)
+	aVal := stack.Pop[int64](ctx.Stack)
 	b := int(bVal)
-	a := toUnsigned64(aVal)
+	a := uint64(aVal)
 	ctx.Stack.Push(int64(bits.RotateLeft64(a, b)))
 	return nil
 }
 
 func neg[T floats](ctx *execution.Context) error {
-	a, err := castNumber[T](ctx.Stack.Pop())
-	if err != nil {
-		return err
-	}
+	a := stack.Pop[T](ctx.Stack)
 	ctx.Stack.Push(-a)
 	return nil
 }
 
 var ErrTypeMismatch = fmt.Errorf("type mismatch: expected number")
-
-func castNumber[T number](item any) (T, error) {
-	if value, ok := item.(T); ok {
-		return value, nil
-	}
-	if value, ok := item.(int); ok {
-		return T(value), nil
-	}
-	var zero T
-	return zero, fmt.Errorf("%w, got %T", ErrTypeMismatch, item)
-}
 
 func castInt(item any) (int, error) {
 	switch v := item.(type) {
@@ -632,7 +384,7 @@ func castInt(item any) (int, error) {
 var (
 	I32Const = addInstruction(opcodes.I32Const, func(ctx *execution.Context) error {
 		value := ctx.Body.SignedVarint32()
-		ctx.Stack.Push(value)
+		ctx.Stack.PushInt32(value)
 		return nil
 	})
 	I64Const = addInstruction(opcodes.I64Const, func(ctx *execution.Context) error {
@@ -737,108 +489,72 @@ var (
 	})
 
 	F32ConvertI32S = addInstruction(opcodes.F32ConvertI32S, func(ctx *execution.Context) error {
-		a, err := castNumber[int32](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int32](ctx.Stack)
 		ctx.Stack.Push(float32(a))
 		return nil
 	})
 
 	F32ReinterpretI32 = addInstruction(opcodes.F32ReinterpretI32, func(ctx *execution.Context) error {
-		a, err := castNumber[int32](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int32](ctx.Stack)
 		ctx.Stack.Push(math.Float32frombits(uint32(a)))
 		return nil
 	})
 
 	F64ConvertI32S = addInstruction(opcodes.F64ConvertI32S, func(ctx *execution.Context) error {
-		a, err := castNumber[int32](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int32](ctx.Stack)
 		ctx.Stack.Push(float64(a))
 		return nil
 	})
 
 	F64Copysign = addInstruction(opcodes.F64Copysign, func(ctx *execution.Context) error {
-		sign, err := castNumber[float64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
-		mag, err := castNumber[float64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		sign := stack.Pop[float64](ctx.Stack)
+		mag := stack.Pop[float64](ctx.Stack)
 		ctx.Stack.Push(math.Copysign(mag, sign))
 		return nil
 	})
 
 	F64PromoteF32 = addInstruction(opcodes.F64PromoteF32, func(ctx *execution.Context) error {
-		a, err := castNumber[float32](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[float32](ctx.Stack)
 		ctx.Stack.Push(float64(a))
 		return nil
 	})
 
 	F64ReinterpretI64 = addInstruction(opcodes.F64ReinterpretI64, func(ctx *execution.Context) error {
-		a, err := castNumber[int64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int64](ctx.Stack)
 		ctx.Stack.Push(math.Float64frombits(uint64(a)))
 		return nil
 	})
 
 	// i32 sign extension instructions
 	I32Extend8S = addInstruction(opcodes.I32Extend8S, func(ctx *execution.Context) error {
-		a, err := castNumber[int32](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int32](ctx.Stack)
 		ctx.Stack.Push(int32(int8(a)))
 		return nil
 	})
 
 	I32Extend16S = addInstruction(opcodes.I32Extend16S, func(ctx *execution.Context) error {
-		a, err := castNumber[int32](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int32](ctx.Stack)
 		ctx.Stack.Push(int32(int16(a)))
 		return nil
 	})
 
 	// i64 sign extension instructions
 	I64Extend8S = addInstruction(opcodes.I64Extend8S, func(ctx *execution.Context) error {
-		a, err := castNumber[int64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int64](ctx.Stack)
 		ctx.Stack.Push(int64(int8(a)))
 		return nil
 	})
 
 	// i32 reinterpret instruction
 	I32ReinterpretF32 = addInstruction(opcodes.I32ReinterpretF32, func(ctx *execution.Context) error {
-		a, err := castNumber[float32](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[float32](ctx.Stack)
 		ctx.Stack.Push(int32(math.Float32bits(a)))
 		return nil
 	})
 
 	// i32 truncation instruction
 	I32TruncSatF32S = addInstruction(opcodes.I32TruncSatF32S, func(ctx *execution.Context) error {
-		a, err := castNumber[float32](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[float32](ctx.Stack)
 		if math.IsNaN(float64(a)) {
 			ctx.Stack.Push(int32(0))
 		} else if a >= float32(math.MaxInt32) {
@@ -853,94 +569,64 @@ var (
 
 	// i32 wrap instruction
 	I32WrapI64 = addInstruction(opcodes.I32WrapI64, func(ctx *execution.Context) error {
-		a, err := castNumber[int64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int64](ctx.Stack)
 		ctx.Stack.Push(int32(a))
 		return nil
 	})
 
 	// i64 sign extension instructions
 	I64Extend32S = addInstruction(opcodes.I64Extend32S, func(ctx *execution.Context) error {
-		a, err := castNumber[int64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int64](ctx.Stack)
 		ctx.Stack.Push(int64(int32(a)))
 		return nil
 	})
 
 	I64ExtendI32S = addInstruction(opcodes.I64ExtendI32S, func(ctx *execution.Context) error {
-		a, err := castNumber[int32](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int32](ctx.Stack)
 		ctx.Stack.Push(int64(a))
 		return nil
 	})
 
 	I64ExtendI32U = addInstruction(opcodes.I64ExtendI32U, func(ctx *execution.Context) error {
-		a, err := castNumber[int32](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int32](ctx.Stack)
 		ctx.Stack.Push(int64(uint32(a)))
 		return nil
 	})
 
 	// i64 reinterpret instruction
 	I64ReinterpretF64 = addInstruction(opcodes.I64ReinterpretF64, func(ctx *execution.Context) error {
-		a, err := castNumber[float64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[float64](ctx.Stack)
 		ctx.Stack.Push(int64(math.Float64bits(a)))
 		return nil
 	})
 
 	F64ConvertI64S = addInstruction(opcodes.F64ConvertI64S, func(ctx *execution.Context) error {
-		a, err := castNumber[int64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int64](ctx.Stack)
 		ctx.Stack.Push(float64(a))
 		return nil
 	})
 
 	F64ConvertI64U = addInstruction(opcodes.F64ConvertI64U, func(ctx *execution.Context) error {
-		a, err := castNumber[int64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[int64](ctx.Stack)
 		ctx.Stack.Push(float64(uint64(a)))
 		return nil
 	})
 
 	F64ConvertI32U = addInstruction(opcodes.F64ConvertI32U, func(ctx *execution.Context) error {
-		aVal, err := castNumber[int32](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
-		a := toUnsigned32(aVal)
+		aVal := stack.Pop[int32](ctx.Stack)
+		a := uint32(aVal)
 		ctx.Stack.Push(float64(a))
 		return nil
 	})
 
 	F64Sqrt = addInstruction(opcodes.F64Sqrt, func(ctx *execution.Context) error {
-		a, err := castNumber[float64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[float64](ctx.Stack)
 		ctx.Stack.Push(math.Sqrt(a))
 		return nil
 	})
 
 	I32TruncSatF64S = addInstruction(opcodes.I32TruncSatF64S, func(ctx *execution.Context) error {
-		a, err := castNumber[float64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[float64](ctx.Stack)
 		if math.IsNaN(a) {
 			ctx.Stack.Push(int32(0))
 		} else if a >= float64(math.MaxInt32) {
@@ -954,10 +640,7 @@ var (
 	})
 
 	I64TruncSatF64S = addInstruction(opcodes.I64TruncSatF64S, func(ctx *execution.Context) error {
-		a, err := castNumber[float64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[float64](ctx.Stack)
 		if math.IsNaN(a) {
 			ctx.Stack.Push(int64(0))
 		} else if a >= float64(math.MaxInt64) {
@@ -971,10 +654,7 @@ var (
 	})
 
 	I64TruncSatF64U = addInstruction(opcodes.I64TruncSatF64U, func(ctx *execution.Context) error {
-		a, err := castNumber[float64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[float64](ctx.Stack)
 		if math.IsNaN(a) || a <= 0 {
 			ctx.Stack.Push(int64(0))
 		} else if a >= 1.8446744073709552e+19 {
@@ -986,10 +666,7 @@ var (
 	})
 
 	I64TruncF64S = addInstruction(opcodes.I64TruncF64S, func(ctx *execution.Context) error {
-		a, err := castNumber[float64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[float64](ctx.Stack)
 		if math.IsNaN(a) {
 			return execution.ErrInvalidConversionToInteger
 		}
@@ -1001,10 +678,7 @@ var (
 	})
 
 	I64TruncF64U = addInstruction(opcodes.I64TruncF64U, func(ctx *execution.Context) error {
-		a, err := castNumber[float64](ctx.Stack.Pop())
-		if err != nil {
-			return err
-		}
+		a := stack.Pop[float64](ctx.Stack)
 		if math.IsNaN(a) {
 			return execution.ErrInvalidConversionToInteger
 		}

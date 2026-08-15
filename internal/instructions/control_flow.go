@@ -16,7 +16,7 @@ var (
 	})
 
 	Drop = addInstruction(opcodes.Drop, func(ctx *execution.Context) error {
-		ctx.Stack.Pop()
+		ctx.Stack.Drop()
 		return nil
 	})
 

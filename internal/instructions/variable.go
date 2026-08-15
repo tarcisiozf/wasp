@@ -2,6 +2,7 @@ package instructions
 
 import (
 	"fmt"
+
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/opcodes"
 )
@@ -9,18 +10,18 @@ import (
 var (
 	LocalGet = addInstruction(opcodes.LocalGet, func(ctx *execution.Context) error {
 		localIndex := ctx.Body.Varint()
-		value := ctx.Locals.At(localIndex)
-		ctx.Stack.Push(value)
+		value := ctx.Locals.AtEntry(localIndex)
+		ctx.Stack.PushEntry(value)
 		return nil
 	})
 	LocalSet = addInstruction(opcodes.LocalSet, func(ctx *execution.Context) error {
 		localIndex := ctx.Body.Varint()
-		ctx.Locals.Set(localIndex, ctx.Stack.Pop())
+		ctx.Locals.Set(localIndex, ctx.Stack.PopEntry())
 		return nil
 	})
 	LocalTee = addInstruction(opcodes.LocalTee, func(ctx *execution.Context) error {
 		localIndex := ctx.Body.Varint()
-		value := ctx.Stack.Peek()
+		value := ctx.Stack.PeekEntry()
 		ctx.Locals.Set(localIndex, value)
 		return nil
 	})

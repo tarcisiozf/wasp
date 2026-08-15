@@ -9,6 +9,7 @@ import (
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/external"
 	"github.com/tarcisiozf/wasp/internal/memory"
+	"github.com/tarcisiozf/wasp/internal/memory/stack"
 	"github.com/tarcisiozf/wasp/internal/module"
 )
 
@@ -109,10 +110,10 @@ func NewInstance(module *module.Module, store *Store, options ...InstanceOption)
 
 	callStack := memory.NewStackWithCapacity[*execution.CallFrame](64)
 
-	stack := memory.NewStackWithCapacity[any](32)
+	st := stack.NewWithCapacity(32)
 
 	memory := &execution.Memory{
-		Stack:          stack,
+		Stack:          st,
 		Globals:        store.Globals,
 		Memories:       store.Memories,
 		Tables:         store.Tables,
@@ -377,7 +378,7 @@ func (instance *Instance) createLocalCallFrame(index int) (*execution.CallFrame,
 
 	debugEnabled := instance.debug.showInstructions
 
-	locals := memory.NewStackWithCapacity[any](numParams + len(fn.Locals))
+	locals := stack.NewWithCapacity(numParams + len(fn.Locals))
 	locals.PushMany(params...)
 	locals.PushMany(fn.Locals...)
 

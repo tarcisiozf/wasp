@@ -4,6 +4,7 @@ import (
 	"github.com/tarcisiozf/wasp/internal/binary"
 	"github.com/tarcisiozf/wasp/internal/execution"
 	"github.com/tarcisiozf/wasp/internal/memory"
+	"github.com/tarcisiozf/wasp/internal/memory/stack"
 )
 
 func createTestContext(body ...[]byte) *execution.Context {
@@ -12,15 +13,15 @@ func createTestContext(body ...[]byte) *execution.Context {
 		bytes = append(bytes, item...)
 	}
 
-	stack := memory.NewStackWithCapacity[any](16)
-	locals := memory.NewStackWithCapacity[any](16)
+	st := stack.NewWithCapacity(16)
+	locals := stack.NewWithCapacity(16)
 	globals := &memory.Global{}
 
 	iter := binary.NewIterator(bytes)
 
 	mem := &execution.Memory{
 		Globals: globals,
-		Stack:   stack,
+		Stack:   st,
 	}
 
 	return &execution.Context{
