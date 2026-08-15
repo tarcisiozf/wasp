@@ -3,8 +3,9 @@ package binary
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/tarcisiozf/wasp/internal/opcodes"
 	"unsafe"
+
+	"github.com/tarcisiozf/wasp/internal/opcodes"
 )
 
 type Iterator struct {
@@ -216,12 +217,14 @@ func (it *Iterator) Range(start, end int) []byte {
 }
 
 func (it *Iterator) Opcode() opcodes.Opcode {
-	b := uint16(it.Byte())
+	b := it.data[it.pos]
 	if b == 0xFC || b == 0xFD {
-		b2 := uint16(it.Byte())
-		return opcodes.Opcode(b<<8 | b2)
+		b2 := it.data[it.pos+1]
+		it.pos += 2
+		return uint16(b)<<8 | uint16(b2)
 	}
-	return opcodes.Opcode(b)
+	it.pos++
+	return uint16(b)
 }
 
 func (it *Iterator) Move(n int) {
