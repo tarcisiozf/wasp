@@ -1,0 +1,313 @@
+package sparse
+
+import (
+	"unsafe"
+
+	iface "github.com/tarcisiozf/wasp/memory"
+	"github.com/tarcisiozf/wasp/utils/byteutils"
+)
+
+const pageSize = 65536 // 64KiB
+
+var (
+	sizeOfByteSlicePtr = uint64(unsafe.Sizeof(&[]byte{}))
+	sizeOfByteSlice    = uint64(unsafe.Sizeof([]byte{}))
+)
+
+type MemoryOption func(*Memory)
+
+func WithPageMerging(threshold float64) MemoryOption {
+	return func(memory *Memory) {
+		if threshold < 0 || threshold > 1 {
+			panic("threshold must be between 0 and 1")
+		}
+		memory.mergeThreshold = threshold
+	}
+}
+
+type Memory struct {
+	numPages int
+	maxPages int
+
+	pageSize      int
+	pagesWithData int
+	pages         []*[]byte
+
+	mergeThreshold float64
+}
+
+var _ iface.Memory = (*Memory)(nil)
+
+func NewMemory(numPages, maxPages, pageSize int, opts ...MemoryOption) *Memory {
+	if !isPowerOfTwo(pageSize) {
+		panic("memory size must be a power of two")
+	}
+	mem := &Memory{
+		numPages: numPages,
+		maxPages: maxPages,
+		pageSize: pageSize,
+	}
+	for _, opt := range opts {
+		opt(mem)
+	}
+	return mem
+}
+
+func NewMemoryWithData(numPages, maxPages, pageSize int, data []byte, opts ...MemoryOption) *Memory {
+	size := len(data)
+	mem := NewMemory(numPages, maxPages, pageSize, opts...)
+	if size == 0 {
+		return mem
+	}
+
+	for offset := 0; offset < size; offset += pageSize {
+		end := min(offset+pageSize, size)
+		page := data[offset:end]
+		if byteutils.IsEmpty(page) {
+			continue
+		}
+		mem.Store(offset, page)
+	}
+
+	return mem
+}
+
+func (mem *Memory) Load(offset int, size int) []byte {
+	if size == 0 {
+		return nil
+	}
+	if offset < 0 || offset+size > mem.numPages*pageSize {
+		panic("memory load out of bounds")
+	}
+
+	data := make([]byte, size)
+
+	pageIdx := offset / mem.pageSize
+	pageOff := offset % mem.pageSize
+	written := 0
+	for written < size {
+		n := min(size-written, mem.pageSize-pageOff)
+		mem.loadFromPage(pageIdx, pageOff, data[written:], n)
+		written += n
+		pageIdx++
+		pageOff = 0
+	}
+
+	return data
+}
+
+func (mem *Memory) Store(offset int, bytes []byte) {
+	size := len(bytes)
+	if size == 0 {
+		return
+	}
+	if offset < 0 || offset+size > mem.numPages*pageSize {
+		panic("memory store out of bounds")
+	}
+
+	mem.ensurePages(offset, size)
+
+	isEmpty := byteutils.IsEmpty(bytes)
+
+	pageIdx := offset / mem.pageSize
+	pageOff := offset % mem.pageSize
+	written := 0
+	for written < size {
+		n := min(size-written, mem.pageSize-pageOff)
+
+		if !isEmpty || mem.hasPage(pageIdx) {
+			mem.writeToPage(pageIdx, pageOff, bytes[written:written+n])
+			if isEmpty {
+				// current write is empty but page had data, check if we can delete it
+				mem.deletePageIfEmpty(pageIdx)
+			}
+		}
+
+		written += n
+		pageIdx++
+		pageOff = 0
+	}
+
+	if mem.mergeThreshold > 0 && mem.shouldMergePages() {
+		mem.mergePages()
+	}
+}
+
+func (mem *Memory) Grow(delta int) bool {
+	if delta < 0 {
+		return false
+	}
+	if mem.maxPages > 0 && mem.numPages+delta > mem.maxPages {
+		return false
+	}
+	mem.numPages += delta
+	return true
+}
+
+func (mem *Memory) NumPages() int {
+	return mem.numPages
+}
+
+func (mem *Memory) PageSize() int {
+	return pageSize
+}
+
+func (mem *Memory) MaxPages() int {
+	return mem.maxPages
+}
+
+func (mem *Memory) Size() int {
+	return mem.pagesWithData * mem.pageSize
+}
+
+func (mem *Memory) SizeOf() uint64 {
+	sm := uint64(unsafe.Sizeof(Memory{}))
+	slice := uint64(len(mem.pages)) * sizeOfByteSlicePtr
+	pages := uint64(mem.pagesWithData) * sizeOfByteSlice
+	data := uint64(mem.pagesWithData) * uint64(mem.pageSize)
+	return sm + slice + pages + data
+}
+
+func (mem *Memory) Data() []byte {
+	return mem.Load(0, mem.numPages*pageSize)
+}
+
+func (mem *Memory) Clone() *Memory {
+	pages := make([]*[]byte, len(mem.pages))
+	for i, ptr := range mem.pages {
+		if ptr == nil {
+			continue
+		}
+		clone := make([]byte, mem.pageSize)
+		copy(clone, *ptr)
+		pages[i] = &clone
+	}
+
+	return &Memory{
+		numPages:       mem.numPages,
+		maxPages:       mem.maxPages,
+		pageSize:       mem.pageSize,
+		pagesWithData:  mem.pagesWithData,
+		pages:          pages,
+		mergeThreshold: mem.mergeThreshold,
+	}
+}
+
+func (mem *Memory) writeToPage(pageIdx int, pageOff int, bytes []byte) {
+	var page []byte
+	if mem.pages[pageIdx] == nil {
+		page = make([]byte, mem.pageSize)
+		mem.pages[pageIdx] = &page
+		mem.pagesWithData++
+	} else {
+		page = *mem.pages[pageIdx]
+	}
+
+	copy(page[pageOff:], bytes)
+}
+
+func (mem *Memory) ensurePages(offset int, size int) {
+	requiredSize := ((offset + size) / mem.pageSize) + 1
+	if requiredSize <= len(mem.pages) {
+		return
+	}
+
+	pages := make([]*[]byte, requiredSize)
+	copy(pages, mem.pages)
+	mem.pages = pages
+}
+
+func (mem *Memory) loadFromPage(pageIdx int, pageOff int, dest []byte, n int) {
+	if pageIdx >= len(mem.pages) || mem.pages[pageIdx] == nil {
+		return
+	}
+	page := *mem.pages[pageIdx]
+	copy(dest, page[pageOff:pageOff+n])
+}
+
+func (mem *Memory) mergePages() {
+	newPageSize := mem.pageSize * 2
+	newPages := make([]*[]byte, (len(mem.pages)+1)/2)
+	for i := 0; i < len(mem.pages); i += 2 {
+		page1 := mem.pages[i]
+		var page2 *[]byte
+		if i+1 < len(mem.pages) {
+			page2 = mem.pages[i+1]
+		}
+		// skip if both pages are nil
+		if page1 == nil && page2 == nil {
+			continue
+		}
+		var mergedPage []byte
+		if page1 != nil {
+			mergedPage = append(mergedPage, *page1...)
+		} else {
+			mergedPage = make([]byte, mem.pageSize)
+		}
+		if page2 != nil {
+			mergedPage = append(mergedPage, *page2...)
+		} else {
+			mergedPage = append(mergedPage, make([]byte, mem.pageSize)...)
+		}
+		newPages[i/2] = &mergedPage
+	}
+
+	pagesWithData := 0
+	for _, page := range newPages {
+		if page != nil {
+			pagesWithData++
+		}
+	}
+
+	mem.pageSize = newPageSize
+	mem.pagesWithData = pagesWithData
+	mem.pages = newPages
+
+	for i := 0; i < len(newPages); i++ {
+		mem.deletePageIfEmpty(i)
+	}
+}
+
+func (mem *Memory) shouldMergePages() bool {
+	currentOverhead := calculateOverhead(len(mem.pages), mem.pagesWithData, mem.pageSize)
+	if currentOverhead < mem.mergeThreshold {
+		return false
+	}
+
+	previewOverhead := calculateOverhead(len(mem.pages)/2, mem.pagesWithData, mem.pageSize*2)
+	return previewOverhead < currentOverhead
+}
+
+func (mem *Memory) hasPage(index int) bool {
+	return index >= 0 && index < len(mem.pages) && mem.pages[index] != nil
+}
+
+func (mem *Memory) deletePageIfEmpty(index int) {
+	if !mem.hasPage(index) {
+		return
+	}
+	page := *mem.pages[index]
+	if byteutils.IsEmpty(page) {
+		mem.pages[index] = nil
+		mem.pagesWithData--
+	}
+}
+
+func calculateOverhead(numPages, numPagesWithData, pageSize int) float64 {
+	cost := calculateOverheadCost(numPages, numPagesWithData)
+	size := pageSize * numPagesWithData
+	return float64(cost) / float64(size)
+}
+
+func calculateOverheadCost(numPages, numPagesWithData int) (cost uint64) {
+	if numPagesWithData == 0 {
+		return 0
+	}
+	cost += uint64(numPages) * sizeOfByteSlicePtr      // slice of page pointers
+	cost += uint64(numPagesWithData) * sizeOfByteSlice // slice header for the page
+	return cost
+}
+
+func isPowerOfTwo(n int) bool {
+	return n > 0 && (n&(n-1)) == 0
+}
